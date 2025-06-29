@@ -56,74 +56,96 @@ export interface SyncLog {
     itemsProcessed: number;
 }
 
+interface TenantData {
+    sources: DataSource[];
+    chunks: DocumentChunk[];
+    logs: SyncLog[];
+}
 
 class KnowledgeBaseService {
-  private documentChunks: DocumentChunk[] = [];
-  private dataSources: DataSource[] = [];
-  private syncLogs: SyncLog[] = [];
+  private tenantData: Record<string, TenantData> = {};
 
   constructor() {
-    // Initialize with some default data
-    const megacorpSources: DataSource[] = [
-        { id: 'megacorp-source-1', tenantId: 'megacorp', type: 'document', name: 'Initial Knowledge.docx', status: 'Synced', lastSynced: 'Initial Setup', uploader: 'System', itemCount: 2 },
-        { id: 'megacorp-source-2', tenantId: 'megacorp', type: 'website', name: 'https://en.wikipedia.org/wiki/Mega-corporation', status: 'Error', lastSynced: '1 day ago', itemCount: 87 },
-    ];
+    // Initialize with default data for tenants
+    this.tenantData['megacorp'] = {
+        sources: [
+            { id: 'megacorp-source-1', tenantId: 'megacorp', type: 'document', name: 'Initial Knowledge.docx', status: 'Synced', lastSynced: 'Initial Setup', uploader: 'System', itemCount: 2 },
+            { id: 'megacorp-source-2', tenantId: 'megacorp', type: 'website', name: 'https://en.wikipedia.org/wiki/Mega-corporation', status: 'Error', lastSynced: '1 day ago', itemCount: 87 },
+        ],
+        chunks: [
+            { id: 'default-1', tenantId: 'megacorp', sourceId: 'megacorp-source-1', title: 'Initial Knowledge', content: "RFP CoPilot is an AI-powered platform designed to streamline the Request for Proposal (RFP) response process. Its core features include AI-driven document summarization, question extraction, and draft answer generation from an internal knowledge base.", metadata: { sourceType: 'document', chunkIndex: 0 } },
+            { id: 'default-2', tenantId: 'megacorp', sourceId: 'megacorp-source-1', title: 'Initial Knowledge', content: "The platform supports various compliance standards like SOC 2 and ISO 27001. All customer data is encrypted at rest using AES-256 and in transit using TLS 1.2+.", metadata: { sourceType: 'document', chunkIndex: 1 } },
+        ],
+        logs: [],
+    };
+    this.tenantData['acme'] = {
+        sources: [
+            { id: 'acme-source-1', tenantId: 'acme', type: 'document', name: 'Acme Inc. Onboarding.pdf', status: 'Synced', lastSynced: 'Initial Setup', uploader: 'System', itemCount: 1 }
+        ],
+        chunks: [
+            { id: 'default-3', tenantId: 'acme', sourceId: 'acme-source-1', title: 'Acme Inc. Onboarding', content: 'Acme Inc. provides enterprise solutions for supply chain management. Our flagship product, "LogiStream", optimizes logistics from end to end.', metadata: { sourceType: 'document', chunkIndex: 0 } }
+        ],
+        logs: [],
+    };
+  }
 
-    // NOTE: Initial chunks do not have embeddings and will not be found by semantic search.
-    // Only content added at runtime will be embedded and searchable.
-    const megacorpChunks: DocumentChunk[] = [
-        { id: 'default-1', tenantId: 'megacorp', sourceId: 'megacorp-source-1', title: 'Initial Knowledge', content: "RFP CoPilot is an AI-powered platform designed to streamline the Request for Proposal (RFP) response process. Its core features include AI-driven document summarization, question extraction, and draft answer generation from an internal knowledge base.", metadata: { sourceType: 'document', chunkIndex: 0 } },
-        { id: 'default-2', tenantId: 'megacorp', sourceId: 'megacorp-source-1', title: 'Initial Knowledge', content: "The platform supports various compliance standards like SOC 2 and ISO 27001. All customer data is encrypted at rest using AES-256 and in transit using TLS 1.2+.", metadata: { sourceType: 'document', chunkIndex: 1 } },
-    ];
-    
-    const acmeSources: DataSource[] = [
-        { id: 'acme-source-1', tenantId: 'acme', type: 'document', name: 'Acme Inc. Onboarding.pdf', status: 'Synced', lastSynced: 'Initial Setup', uploader: 'System', itemCount: 1 }
-    ];
-    const acmeChunks: DocumentChunk[] = [
-        { id: 'default-3', tenantId: 'acme', sourceId: 'acme-source-1', title: 'Acme Inc. Onboarding', content: 'Acme Inc. provides enterprise solutions for supply chain management. Our flagship product, "LogiStream", optimizes logistics from end to end.', metadata: { sourceType: 'document', chunkIndex: 0 } }
-    ];
-
-    this.dataSources.push(...megacorpSources, ...acmeSources);
-    this.documentChunks.push(...megacorpChunks, ...acmeChunks);
+  private _ensureTenantData(tenantId: string) {
+    if (!this.tenantData[tenantId]) {
+      this.tenantData[tenantId] = {
+        sources: [],
+        chunks: [],
+        logs: [],
+      };
+    }
   }
 
   // == SOURCE MANAGEMENT ==
   public getAllDataSources(): DataSource[] {
-    return this.dataSources;
+    return Object.values(this.tenantData).flatMap(data => data.sources);
   }
   
   public getDataSources(tenantId: string): DataSource[] {
-    return this.dataSources.filter(source => source.tenantId === tenantId).sort((a, b) => a.name.localeCompare(b.name));
+    const sources = this.tenantData[tenantId]?.sources || [];
+    // Return a copy and sort it
+    return [...sources].sort((a, b) => a.name.localeCompare(b.name));
   }
 
   public getDataSource(tenantId: string, sourceId: string): DataSource | undefined {
-    return this.dataSources.find(s => s.id === sourceId && s.tenantId === tenantId);
+    return this.tenantData[tenantId]?.sources.find(s => s.id === sourceId);
   }
 
   public addDataSource(source: Omit<DataSource, 'id'>): DataSource {
+    this._ensureTenantData(source.tenantId);
     const newSource: DataSource = {
       ...source,
       id: `${source.tenantId}-${source.type}-${Date.now()}`
     };
-    this.dataSources.unshift(newSource);
+    this.tenantData[source.tenantId].sources.unshift(newSource);
     return newSource;
   }
   
   public updateDataSource(tenantId: string, sourceId: string, updates: Partial<DataSource>): DataSource | undefined {
-      const sourceIndex = this.dataSources.findIndex(s => s.id === sourceId && s.tenantId === tenantId);
+      this._ensureTenantData(tenantId);
+      const sources = this.tenantData[tenantId].sources;
+      const sourceIndex = sources.findIndex(s => s.id === sourceId);
       if (sourceIndex > -1) {
-          this.dataSources[sourceIndex] = { ...this.dataSources[sourceIndex], ...updates };
-          return this.dataSources[sourceIndex];
+          sources[sourceIndex] = { ...sources[sourceIndex], ...updates };
+          return sources[sourceIndex];
       }
       return undefined;
   }
 
   public deleteDataSource(tenantId: string, sourceId: string): boolean {
-    const initialLength = this.dataSources.length;
-    this.dataSources = this.dataSources.filter(s => !(s.id === sourceId && s.tenantId === tenantId));
+    const tenantSources = this.tenantData[tenantId]?.sources;
+    if (!tenantSources) return false;
+
+    const initialLength = tenantSources.length;
+    this.tenantData[tenantId].sources = tenantSources.filter(s => s.id !== sourceId);
+    
     // Also delete associated chunks
-    this.documentChunks = this.documentChunks.filter(c => !(c.sourceId === sourceId && c.tenantId === tenantId));
-    return this.dataSources.length < initialLength;
+    this.deleteChunksBySourceId(tenantId, sourceId);
+
+    return this.tenantData[tenantId].sources.length < initialLength;
   }
 
   /**
@@ -157,6 +179,7 @@ class KnowledgeBaseService {
 
   // == CHUNK MANAGEMENT ==
   public async addChunks(tenantId: string, sourceId: string, sourceType: DataSourceType, title: string, chunks: string[], url?: string) {
+    this._ensureTenantData(tenantId);
     // Generate embeddings for all chunks in parallel for efficiency
     const chunkEmbeddings = await Promise.all(
         chunks.map(content => embeddingService.generateEmbedding(content))
@@ -175,18 +198,21 @@ class KnowledgeBaseService {
         chunkIndex: index,
       }
     }));
-    this.documentChunks.unshift(...newChunks);
+    this.tenantData[tenantId].chunks.unshift(...newChunks);
   }
 
   public deleteChunksBySourceId(tenantId: string, sourceId:string): boolean {
-    const initialLength = this.documentChunks.length;
-    this.documentChunks = this.documentChunks.filter(c => !(c.sourceId === sourceId && c.tenantId === tenantId));
-    return this.documentChunks.length < initialLength;
+    const tenantChunks = this.tenantData[tenantId]?.chunks;
+    if (!tenantChunks) return false;
+    
+    const initialLength = tenantChunks.length;
+    this.tenantData[tenantId].chunks = tenantChunks.filter(c => c.sourceId !== sourceId);
+    return this.tenantData[tenantId].chunks.length < initialLength;
   }
 
   public async searchChunks(tenantId: string, query: string, topK = 5): Promise<DocumentChunk[]> {
     // Filter for chunks that belong to the tenant and have an embedding.
-    const tenantChunks = this.documentChunks.filter(chunk => chunk.tenantId === tenantId && chunk.embedding);
+    const tenantChunks = this.tenantData[tenantId]?.chunks.filter(chunk => chunk.embedding) || [];
     
     if (tenantChunks.length === 0 || !query) {
         return [];
@@ -215,12 +241,13 @@ class KnowledgeBaseService {
   // == SYNCING & LOGGING ==
   
   private async _addSyncLog(log: Omit<SyncLog, 'id' | 'timestamp'>) {
+    this._ensureTenantData(log.tenantId);
     const newLog = {
       ...log,
       id: `${log.sourceId}-log-${Date.now()}`,
       timestamp: new Date().toISOString(),
     };
-    this.syncLogs.unshift(newLog);
+    this.tenantData[log.tenantId].logs.unshift(newLog);
   }
 
   private async _syncWebsiteSource(source: DataSource) {
