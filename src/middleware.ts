@@ -15,25 +15,32 @@ export const config = {
 
 export default function middleware(req: NextRequest) {
   const url = req.nextUrl;
-  const hostname = req.headers.get('host')!;
+  
+  // Use `x-forwarded-host` if present, otherwise use `host`
+  const hostname = req.headers.get('x-forwarded-host') || req.headers.get('host')!;
 
-  const rootDomain = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'localhost:9002').replace(/https?:\/\//, '');
+  // For local dev, rootDomain is 'localhost'. In production, set NEXT_PUBLIC_ROOT_DOMAIN.
+  // It should not contain the protocol or port.
+  const rootDomain = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'localhost');
+
+  // Remove port from the current host
+  const hostWithoutPort = hostname.split(':')[0];
 
   const path = url.pathname;
-  
-  // Prevent redirect loops on the login page
+
+  // Prevent redirect loops
   if (path === '/login') {
     return NextResponse.next();
   }
-
-  // Get the subdomain from the hostname
-  const subdomain = hostname.replace(`.${rootDomain}`, '');
-
-  // If the hostname is the root domain, rewrite to the login page
-  if (hostname === rootDomain || hostname === `www.${rootDomain}`) {
+  
+  // If we're on the root domain, rewrite to the login page
+  if (hostWithoutPort === rootDomain || hostWithoutPort === `www.${rootDomain}`) {
     return NextResponse.rewrite(new URL('/login', req.url));
   }
+
+  // Extract subdomain
+  const subdomain = hostWithoutPort.replace(`.${rootDomain}`, '');
   
-  // If we have a subdomain, rewrite the URL to be /<subdomain>/...
+  // Rewrite the path to include the subdomain
   return NextResponse.rewrite(new URL(`/${subdomain}${path}`, req.url));
 }
