@@ -1,3 +1,4 @@
+
 "use server"
 
 import { autoSummarizeRfp } from "@/ai/flows/auto-summarize-rfp"
@@ -5,6 +6,7 @@ import { generateDraftAnswer } from "@/ai/flows/smart-answer-generation"
 import { aiExpertReview } from "@/ai/flows/ai-expert-review"
 import { extractRfpQuestions } from "@/ai/flows/extract-rfp-questions"
 import { parseDocument } from "@/ai/flows/parse-document"
+import { ingestWebsiteContent } from "@/ai/flows/ingest-website-content"
 
 export async function summarizeRfpAction(rfpText: string) {
   if (!rfpText) {
@@ -26,10 +28,11 @@ export async function generateAnswerAction(question: string, context: string) {
   try {
     const result = await generateDraftAnswer({
       rfpQuestion: question,
-      knowledgeBaseContent: context,
+      // Simulate retrieval by creating a single chunk from the context string
+      knowledgeBaseChunks: [{ content: context, source: "Internal Knowledge Base" }],
       tone: "Formal",
     })
-    return { answer: result.draftAnswer }
+    return { answer: result.draftAnswer, sources: result.sources }
   } catch (e) {
     console.error(e)
     return { error: "Failed to generate answer." }
@@ -80,6 +83,20 @@ export async function parseDocumentAction(documentDataUri: string) {
     } catch (e) {
         console.error(e);
         const errorMessage = e instanceof Error ? e.message : "Failed to parse document.";
+        return { error: errorMessage };
+    }
+}
+
+export async function ingestWebsiteAction(url: string) {
+    if (!url) {
+        return { error: "URL cannot be empty." };
+    }
+    try {
+        const result = await ingestWebsiteContent({ url });
+        return { success: true, ...result };
+    } catch (e) {
+        console.error(e);
+        const errorMessage = e instanceof Error ? e.message : "Failed to ingest website.";
         return { error: errorMessage };
     }
 }

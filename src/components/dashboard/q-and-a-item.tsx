@@ -1,18 +1,12 @@
+
 "use client"
 
 import { useState } from "react"
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
@@ -35,6 +29,7 @@ import {
   Clipboard,
   ClipboardCheck,
   Tag,
+  BookOpenCheck,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { generateAnswerAction, reviewAnswerAction } from "@/app/actions"
@@ -49,6 +44,7 @@ type QAndAItemProps = {
 
 export function QAndAItem({ question, id, category, compliance }: QAndAItemProps) {
   const [answer, setAnswer] = useState("")
+  const [sources, setSources] = useState<string[]>([])
   const [review, setReview] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
   const [isReviewing, setIsReviewing] = useState(false)
@@ -58,6 +54,7 @@ export function QAndAItem({ question, id, category, compliance }: QAndAItemProps
   const handleGenerateAnswer = async () => {
     setIsGenerating(true)
     setReview("")
+    setSources([])
     // In a real app, context would come from a knowledge base
     const context = "RFP CoPilot is an AI-powered platform to streamline RFP responses. It uses generative AI for summarization, answer drafting, and expert review. It supports various compliance standards and offers customizable templates."
     const result = await generateAnswerAction(question, context)
@@ -69,6 +66,7 @@ export function QAndAItem({ question, id, category, compliance }: QAndAItemProps
       })
     } else {
       setAnswer(result.answer || "")
+      setSources(result.sources || [])
     }
     setIsGenerating(false)
   }
@@ -195,6 +193,19 @@ export function QAndAItem({ question, id, category, compliance }: QAndAItemProps
             <AlertTitle>AI Expert Review</AlertTitle>
             <AlertDescription className="prose prose-sm max-w-none">
               {review}
+            </AlertDescription>
+          </Alert>
+        )}
+        {sources.length > 0 && (
+          <Alert variant="secondary">
+            <BookOpenCheck className="h-4 w-4" />
+            <AlertTitle>Sources Used</AlertTitle>
+            <AlertDescription>
+              <ul className="list-disc list-inside text-xs">
+                {sources.map((source, index) => (
+                    <li key={index}>{source}</li>
+                ))}
+              </ul>
             </AlertDescription>
           </Alert>
         )}
