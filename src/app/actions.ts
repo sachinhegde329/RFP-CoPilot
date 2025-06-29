@@ -9,6 +9,7 @@ import { parseDocument } from "@/ai/flows/parse-document"
 import { knowledgeBaseService } from "@/lib/knowledge-base"
 import { getTenantBySubdomain, plansConfig } from "@/lib/tenants"
 import { stripe } from "@/lib/stripe"
+import { hasFeatureAccess } from "@/lib/access-control"
 
 
 // This action is used by the main dashboard's RfpSummaryCard
@@ -102,7 +103,8 @@ export async function reviewAnswerAction(question: string, answer: string, tenan
     return { error: "Tenant not found." };
   }
 
-  if (tenant.plan === 'free') {
+  const canAccess = hasFeatureAccess(tenant, 'aiExpertReview');
+  if (!canAccess) {
     return { error: "AI Expert Review is a premium feature. Please upgrade your plan to use it." };
   }
 

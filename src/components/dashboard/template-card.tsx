@@ -20,11 +20,14 @@ import {
 } from "@/components/ui/select"
 import { useTenant } from "@/components/providers/tenant-provider"
 import Link from "next/link"
+import { hasFeatureAccess } from "@/lib/access-control"
 
 export function TemplateCard() {
   const { tenant } = useTenant()
+  const canAccess = hasFeatureAccess(tenant, 'customTemplates');
 
-  if (tenant.plan === "free") {
+
+  if (!canAccess) {
     return (
       <Card className="relative overflow-hidden">
         <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10" />
@@ -72,7 +75,7 @@ export function TemplateCard() {
           <Lock className="size-8 text-primary mb-2" />
           <h3 className="font-semibold mb-1">Unlock Custom Templates</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Upgrade to use custom branding and export formats.
+            Upgrade to a Growth plan to use custom branding and formats.
           </p>
           <Button asChild>
             <Link href={`/pricing?tenant=${tenant.subdomain}`}>View Plans</Link>

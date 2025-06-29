@@ -1,10 +1,13 @@
 
+export type AddOn = 'analytics' | 'customTemplates' | 'complianceValidation';
+
 export interface Tenant {
   id: string;
   name: string;
   subdomain: string;
   domains: string[];
   plan: 'free' | 'starter' | 'growth' | 'enterprise';
+  addOns?: AddOn[];
   branding: {
     logoUrl: string;
     logoDataAiHint: string;
@@ -14,6 +17,25 @@ export interface Tenant {
     seats: number;
   };
 }
+
+export const addOnsConfig = {
+  analytics: {
+    id: 'analytics' as const,
+    name: 'Advanced Analytics',
+    description: 'Unlock detailed insights into your RFP process and win rates.',
+  },
+  customTemplates: {
+    id: 'customTemplates' as const,
+    name: 'Custom Export Templates',
+    description: 'Create and manage branded templates for polished, professional responses.',
+  },
+  complianceValidation: {
+    id: 'complianceValidation' as const,
+    name: 'Compliance Validation',
+    description: 'Automatically check answers against compliance standards like SOC 2 and ISO 27001.',
+  }
+};
+
 
 export const plansConfig = {
   free: { seats: 2, fileSizeMb: 2 },
@@ -29,6 +51,7 @@ const tenants: Omit<Tenant, 'limits'>[] = [
     subdomain: 'acme',
     domains: ['acme.com', 'acmeinc.com'],
     plan: 'enterprise',
+    addOns: [],
     branding: {
       logoUrl: 'https://placehold.co/128x32.png',
       logoDataAiHint: 'modern logo',
@@ -40,6 +63,7 @@ const tenants: Omit<Tenant, 'limits'>[] = [
     subdomain: 'megacorp',
     domains: ['megacorp.com'],
     plan: 'free',
+    addOns: [],
     branding: {
       logoUrl: 'https://placehold.co/128x32.png',
       logoDataAiHint: 'corporate logo',
@@ -74,6 +98,7 @@ function createFreeTenant(subdomain: string): Tenant {
     subdomain: sanitizedSubdomain,
     domains: [`${sanitizedSubdomain}.com`], // Best guess for domain
     plan: 'free',
+    addOns: [],
     branding: {
       logoUrl: 'https://placehold.co/128x32.png',
       logoDataAiHint: 'generic logo',

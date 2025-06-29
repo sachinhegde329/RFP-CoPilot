@@ -1,3 +1,4 @@
+
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -6,6 +7,7 @@ import { CheckCircle2, XCircle, Lock } from "lucide-react"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { hasFeatureAccess } from "@/lib/access-control"
 
 const complianceChecks = [
   { name: "ISO 27001", status: "passed" },
@@ -16,8 +18,9 @@ const complianceChecks = [
 
 export function ComplianceCard() {
   const { tenant } = useTenant()
+  const canAccess = hasFeatureAccess(tenant, 'complianceValidation');
 
-  if (tenant.plan === "free") {
+  if (!canAccess) {
     return (
       <Card className="relative overflow-hidden">
         <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10" />
@@ -49,7 +52,7 @@ export function ComplianceCard() {
              <Lock className="size-8 text-primary mb-2" />
              <h3 className="font-semibold mb-1">Upgrade to unlock</h3>
              <p className="text-sm text-muted-foreground mb-4">
-               Access compliance validation and other premium features.
+               Compliance Validation is an Enterprise feature.
              </p>
              <Button asChild>
                 <Link href={`/pricing?tenant=${tenant.subdomain}`}>View Plans</Link>

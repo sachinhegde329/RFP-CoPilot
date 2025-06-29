@@ -1,3 +1,4 @@
+
 'use client'
 
 import { SidebarInset } from "@/components/ui/sidebar"
@@ -7,11 +8,13 @@ import { BarChartHorizontalBig, Lock } from "lucide-react"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
+import { hasFeatureAccess } from "@/lib/access-control"
 
 export default function AnalyticsPage() {
   const { tenant } = useTenant()
+  const canAccess = hasFeatureAccess(tenant, 'analytics');
 
-  if (tenant.plan === "free") {
+  if (!canAccess) {
     return (
       <SidebarInset className="flex-1">
         <DashboardHeader />
@@ -35,7 +38,7 @@ export default function AnalyticsPage() {
               <Lock className="size-8 text-primary mb-2" />
               <h3 className="font-semibold mb-1">Upgrade to Unlock Analytics</h3>
               <p className="text-sm text-muted-foreground mb-4">
-                Get advanced insights into your RFP performance on a paid plan.
+                This feature is available on our Growth and Enterprise plans.
               </p>
               <Button asChild>
                 <Link href={`/pricing?tenant=${tenant.subdomain}`}>View Plans</Link>
