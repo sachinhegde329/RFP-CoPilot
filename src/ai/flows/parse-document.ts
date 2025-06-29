@@ -11,7 +11,6 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import mammoth from 'mammoth';
-import pdf from 'pdf-parse';
 import * as xlsx from 'xlsx';
 import { marked } from 'marked';
 
@@ -68,6 +67,7 @@ const parseDocumentFlow = ai.defineFlow(
         try {
             switch (mimeType) {
                 case 'application/pdf':
+                    const pdf = require('pdf-parse');
                     const pdfData = await pdf(buffer);
                     extractedText = pdfData.text;
                     break;
