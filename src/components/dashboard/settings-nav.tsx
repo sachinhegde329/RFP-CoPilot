@@ -1,3 +1,4 @@
+
 'use client'
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -20,7 +21,7 @@ export function SettingsNav() {
 
     return (
         <aside className="flex flex-col w-full md:w-1/5 shrink-0">
-            <nav className="flex flex-row md:flex-col gap-1">
+            <nav className="flex flex-row flex-wrap md:flex-col gap-1">
                 {navItems.map(item => (
                     <Link
                         key={item.href}
