@@ -1,3 +1,4 @@
+
 export interface Tenant {
   id: string;
   name: string;
@@ -7,6 +8,9 @@ export interface Tenant {
   branding: {
     logoUrl: string;
     logoDataAiHint: string;
+  };
+  limits: {
+    fileSizeMb: number;
   };
 }
 
@@ -21,6 +25,9 @@ const tenants: Tenant[] = [
       logoUrl: 'https://placehold.co/128x32.png',
       logoDataAiHint: 'modern logo',
     },
+    limits: {
+      fileSizeMb: 10,
+    },
   },
   {
     id: 'megacorp',
@@ -31,6 +38,9 @@ const tenants: Tenant[] = [
     branding: {
       logoUrl: 'https://placehold.co/128x32.png',
       logoDataAiHint: 'corporate logo',
+    },
+    limits: {
+      fileSizeMb: 2,
     },
   },
 ];
@@ -59,6 +69,9 @@ function createFreeTenant(subdomain: string): Tenant {
     branding: {
       logoUrl: 'https://placehold.co/128x32.png',
       logoDataAiHint: 'generic logo',
+    },
+    limits: {
+      fileSizeMb: 2,
     },
   };
 }

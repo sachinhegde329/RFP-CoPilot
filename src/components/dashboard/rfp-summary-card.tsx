@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState, useRef, type ChangeEvent } from "react"
@@ -16,6 +17,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { UploadCloud, Sparkles, Loader2, CalendarClock } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { parseDocumentAction } from "@/app/actions"
+import { useTenant } from "@/components/providers/tenant-provider"
 
 type RfpSummaryCardProps = {
   summary: string;
@@ -28,6 +30,7 @@ export function RfpSummaryCard({ summary, isLoading, onProcessRfp }: RfpSummaryC
   const [isUploading, setIsUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
+  const { tenant } = useTenant()
 
   const handleProcess = () => {
     onProcessRfp(rfpText);
@@ -41,13 +44,26 @@ export function RfpSummaryCard({ summary, isLoading, onProcessRfp }: RfpSummaryC
     const file = event.target.files?.[0]
     if (!file) return
 
+    const fileSizeLimitBytes = tenant.limits.fileSizeMb * 1024 * 1024;
+    if (file.size > fileSizeLimitBytes) {
+      toast({
+          variant: "destructive",
+          title: "File Too Large",
+          description: `Your file is ${(file.size / 1024 / 1024).toFixed(2)}MB, which exceeds the ${tenant.limits.fileSizeMb}MB limit for the ${tenant.plan} plan.`,
+      });
+      if(fileInputRef.current) {
+          fileInputRef.current.value = ""
+      }
+      return;
+    }
+
     setIsUploading(true)
 
     const reader = new FileReader()
     reader.readAsDataURL(file)
     reader.onload = async () => {
         const dataUri = reader.result as string;
-        const result = await parseDocumentAction(dataUri)
+        const result = await parseDocumentAction(dataUri, tenant.id)
 
         if (result.error || !result.text) {
             toast({

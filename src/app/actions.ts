@@ -12,10 +12,30 @@ import { stripe } from "@/lib/stripe"
 
 
 // This action is used by the main dashboard's RfpSummaryCard
-export async function parseDocumentAction(documentDataUri: string) {
+export async function parseDocumentAction(documentDataUri: string, tenantId: string) {
     if (!documentDataUri) {
         return { error: "Document data cannot be empty." };
     }
+     if (!tenantId) {
+        return { error: "Tenant ID is missing." };
+    }
+
+    const tenant = getTenantBySubdomain(tenantId);
+    if (!tenant) {
+        return { error: "Invalid tenant." };
+    }
+
+    const base64Data = documentDataUri.split(',')[1];
+    if (!base64Data) {
+        return { error: "Invalid document data format." };
+    }
+    const sizeInBytes = Math.ceil(base64Data.length * 3 / 4);
+    const sizeInMb = sizeInBytes / (1024 * 1024);
+    
+    if (sizeInMb > tenant.limits.fileSizeMb) {
+        return { error: `File size of ${sizeInMb.toFixed(2)}MB exceeds the ${tenant.limits.fileSizeMb}MB limit for your plan. Please upgrade or upload a smaller file.` };
+    }
+
     try {
         const result = await parseDocument({ documentDataUri });
         return { success: true, text: result.text };
