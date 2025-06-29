@@ -19,10 +19,19 @@ import { useToast } from '@/hooks/use-toast';
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isGuestLoading, setIsGuestLoading] = useState(false);
   const { toast } = useToast();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!email.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Email required',
+        description: 'Please enter your email to continue.',
+      });
+      return;
+    }
     setIsLoading(true);
 
     const tenant = getTenantByEmail(email);
@@ -43,6 +52,14 @@ export default function LoginPage() {
       });
       setIsLoading(false);
     }
+  };
+
+  const handleGuestLogin = () => {
+    setIsGuestLoading(true);
+    // Hardcode the free tenant 'megacorp' for testing
+    const protocol = window.location.protocol;
+    const rootDomain = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || window.location.host).replace(/www\./, '');
+    window.location.href = `${protocol}//megacorp.${rootDomain}`;
   };
 
   return (
@@ -67,17 +84,26 @@ export default function LoginPage() {
                   id="email"
                   type="email"
                   placeholder="name@company.com"
-                  required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  disabled={isLoading}
+                  disabled={isLoading || isGuestLoading}
                 />
               </div>
             </CardContent>
-            <CardFooter>
-              <Button type="submit" className="w-full" disabled={isLoading}>
+            <CardFooter className="flex flex-col gap-4">
+              <Button type="submit" className="w-full" disabled={isLoading || isGuestLoading}>
                 {isLoading ? <Loader2 className="animate-spin" /> : null}
                 {isLoading ? 'Redirecting...' : 'Continue with Email'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full"
+                onClick={handleGuestLogin}
+                disabled={isLoading || isGuestLoading}
+              >
+                {isGuestLoading ? <Loader2 className="animate-spin" /> : null}
+                {isGuestLoading ? 'Redirecting...' : 'Continue without login (for testing)'}
               </Button>
             </CardFooter>
           </form>
