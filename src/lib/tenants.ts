@@ -45,25 +45,16 @@ const freeEmailProviders = new Set([
   'msn.com',
 ]);
 
-function createFreeTenant(domainOrSubdomain: string, type: 'domain' | 'subdomain'): Tenant {
-  let subdomain, domain, name;
-
-  if (type === 'domain') {
-    domain = domainOrSubdomain;
-    subdomain = domain.split('.')[0];
-  } else { // type === 'subdomain'
-    subdomain = domainOrSubdomain;
-    domain = `${subdomain}.com`; // Make an assumption for the domain
-  }
-  
-  // Capitalize first letter of each part of the subdomain
-  name = subdomain.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+function createFreeTenant(subdomain: string): Tenant {
+  // Sanitize subdomain to be URL-friendly
+  const sanitizedSubdomain = subdomain.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+  const name = sanitizedSubdomain.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 
   return {
-    id: subdomain,
+    id: sanitizedSubdomain,
     name: `${name}`,
-    subdomain: subdomain,
-    domains: [domain],
+    subdomain: sanitizedSubdomain,
+    domains: [`${sanitizedSubdomain}.com`], // Best guess for domain
     plan: 'free',
     branding: {
       logoUrl: 'https://placehold.co/128x32.png',
@@ -78,25 +69,37 @@ export function getTenantBySubdomain(subdomain: string): Tenant | null {
     return tenant;
   }
   // If no hardcoded tenant, assume it's a new free tenant being accessed.
-  return createFreeTenant(subdomain, 'subdomain');
+  return createFreeTenant(subdomain);
 }
 
 export function getTenantByEmail(email: string): Tenant | null {
-  const domain = email.split('@')[1];
-  if (!domain) return null;
+  const parts = email.split('@');
+  if (parts.length !== 2) return null;
   
-  if (freeEmailProviders.has(domain.toLowerCase())) {
+  const [localPart, domain] = parts;
+  const domainLower = domain.toLowerCase();
+
+  // For testing purposes, treat gmail.com as a special case where the user's name is the subdomain
+  if (domainLower === 'gmail.com') {
+    return createFreeTenant(localPart);
+  }
+
+  // Block other free email providers
+  if (freeEmailProviders.has(domainLower)) {
     return null;
   }
 
-  const tenant = tenants.find((t) => t.domains.includes(domain));
-  if (tenant) {
-    return tenant;
+  // Check for existing corporate tenants
+  const existingTenant = tenants.find((t) => t.domains.includes(domainLower));
+  if (existingTenant) {
+    return existingTenant;
   }
 
-  // If no tenant for this domain, create a new free one on the fly.
-  return createFreeTenant(domain, 'domain');
+  // For a new corporate domain, create a tenant from the domain name
+  const subdomain = domainLower.split('.')[0];
+  return createFreeTenant(subdomain);
 }
+
 
 export function getAllTenants(): Tenant[] {
   return tenants;
