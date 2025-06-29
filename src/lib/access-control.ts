@@ -1,6 +1,3 @@
-
-'use server';
-
 import type { Tenant } from "./tenants";
 import type { addOnsConfig } from "./tenants";
 
