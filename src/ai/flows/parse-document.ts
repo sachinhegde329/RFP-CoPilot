@@ -12,7 +12,7 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 import mammoth from 'mammoth';
 import pdf from 'pdf-parse';
-import xlsx from 'xlsx';
+import * as xlsx from 'xlsx';
 import { marked } from 'marked';
 
 const ParseDocumentInputSchema = z.object({
