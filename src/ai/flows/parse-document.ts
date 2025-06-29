@@ -13,6 +13,7 @@ import {z} from 'genkit';
 import mammoth from 'mammoth';
 import * as xlsx from 'xlsx';
 import { marked } from 'marked';
+import * as cheerio from 'cheerio';
 
 const ParseDocumentInputSchema = z.object({
     documentDataUri: z.string().describe("A document file as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."),
@@ -91,8 +92,13 @@ const parseDocumentFlow = ai.defineFlow(
                     extractedText = await marked.parse(buffer.toString('utf-8'));
                     break;
                 case 'text/html':
-                    // A very simple way to strip HTML tags. For production, a more robust library like cheerio or jsdom would be better.
-                    extractedText = buffer.toString('utf-8').replace(/<[^>]*>?/gm, '');
+                    const $ = cheerio.load(buffer.toString('utf-8'));
+                    // Remove common non-content elements like scripts, styles, and navigation.
+                    $('script, style, nav, footer, header, aside').remove();
+                    // Add newlines after block elements to preserve paragraph structure.
+                    $('br, p, h1, h2, h3, h4, h5, h6, li, blockquote, pre').after('\n');
+                    // Get the text and clean up extra whitespace.
+                    extractedText = $('body').text().replace(/\s\s+/g, ' ').trim();
                     break;
                 case 'text/plain':
                      extractedText = buffer.toString('utf-8');
