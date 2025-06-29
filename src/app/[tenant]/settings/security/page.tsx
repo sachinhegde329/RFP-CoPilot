@@ -1,14 +1,48 @@
 'use client'
 
+import { useEffect } from 'react';
+import { useSearchParams, useRouter } from 'next/navigation';
+import Link from "next/link";
+import Image from "next/image"
+
+import { useTenant } from '@/components/providers/tenant-provider';
+import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { LockKeyhole, FileText, ExternalLink } from "lucide-react"
-import Image from "next/image"
+import { LockKeyhole, FileText, ExternalLink, CheckCircle } from "lucide-react"
 
 export default function SecuritySettingsPage() {
+  const { tenant } = useTenant();
+  const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  useEffect(() => {
+    const ssoSuccess = searchParams.get('sso_success');
+    const ssoError = searchParams.get('sso_error');
+    if (ssoSuccess) {
+      toast({
+        title: "SSO Configured Successfully",
+        description: `Your workspace is now configured for Single Sign-On with ${ssoSuccess}.`,
+      });
+      // Clean the URL
+      router.replace(`/${tenant.subdomain}/settings/security`);
+    } else if (ssoError) {
+       toast({
+        variant: "destructive",
+        title: "SSO Configuration Failed",
+        description: `Could not configure Single Sign-On with ${ssoError}. Please try again.`,
+      });
+      // Clean the URL
+      router.replace(`/${tenant.subdomain}/settings/security`);
+    }
+  }, [searchParams, router, toast, tenant.subdomain]);
+
+  const isMicrosoftSsoConfigured = tenant.ssoProvider === 'microsoft';
+
   return (
     <div className="space-y-6">
       <Card>
@@ -43,15 +77,24 @@ export default function SecuritySettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
             <div className="flex flex-col sm:flex-row gap-4">
-                <Button variant="outline" className="w-full sm:w-auto justify-start gap-2">
+                <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" disabled>
                     <Image src="https://placehold.co/20x20.png" alt="Okta logo" width={20} height={20} data-ai-hint="okta logo" />
                     Configure with Okta
                 </Button>
-                 <Button variant="outline" className="w-full sm:w-auto justify-start gap-2">
-                    <Image src="https://placehold.co/20x20.png" alt="Azure AD logo" width={20} height={20} data-ai-hint="azure logo"/>
-                    Configure with Azure AD
-                </Button>
-                 <Button variant="outline" className="w-full sm:w-auto justify-start gap-2">
+                {isMicrosoftSsoConfigured ? (
+                    <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" disabled>
+                        <CheckCircle className="text-green-600" />
+                        Configured with Azure AD
+                    </Button>
+                ) : (
+                    <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" asChild>
+                        <Link href={`/api/auth/sso/microsoft/initiate?tenantId=${tenant.id}`}>
+                        <Image src="https://placehold.co/20x20.png" alt="Azure AD logo" width={20} height={20} data-ai-hint="azure logo"/>
+                        Configure with Azure AD
+                        </Link>
+                    </Button>
+                )}
+                 <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" disabled>
                     <Image src="https://placehold.co/20x20.png" alt="Google logo" width={20} height={20} data-ai-hint="google logo"/>
                     Configure with Google
                 </Button>

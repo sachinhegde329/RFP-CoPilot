@@ -7,6 +7,7 @@ export interface Tenant {
   subdomain: string;
   domains: string[];
   plan: 'free' | 'starter' | 'growth' | 'enterprise';
+  ssoProvider?: 'microsoft' | 'okta' | 'google' | null;
   addOns?: AddOn[];
   stripeCustomerId?: string;
   branding: {
@@ -52,6 +53,7 @@ const tenants: Omit<Tenant, 'limits'>[] = [
     subdomain: 'acme',
     domains: ['acme.com', 'acmeinc.com'],
     plan: 'enterprise',
+    ssoProvider: 'microsoft',
     addOns: [],
     stripeCustomerId: 'cus_Pabx3EMG9pDRgI', // Replace with actual Stripe Customer ID
     branding: {
@@ -65,6 +67,7 @@ const tenants: Omit<Tenant, 'limits'>[] = [
     subdomain: 'megacorp',
     domains: ['megacorp.com'],
     plan: 'free',
+    ssoProvider: null,
     addOns: [],
     stripeCustomerId: 'cus_Paby6e5S6f6Kj3', // Replace with actual Stripe Customer ID
     branding: {
@@ -101,6 +104,7 @@ function createFreeTenant(subdomain: string): Tenant {
     subdomain: sanitizedSubdomain,
     domains: [`${sanitizedSubdomain}.com`], // Best guess for domain
     plan: 'free',
+    ssoProvider: null,
     addOns: [],
     stripeCustomerId: `cus_sample_${sanitizedSubdomain}`, // Placeholder
     branding: {
@@ -117,6 +121,15 @@ function getLimitsForTenant(tenantData: Omit<Tenant, 'limits'>): { seats: number
         return customEnterpriseLimits[tenantData.id] || plansConfig.enterprise;
     }
     return plansConfig[tenantData.plan];
+}
+
+export function updateTenant(tenantId: string, updates: Partial<Tenant>) {
+    const tenantIndex = tenants.findIndex(t => t.id === tenantId);
+    if (tenantIndex > -1) {
+        tenants[tenantIndex] = { ...tenants[tenantIndex], ...updates };
+        return tenants[tenantIndex];
+    }
+    return null;
 }
 
 export function getTenantBySubdomain(subdomain: string): Tenant | null {
