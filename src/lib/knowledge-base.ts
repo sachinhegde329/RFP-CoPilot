@@ -1,106 +1,132 @@
 
-export interface KnowledgeChunk {
+export type DataSourceType = 'website' | 'document' | 'confluence' | 'sharepoint' | 'gdrive' | 'notion' | 'github' | 'dropbox';
+export type SyncStatus = 'Synced' | 'Syncing' | 'Error' | 'Pending';
+
+/**
+ * Represents a connection to an external data source for a specific tenant.
+ */
+export interface DataSource {
   id: string;
   tenantId: string;
-  sourceId: string; // Link back to the source
-  sourceType: 'website' | 'document';
-  sourceName: string; // e.g., file name or website URL
-  content: string;
+  type: DataSourceType;
+  name: string; // e.g., "Company Website" or "Q3 Sales Playbook.docx"
+  status: SyncStatus;
+  lastSynced: string;
+  itemCount?: number;
+  uploader?: string; // For manually uploaded documents
 }
 
-export type SourceStatus = 'Synced' | 'Syncing' | 'Error' | 'Pending';
-
-export interface KnowledgeSource {
+/**
+ * A chunk of content extracted from a data source, ready for embedding.
+ */
+export interface DocumentChunk {
   id: string;
   tenantId: string;
-  type: 'website' | 'document';
-  name: string;
-  status: SourceStatus;
-  lastSynced: string;
-  // For documents, uploader might be useful
-  uploader?: string; 
-  // For websites, docsSynced is less relevant, maybe pagesCrawled
-  itemCount?: number; 
+  sourceId: string; // Foreign key to DataSource
+  title: string; // e.g., page title or document name
+  content: string;
+  metadata: {
+    sourceType: DataSourceType;
+    url?: string; // URL for websites or external sources
+    [key: string]: any;
+  };
+}
+
+/**
+ * A log entry for a synchronization event.
+ */
+export interface SyncLog {
+    id: string;
+    sourceId: string;
+    tenantId: string;
+    timestamp: string;
+    status: 'Success' | 'Failure' | 'InProgress';
+    message: string;
+    itemsProcessed: number;
 }
 
 
 class KnowledgeBaseService {
-  private chunks: KnowledgeChunk[] = [];
-  private sources: KnowledgeSource[] = [];
+  private documentChunks: DocumentChunk[] = [];
+  private dataSources: DataSource[] = [];
 
   constructor() {
     // Initialize with some default data
-    const megacorpSources: KnowledgeSource[] = [
+    const megacorpSources: DataSource[] = [
         { id: 'megacorp-source-1', tenantId: 'megacorp', type: 'document', name: 'Initial Knowledge.docx', status: 'Synced', lastSynced: 'Initial Setup', uploader: 'System', itemCount: 2 },
         { id: 'megacorp-source-2', tenantId: 'megacorp', type: 'website', name: 'www.megacorp-public.com', status: 'Error', lastSynced: '1 day ago', itemCount: 87 },
     ];
 
-    const megacorpChunks: KnowledgeChunk[] = [
-        { id: 'default-1', tenantId: 'megacorp', sourceId: 'megacorp-source-1', sourceType: 'document', sourceName: 'Initial Knowledge', content: "RFP CoPilot is an AI-powered platform designed to streamline the Request for Proposal (RFP) response process. Its core features include AI-driven document summarization, question extraction, and draft answer generation from an internal knowledge base." },
-        { id: 'default-2', tenantId: 'megacorp', sourceId: 'megacorp-source-1', sourceType: 'document', sourceName: 'Initial Knowledge', content: "The platform supports various compliance standards like SOC 2 and ISO 27001. All customer data is encrypted at rest using AES-256 and in transit using TLS 1.2+." },
+    const megacorpChunks: DocumentChunk[] = [
+        { id: 'default-1', tenantId: 'megacorp', sourceId: 'megacorp-source-1', title: 'Initial Knowledge', content: "RFP CoPilot is an AI-powered platform designed to streamline the Request for Proposal (RFP) response process. Its core features include AI-driven document summarization, question extraction, and draft answer generation from an internal knowledge base.", metadata: { sourceType: 'document', chunkIndex: 0 } },
+        { id: 'default-2', tenantId: 'megacorp', sourceId: 'megacorp-source-1', title: 'Initial Knowledge', content: "The platform supports various compliance standards like SOC 2 and ISO 27001. All customer data is encrypted at rest using AES-256 and in transit using TLS 1.2+.", metadata: { sourceType: 'document', chunkIndex: 1 } },
     ];
     
-    const acmeSources: KnowledgeSource[] = [
+    const acmeSources: DataSource[] = [
         { id: 'acme-source-1', tenantId: 'acme', type: 'document', name: 'Acme Inc. Onboarding.pdf', status: 'Synced', lastSynced: 'Initial Setup', uploader: 'System', itemCount: 1 }
     ];
-    const acmeChunks: KnowledgeChunk[] = [
-        { id: 'default-3', tenantId: 'acme', sourceId: 'acme-source-1', sourceType: 'document', sourceName: 'Acme Inc. Onboarding', content: 'Acme Inc. provides enterprise solutions for supply chain management. Our flagship product, "LogiStream", optimizes logistics from end to end.' }
+    const acmeChunks: DocumentChunk[] = [
+        { id: 'default-3', tenantId: 'acme', sourceId: 'acme-source-1', title: 'Acme Inc. Onboarding', content: 'Acme Inc. provides enterprise solutions for supply chain management. Our flagship product, "LogiStream", optimizes logistics from end to end.', metadata: { sourceType: 'document', chunkIndex: 0 } }
     ];
 
-    this.sources.push(...megacorpSources, ...acmeSources);
-    this.chunks.push(...megacorpChunks, ...acmeChunks);
+    this.dataSources.push(...megacorpSources, ...acmeSources);
+    this.documentChunks.push(...megacorpChunks, ...acmeChunks);
   }
 
   // == SOURCE MANAGEMENT ==
-  public getSources(tenantId: string): KnowledgeSource[] {
-    return this.sources.filter(source => source.tenantId === tenantId).sort((a, b) => a.name.localeCompare(b.name));
+  public getDataSources(tenantId: string): DataSource[] {
+    return this.dataSources.filter(source => source.tenantId === tenantId).sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  public addSource(source: Omit<KnowledgeSource, 'id'>): KnowledgeSource {
-    const newSource: KnowledgeSource = {
+  public addDataSource(source: Omit<DataSource, 'id'>): DataSource {
+    const newSource: DataSource = {
       ...source,
       id: `${source.tenantId}-${source.name.replace(/[^a-zA-Z0-9]/g, '-')}-${Date.now()}`
     };
-    this.sources.unshift(newSource);
+    this.dataSources.unshift(newSource);
     return newSource;
   }
   
-  public updateSource(tenantId: string, sourceId: string, updates: Partial<KnowledgeSource>): KnowledgeSource | undefined {
-      const sourceIndex = this.sources.findIndex(s => s.id === sourceId && s.tenantId === tenantId);
+  public updateDataSource(tenantId: string, sourceId: string, updates: Partial<DataSource>): DataSource | undefined {
+      const sourceIndex = this.dataSources.findIndex(s => s.id === sourceId && s.tenantId === tenantId);
       if (sourceIndex > -1) {
-          this.sources[sourceIndex] = { ...this.sources[sourceIndex], ...updates };
-          return this.sources[sourceIndex];
+          this.dataSources[sourceIndex] = { ...this.dataSources[sourceIndex], ...updates };
+          return this.dataSources[sourceIndex];
       }
       return undefined;
   }
 
-  public deleteSource(tenantId: string, sourceId: string): boolean {
-    const initialLength = this.sources.length;
-    this.sources = this.sources.filter(s => !(s.id === sourceId && s.tenantId === tenantId));
+  public deleteDataSource(tenantId: string, sourceId: string): boolean {
+    const initialLength = this.dataSources.length;
+    this.dataSources = this.dataSources.filter(s => !(s.id === sourceId && s.tenantId === tenantId));
     // Also delete associated chunks
-    this.chunks = this.chunks.filter(c => !(c.sourceId === sourceId && c.tenantId === tenantId));
-    return this.sources.length < initialLength;
+    this.documentChunks = this.documentChunks.filter(c => !(c.sourceId === sourceId && c.tenantId === tenantId));
+    return this.dataSources.length < initialLength;
   }
 
 
   // == CHUNK MANAGEMENT ==
-  public addChunks(tenantId: string, sourceId: string, sourceType: 'website' | 'document', sourceName:string, chunks: string[]) {
-    const newChunks: KnowledgeChunk[] = chunks.map((content, index) => ({
-      id: `${sourceId}-${index}-${Date.now()}`,
+  public addChunks(tenantId: string, sourceId: string, sourceType: DataSourceType, title: string, chunks: string[], url?: string) {
+    const newChunks: DocumentChunk[] = chunks.map((content, index) => ({
+      id: `${sourceId}-chunk-${index}-${Date.now()}`,
       tenantId,
       sourceId,
-      sourceType,
-      sourceName,
+      title,
       content,
+      metadata: {
+        sourceType,
+        url,
+        chunkIndex: index,
+      }
     }));
-    this.chunks.unshift(...newChunks);
+    this.documentChunks.unshift(...newChunks);
   }
 
-  public searchChunks(tenantId: string, query: string, topK = 5): KnowledgeChunk[] {
+  public searchChunks(tenantId: string, query: string, topK = 5): DocumentChunk[] {
     const queryLower = query.toLowerCase();
     const queryWords = new Set(queryLower.split(/\s+/).filter(w => w.length > 2));
     
-    const tenantChunks = this.chunks.filter(chunk => chunk.tenantId === tenantId);
+    const tenantChunks = this.documentChunks.filter(chunk => chunk.tenantId === tenantId);
     
     if (tenantChunks.length === 0) return [];
 

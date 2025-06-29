@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from "@/components/ui/label"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { addDocumentSourceAction, addWebsiteSourceAction, getKnowledgeSourcesAction, deleteKnowledgeSourceAction, checkSourceStatusAction } from "@/app/actions"
-import type { KnowledgeSource } from "@/lib/knowledge-base"
+import type { DataSource } from "@/lib/knowledge-base"
 import { Skeleton } from "@/components/ui/skeleton"
 
 // Mock data for the components
@@ -85,7 +85,7 @@ export default function KnowledgeBasePage() {
   const [answerLibrary, setAnswerLibrary] = useState(initialAnswerLibrary);
   const [reviewQueue, setReviewQueue] = useState(initialReviewQueue);
 
-  const [sources, setSources] = useState<KnowledgeSource[]>([]);
+  const [sources, setSources] = useState<DataSource[]>([]);
   const [isLoadingSources, setIsLoadingSources] = useState(true);
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);

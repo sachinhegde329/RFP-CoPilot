@@ -60,7 +60,7 @@ export async function generateAnswerAction(question: string, tenantId: string) {
       rfpQuestion: question,
       knowledgeBaseChunks: relevantChunks.map(chunk => ({
           content: chunk.content,
-          source: chunk.sourceName
+          source: chunk.title
       })),
       tone: "Formal",
     })
@@ -112,7 +112,7 @@ export async function getKnowledgeSourcesAction(tenantId: string) {
         return { error: "Tenant ID is missing." };
     }
     try {
-        const sources = knowledgeBaseService.getSources(tenantId);
+        const sources = knowledgeBaseService.getDataSources(tenantId);
         return { sources };
     } catch (e) {
         console.error(e);
@@ -125,7 +125,7 @@ export async function addDocumentSourceAction(documentDataUri: string, tenantId:
         return { error: "Missing required parameters for adding document." };
     }
 
-    const newSource = knowledgeBaseService.addSource({
+    const newSource = knowledgeBaseService.addDataSource({
         tenantId,
         type: 'document',
         name: fileName,
@@ -138,14 +138,14 @@ export async function addDocumentSourceAction(documentDataUri: string, tenantId:
     // Don't await this, let it run in the background
     parseDocument({ documentDataUri }).then(parseResult => {
         knowledgeBaseService.addChunks(tenantId, newSource.id, 'document', fileName, parseResult.chunks);
-        knowledgeBaseService.updateSource(tenantId, newSource.id, {
+        knowledgeBaseService.updateDataSource(tenantId, newSource.id, {
             status: 'Synced',
             lastSynced: new Date().toLocaleDateString(),
             itemCount: parseResult.chunks.length,
         });
     }).catch(error => {
         console.error(`Failed to parse document ${fileName}:`, error);
-        knowledgeBaseService.updateSource(tenantId, newSource.id, {
+        knowledgeBaseService.updateDataSource(tenantId, newSource.id, {
             status: 'Error',
             lastSynced: 'Failed to parse',
         });
@@ -159,7 +159,7 @@ export async function addWebsiteSourceAction(url: string, tenantId: string) {
         return { error: "Missing required parameters for adding website." };
     }
 
-    const newSource = knowledgeBaseService.addSource({
+    const newSource = knowledgeBaseService.addDataSource({
         tenantId,
         type: 'website',
         name: url,
@@ -170,8 +170,8 @@ export async function addWebsiteSourceAction(url: string, tenantId: string) {
 
     // Don't await this, let it run in the background
     ingestWebsiteContent({ url }).then(ingestResult => {
-        knowledgeBaseService.addChunks(tenantId, newSource.id, 'website', ingestResult.url, ingestResult.chunks);
-        knowledgeBaseService.updateSource(tenantId, newSource.id, {
+        knowledgeBaseService.addChunks(tenantId, newSource.id, 'website', ingestResult.title || url, ingestResult.chunks, ingestResult.url);
+        knowledgeBaseService.updateDataSource(tenantId, newSource.id, {
             status: 'Synced',
             lastSynced: 'Just now',
             itemCount: ingestResult.chunks.length,
@@ -179,7 +179,7 @@ export async function addWebsiteSourceAction(url: string, tenantId: string) {
         });
     }).catch(error => {
         console.error(`Failed to ingest website ${url}:`, error);
-        knowledgeBaseService.updateSource(tenantId, newSource.id, {
+        knowledgeBaseService.updateDataSource(tenantId, newSource.id, {
             status: 'Error',
             lastSynced: 'Failed to sync',
         });
@@ -193,7 +193,7 @@ export async function deleteKnowledgeSourceAction(tenantId: string, sourceId: st
         return { error: "Missing required parameters for deleting source." };
     }
     try {
-        const success = knowledgeBaseService.deleteSource(tenantId, sourceId);
+        const success = knowledgeBaseService.deleteDataSource(tenantId, sourceId);
         if (!success) {
             return { error: "Source not found or could not be deleted." };
         }
@@ -209,7 +209,7 @@ export async function checkSourceStatusAction(tenantId: string, sourceId: string
         return { error: "Missing parameters" };
     }
     try {
-        const sources = knowledgeBaseService.getSources(tenantId);
+        const sources = knowledgeBaseService.getDataSources(tenantId);
         const source = sources.find(s => s.id === sourceId);
         return { source };
     } catch (e) {
