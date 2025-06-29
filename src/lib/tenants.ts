@@ -22,18 +22,17 @@ export const plansConfig = {
   enterprise: { seats: 50, fileSizeMb: 50 },
 };
 
-const tenants: Tenant[] = [
+const tenants: Omit<Tenant, 'limits'>[] = [
   {
     id: 'acme',
     name: 'Acme Inc.',
     subdomain: 'acme',
     domains: ['acme.com', 'acmeinc.com'],
-    plan: 'growth',
+    plan: 'enterprise',
     branding: {
       logoUrl: 'https://placehold.co/128x32.png',
       logoDataAiHint: 'modern logo',
     },
-    limits: plansConfig.growth,
   },
   {
     id: 'megacorp',
@@ -45,9 +44,14 @@ const tenants: Tenant[] = [
       logoUrl: 'https://placehold.co/128x32.png',
       logoDataAiHint: 'corporate logo',
     },
-    limits: plansConfig.free,
   },
 ];
+
+// Special case for specific enterprise tenants with custom limits
+const customEnterpriseLimits: Record<string, { seats: number; fileSizeMb: number; }> = {
+    'acme': { seats: 75, fileSizeMb: 100 }
+};
+
 
 const freeEmailProviders = new Set([
   'yahoo.com',
@@ -78,10 +82,21 @@ function createFreeTenant(subdomain: string): Tenant {
   };
 }
 
+function getLimitsForTenant(tenantData: Omit<Tenant, 'limits'>): { seats: number; fileSizeMb: number; } {
+    if (tenantData.plan === 'enterprise') {
+        // Use custom limits if they exist, otherwise fall back to the default enterprise plan config
+        return customEnterpriseLimits[tenantData.id] || plansConfig.enterprise;
+    }
+    return plansConfig[tenantData.plan];
+}
+
 export function getTenantBySubdomain(subdomain: string): Tenant | null {
-  const tenant = tenants.find((t) => t.subdomain === subdomain);
-  if (tenant) {
-    return tenant;
+  const tenantData = tenants.find((t) => t.subdomain === subdomain);
+  if (tenantData) {
+    return {
+        ...tenantData,
+        limits: getLimitsForTenant(tenantData)
+    };
   }
   // If no hardcoded tenant, assume it's a new free tenant being accessed.
   return createFreeTenant(subdomain);
@@ -105,9 +120,12 @@ export function getTenantByEmail(email: string): Tenant | null {
   }
 
   // Check for existing corporate tenants
-  const existingTenant = tenants.find((t) => t.domains.includes(domainLower));
-  if (existingTenant) {
-    return existingTenant;
+  const existingTenantData = tenants.find((t) => t.domains.includes(domainLower));
+  if (existingTenantData) {
+    return {
+        ...existingTenantData,
+        limits: getLimitsForTenant(existingTenantData)
+    };
   }
 
   // For a new corporate domain, create a tenant from the domain name
@@ -117,5 +135,8 @@ export function getTenantByEmail(email: string): Tenant | null {
 
 
 export function getAllTenants(): Tenant[] {
-  return tenants;
+    return tenants.map(t => ({
+      ...t,
+      limits: getLimitsForTenant(t)
+  }));
 }

@@ -18,7 +18,9 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  serverExternalPackages: ['canvas'],
+  experimental: {
+    serverComponentsExternalPackages: ['canvas'],
+  },
 };
 
 export default nextConfig;
