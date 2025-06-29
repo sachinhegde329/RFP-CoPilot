@@ -42,6 +42,7 @@ export default function SecuritySettingsPage() {
   }, [searchParams, router, toast, tenant.subdomain]);
 
   const isMicrosoftSsoConfigured = tenant.ssoProvider === 'microsoft';
+  const isOktaSsoConfigured = tenant.ssoProvider === 'okta';
 
   return (
     <div className="space-y-6">
@@ -77,10 +78,19 @@ export default function SecuritySettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
             <div className="flex flex-col sm:flex-row gap-4">
-                <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" disabled>
-                    <Image src="https://placehold.co/20x20.png" alt="Okta logo" width={20} height={20} data-ai-hint="okta logo" />
-                    Configure with Okta
-                </Button>
+                {isOktaSsoConfigured ? (
+                    <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" disabled>
+                        <CheckCircle className="text-green-600" />
+                        Configured with Okta
+                    </Button>
+                ) : (
+                    <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" asChild>
+                         <Link href={`/api/auth/sso/okta/initiate?tenantId=${tenant.id}`}>
+                            <Image src="https://placehold.co/20x20.png" alt="Okta logo" width={20} height={20} data-ai-hint="okta logo" />
+                            Configure with Okta
+                         </Link>
+                    </Button>
+                )}
                 {isMicrosoftSsoConfigured ? (
                     <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" disabled>
                         <CheckCircle className="text-green-600" />
