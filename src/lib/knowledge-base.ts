@@ -136,16 +136,19 @@ class KnowledgeBaseService {
   }
 
   public deleteDataSource(tenantId: string, sourceId: string): boolean {
-    const tenantSources = this.tenantData[tenantId]?.sources;
-    if (!tenantSources) return false;
+    const tenantData = this.tenantData[tenantId];
+    if (!tenantData?.sources) return false;
 
-    const initialLength = tenantSources.length;
-    this.tenantData[tenantId].sources = tenantSources.filter(s => s.id !== sourceId);
+    const initialLength = tenantData.sources.length;
+    tenantData.sources = tenantData.sources.filter(s => s.id !== sourceId);
     
-    // Also delete associated chunks
+    // Also delete associated chunks and logs
     this.deleteChunksBySourceId(tenantId, sourceId);
+    if (tenantData.logs) {
+        tenantData.logs = tenantData.logs.filter(l => l.sourceId !== sourceId);
+    }
 
-    return this.tenantData[tenantId].sources.length < initialLength;
+    return tenantData.sources.length < initialLength;
   }
 
   /**
