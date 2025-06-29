@@ -11,10 +11,7 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        body: ['Inter', ...fontFamily.sans],
-        headline: ['Inter', ...fontFamily.sans],
-        sans: ['Inter', ...fontFamily.sans],
-        code: ['monospace'],
+        sans: ["var(--font-inter)", ...fontFamily.sans],
       },
       colors: {
         background: 'hsl(var(--background))',
