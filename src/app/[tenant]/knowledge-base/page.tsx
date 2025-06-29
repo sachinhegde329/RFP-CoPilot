@@ -1,5 +1,6 @@
 'use client'
 
+import { cn } from "@/lib/utils"
 import { SidebarInset } from "@/components/ui/sidebar"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -7,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { MoreHorizontal, PlusCircle, Upload, Link as LinkIcon, FileText, CheckCircle, Clock, Search, Globe, FolderSync, BookOpen, Network } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Upload, Link as LinkIcon, FileText, CheckCircle, Clock, Search, Globe, FolderSync, BookOpen, Network, AlertTriangle, RefreshCw, Box, BookText, Github, Settings, Trash2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog"
@@ -29,9 +30,11 @@ const answerLibrary = [
 ]
 
 const connectedSources = [
-    { id: 1, name: "Confluence - Product Docs", type: "confluence", status: "Synced", lastSynced: "2 hours ago" },
-    { id: 2, name: "SharePoint - Legal Contracts", type: "sharepoint", status: "Synced", lastSynced: "8 hours ago" },
-    { id: 3, name: "Google Drive - Marketing Assets", type: "gdrive", status: "Error", lastSynced: "1 day ago" },
+    { id: 1, name: "Confluence - Product Docs", type: "confluence", status: "Synced", lastSynced: "2 hours ago", docsSynced: 1254 },
+    { id: 2, name: "SharePoint - Legal Contracts", type: "sharepoint", status: "Synced", lastSynced: "8 hours ago", docsSynced: 342 },
+    { id: 3, name: "Google Drive - Marketing Assets", type: "gdrive", status: "Error", lastSynced: "1 day ago", docsSynced: 87 },
+    { id: 4, name: "www.acme.com", type: "website", status: "Syncing", lastSynced: "5 minutes ago", docsSynced: 450 },
+    { id: 5, name: "GitHub - Engineering Wiki", type: "github", status: "Synced", lastSynced: "3 days ago", docsSynced: 78 },
 ]
 
 const potentialSources = [
@@ -39,6 +42,9 @@ const potentialSources = [
   { name: "SharePoint", description: "Connect to your organization's SharePoint sites.", icon: Network },
   { name: "Google Drive", description: "Ingest documents from selected Drive folders.", icon: FolderSync },
   { name: "Website", description: "Crawl and index content from a public website.", icon: Globe },
+  { name: "Notion", description: "Import pages and databases from your Notion workspace.", icon: BookText },
+  { name: "Dropbox", description: "Sync files and folders from your Dropbox account.", icon: Box },
+  { name: "GitHub", description: "Index content from repository wikis or markdown files.", icon: Github },
 ];
 
 const uploadedFiles = [
@@ -57,16 +63,25 @@ function getStatusBadge(status: string) {
         case "Approved": return <Badge variant="secondary" className="text-green-600"><CheckCircle className="mr-1 h-3 w-3" />Approved</Badge>;
         case "In Review": return <Badge variant="outline"><Clock className="mr-1 h-3 w-3" />In Review</Badge>;
         case "Draft": return <Badge variant="secondary">Draft</Badge>;
+        case "Synced": return <Badge variant="secondary" className="text-green-600"><CheckCircle className="mr-1 h-3 w-3" />Synced</Badge>;
+        case "Syncing": return <Badge variant="outline"><RefreshCw className="mr-1 h-3 w-3 animate-spin" />Syncing</Badge>;
+        case "Error": return <Badge variant="destructive"><AlertTriangle className="mr-1 h-3 w-3" />Error</Badge>;
         default: return <Badge>{status}</Badge>;
     }
 }
 
-function getSourceIcon(type: string) {
+function getSourceIcon(type: string, className?: string) {
+    const baseClass = "h-5 w-5";
+    const classes = cn(baseClass, className);
     switch(type) {
-        case 'confluence': return <BookOpen className="h-5 w-5 text-blue-600" />;
-        case 'sharepoint': return <Network className="h-5 w-5 text-teal-500" />;
-        case 'gdrive': return <FolderSync className="h-5 w-5 text-yellow-500" />;
-        default: return <FileText className="h-5 w-5 text-muted-foreground"/>
+        case 'confluence': return <BookOpen className={cn(classes, "text-blue-600")} />;
+        case 'sharepoint': return <Network className={cn(classes, "text-teal-500")} />;
+        case 'gdrive': return <FolderSync className={cn(classes, "text-yellow-500")} />;
+        case 'website': return <Globe className={cn(classes, "text-indigo-500")} />;
+        case 'github': return <Github className={cn(classes, "text-gray-800 dark:text-gray-200")} />;
+        case 'notion': return <BookText className={cn(classes, "text-black dark:text-white")} />;
+        case 'dropbox': return <Box className={cn(classes, "text-blue-500")} />;
+        default: return <FileText className={cn(classes, "text-muted-foreground")}/>
     }
 }
 
@@ -130,11 +145,10 @@ export default function KnowledgeBasePage() {
             </Card>
         </div>
 
-
         <Tabs defaultValue="library">
             <TabsList className="mb-4">
                 <TabsTrigger value="library">Answer Library</TabsTrigger>
-                <TabsTrigger value="sources">Connected Sources</TabsTrigger>
+                <TabsTrigger value="sources">Content Sources</TabsTrigger>
                 <TabsTrigger value="review">Review Queue <Badge className="ml-2">{reviewQueue.length}</Badge></TabsTrigger>
             </TabsList>
 
@@ -192,88 +206,125 @@ export default function KnowledgeBasePage() {
             </TabsContent>
 
             <TabsContent value="sources">
-                <div className="grid md:grid-cols-2 gap-6">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Connected Data Sources</CardTitle>
-                            <CardDescription>Automatically sync content from your company's knowledge repositories.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                           <ul className="space-y-4">
-                                {connectedSources.map(source => (
-                                    <li key={source.id} className="flex items-center gap-4">
-                                        {getSourceIcon(source.type)}
-                                        <div className="flex-1">
-                                            <p className="font-medium">{source.name}</p>
-                                            <p className={`text-sm ${source.status === 'Error' ? 'text-destructive' : 'text-muted-foreground'}`}>
-                                                {source.status} - Last sync: {source.lastSynced}
-                                            </p>
-                                        </div>
-                                        <Button variant="outline" size="sm">Manage</Button>
-                                    </li>
-                                ))}
-                           </ul>
-                        </CardContent>
-                        <CardFooter>
-                           <Dialog>
-                              <DialogTrigger asChild>
-                                  <Button className="w-full">
-                                      <LinkIcon className="mr-2"/>
-                                      Connect New Source
-                                  </Button>
-                              </DialogTrigger>
-                              <DialogContent>
-                                  <DialogHeader>
-                                      <DialogTitle>Connect a new data source</DialogTitle>
-                                      <DialogDescription>
-                                          Select a source to sync content with your Knowledge Base. Your existing content will not be affected.
-                                      </DialogDescription>
-                                  </DialogHeader>
-                                  <div className="space-y-4 py-4">
-                                      {potentialSources.map(source => (
-                                          <div key={source.name} className="flex items-center gap-4 p-3 border rounded-lg">
-                                              <source.icon className="h-6 w-6 text-muted-foreground flex-shrink-0" />
-                                              <div className="flex-1">
-                                                  <p className="font-semibold">{source.name}</p>
-                                                  <p className="text-sm text-muted-foreground">{source.description}</p>
-                                              </div>
-                                              <Button variant="outline">Connect</Button>
-                                          </div>
-                                      ))}
-                                  </div>
-                              </DialogContent>
-                          </Dialog>
-                        </CardFooter>
-                    </Card>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Uploaded Documents</CardTitle>
-                            <CardDescription>Manually uploaded files for the knowledge base.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            <ul className="space-y-4">
-                                {uploadedFiles.map(file => (
-                                     <li key={file.id} className="flex items-center gap-4">
-                                        <FileText className="h-5 w-5 text-muted-foreground"/>
-                                        <div className="flex-1">
-                                            <p className="font-medium">{file.name}</p>
-                                            <p className="text-sm text-muted-foreground">
-                                                Uploaded by {file.uploader} on {file.uploaded}
-                                            </p>
-                                        </div>
-                                        <Button variant="ghost" size="icon"><MoreHorizontal /></Button>
-                                    </li>
-                                ))}
-                            </ul>
-                        </CardContent>
-                        <CardFooter>
-                            <Button variant="outline" className="w-full">
+                 <Card>
+                    <CardHeader className="flex flex-wrap items-center justify-between gap-4">
+                        <div>
+                            <CardTitle>Content Sources</CardTitle>
+                            <CardDescription>Manage automated and manual content sources for your knowledge base.</CardDescription>
+                        </div>
+                        <div className="flex gap-2">
+                             <Button variant="outline">
                                 <Upload className="mr-2"/>
                                 Upload Files
                             </Button>
-                        </CardFooter>
-                    </Card>
-                </div>
+                             <Dialog>
+                                <DialogTrigger asChild>
+                                    <Button>
+                                        <LinkIcon className="mr-2"/>
+                                        Connect Source
+                                    </Button>
+                                </DialogTrigger>
+                                <DialogContent className="sm:max-w-2xl">
+                                    <DialogHeader>
+                                        <DialogTitle>Connect a new data source</DialogTitle>
+                                        <DialogDescription>
+                                            Select a source to sync content with your Knowledge Base. Your existing content will not be affected.
+                                        </DialogDescription>
+                                    </DialogHeader>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+                                        {potentialSources.map(source => (
+                                            <div key={source.name} className="flex items-center gap-4 p-3 border rounded-lg hover:border-primary hover:bg-muted/50 transition-colors">
+                                                {getSourceIcon(source.name.toLowerCase(), "h-8 w-8 flex-shrink-0")}
+                                                <div className="flex-1">
+                                                    <p className="font-semibold">{source.name}</p>
+                                                    <p className="text-sm text-muted-foreground">{source.description}</p>
+                                                </div>
+                                                <Button variant="outline">Connect</Button>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                         <Tabs defaultValue="connected">
+                            <TabsList>
+                                <TabsTrigger value="connected">Connected Integrations</TabsTrigger>
+                                <TabsTrigger value="uploaded">Uploaded Documents</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="connected" className="mt-4">
+                               <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-[40%]">Source</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead>Docs Synced</TableHead>
+                                            <TableHead>Last Synced</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {connectedSources.map(source => (
+                                            <TableRow key={source.id}>
+                                                <TableCell className="flex items-center gap-3">
+                                                    {getSourceIcon(source.type)}
+                                                    <span className="font-medium">{source.name}</span>
+                                                </TableCell>
+                                                <TableCell>{getStatusBadge(source.status)}</TableCell>
+                                                <TableCell>{source.docsSynced.toLocaleString()}</TableCell>
+                                                <TableCell>{source.lastSynced}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
+                                                        <DropdownMenuContent>
+                                                            <DropdownMenuItem><RefreshCw className="mr-2"/> Sync Now</DropdownMenuItem>
+                                                            <DropdownMenuItem><Settings className="mr-2" /> Settings</DropdownMenuItem>
+                                                            <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2"/> Remove</DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </TabsContent>
+                             <TabsContent value="uploaded" className="mt-4">
+                               <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="w-[50%]">File Name</TableHead>
+                                            <TableHead>Uploader</TableHead>
+                                            <TableHead>Date Uploaded</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {uploadedFiles.map(file => (
+                                            <TableRow key={file.id}>
+                                                <TableCell className="font-medium flex items-center gap-2">
+                                                    <FileText className="h-4 w-4 text-muted-foreground" />
+                                                    {file.name}
+                                                </TableCell>
+                                                <TableCell>{file.uploader}</TableCell>
+                                                <TableCell>{file.uploaded}</TableCell>
+                                                <TableCell className="text-right">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
+                                                         <DropdownMenuContent>
+                                                            <DropdownMenuItem>View Content</DropdownMenuItem>
+                                                            <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))}
+                                    </TableBody>
+                                </Table>
+                            </TabsContent>
+                        </Tabs>
+                    </CardContent>
+                </Card>
             </TabsContent>
             
             <TabsContent value="review">
