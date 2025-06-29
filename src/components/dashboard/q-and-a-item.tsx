@@ -34,6 +34,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { generateAnswerAction, reviewAnswerAction } from "@/app/actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import { useTenant } from "@/components/providers/tenant-provider"
 
 type QAndAItemProps = {
   question: string
@@ -51,6 +52,7 @@ export function QAndAItem({ question, id, category, compliance, tenantId }: QAnd
   const [isReviewing, setIsReviewing] = useState(false)
   const [isCopied, setIsCopied] = useState(false)
   const { toast } = useToast()
+  const { tenant } = useTenant();
 
   const handleGenerateAnswer = async () => {
     setIsGenerating(true)
@@ -81,7 +83,7 @@ export function QAndAItem({ question, id, category, compliance, tenantId }: QAnd
       return
     }
     setIsReviewing(true)
-    const result = await reviewAnswerAction(question, answer)
+    const result = await reviewAnswerAction(question, answer, tenant.id)
     if (result.error) {
       toast({
         variant: "destructive",
@@ -166,7 +168,7 @@ export function QAndAItem({ question, id, category, compliance, tenantId }: QAnd
             <Button
               variant="outline"
               onClick={handleReviewAnswer}
-              disabled={isReviewing || !answer}
+              disabled={isReviewing || !answer || tenant.plan === 'free'}
             >
               {isReviewing ? <Loader2 className="animate-spin" /> : <Bot />}
               AI Expert Review

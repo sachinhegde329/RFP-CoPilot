@@ -72,10 +72,20 @@ export async function generateAnswerAction(question: string, tenantId: string) {
   }
 }
 
-export async function reviewAnswerAction(question: string, answer: string) {
+export async function reviewAnswerAction(question: string, answer: string, tenantId: string) {
   if (!question || !answer) {
     return { error: "Question and answer cannot be empty." }
   }
+  
+  const tenant = getTenantBySubdomain(tenantId);
+  if (!tenant) {
+    return { error: "Tenant not found." };
+  }
+
+  if (tenant.plan === 'free') {
+    return { error: "AI Expert Review is a premium feature. Please upgrade your plan to use it." };
+  }
+
   try {
     const result = await aiExpertReview({
       question,
