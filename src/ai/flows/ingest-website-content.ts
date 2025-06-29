@@ -20,6 +20,7 @@ export type IngestWebsiteContentInput = z.infer<typeof IngestWebsiteContentInput
 const IngestWebsiteContentOutputSchema = z.object({
   title: z.string().describe('The title of the web page.'),
   content: z.string().describe('The cleaned main text content of the web page.'),
+  chunks: z.array(z.string()).describe('An array of text chunks extracted from the page.'),
   url: z.string().url().describe('The original URL.'),
 });
 export type IngestWebsiteContentOutput = z.infer<typeof IngestWebsiteContentOutputSchema>;
@@ -27,6 +28,18 @@ export type IngestWebsiteContentOutput = z.infer<typeof IngestWebsiteContentOutp
 export async function ingestWebsiteContent(input: IngestWebsiteContentInput): Promise<IngestWebsiteContentOutput> {
   return ingestWebsiteContentFlow(input);
 }
+
+// Simple chunking function
+function chunkText(text: string, chunkSize = 500, overlap = 50): string[] {
+    const chunks: string[] = [];
+    if (!text) return chunks;
+
+    for (let i = 0; i < text.length; i += (chunkSize - overlap)) {
+        chunks.push(text.substring(i, i + chunkSize));
+    }
+    return chunks;
+}
+
 
 const ingestWebsiteContentFlow = ai.defineFlow(
   {
@@ -57,9 +70,12 @@ const ingestWebsiteContentFlow = ai.defineFlow(
       // Clean up whitespace
       const cleanedContent = content.replace(/\s\s+/g, ' ').trim();
 
+      const chunks = chunkText(cleanedContent);
+
       return {
         title: title || 'Untitled',
         content: cleanedContent,
+        chunks,
         url,
       };
     } catch (error) {
