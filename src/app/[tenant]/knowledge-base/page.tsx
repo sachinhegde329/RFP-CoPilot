@@ -1,6 +1,8 @@
 'use client'
 
+import { useState } from "react"
 import { cn } from "@/lib/utils"
+import { useToast } from "@/hooks/use-toast"
 import { SidebarInset } from "@/components/ui/sidebar"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -8,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { MoreHorizontal, PlusCircle, Upload, Link as LinkIcon, FileText, CheckCircle, Clock, Search, Globe, FolderSync, BookOpen, Network, AlertTriangle, RefreshCw, Box, BookText, Github, Settings, Trash2 } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Upload, Link as LinkIcon, FileText, CheckCircle, Clock, Search, Globe, FolderSync, BookOpen, Network, AlertTriangle, RefreshCw, Box, BookText, Github, Settings, Trash2, Loader2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog"
@@ -29,7 +31,7 @@ const answerLibrary = [
   { id: 5, question: "Can we export our data?", snippet: "Yes, data can be exported in CSV or JSON format at any time.", category: "Product", usage: 34, status: "Draft" },
 ]
 
-const connectedSources = [
+const initialConnectedSources = [
     { id: 1, name: "Confluence - Product Docs", type: "confluence", status: "Synced", lastSynced: "2 hours ago", docsSynced: 1254 },
     { id: 2, name: "SharePoint - Legal Contracts", type: "sharepoint", status: "Synced", lastSynced: "8 hours ago", docsSynced: 342 },
     { id: 3, name: "Google Drive - Marketing Assets", type: "gdrive", status: "Error", lastSynced: "1 day ago", docsSynced: 87 },
@@ -86,6 +88,38 @@ function getSourceIcon(type: string, className?: string) {
 }
 
 export default function KnowledgeBasePage() {
+  const [connectedSources, setConnectedSources] = useState(initialConnectedSources);
+  const [isConnecting, setIsConnecting] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { toast } = useToast();
+
+  const handleConnectSource = (sourceName: string) => {
+    setIsConnecting(sourceName);
+
+    setTimeout(() => {
+        const sourceToConnect = potentialSources.find(p => p.name === sourceName);
+        if (sourceToConnect) {
+            const newSource = {
+                id: connectedSources.length + 1,
+                name: `${sourceToConnect.name} - New Connection`,
+                type: sourceToConnect.name.toLowerCase(),
+                status: "Synced",
+                lastSynced: "Just now",
+                docsSynced: Math.floor(Math.random() * 500)
+            };
+            setConnectedSources(prev => [...prev, newSource]);
+        }
+
+        toast({
+            title: "Source Connected",
+            description: `${sourceName} has been successfully connected.`,
+        });
+
+        setIsConnecting(null);
+        setIsDialogOpen(false);
+    }, 1500);
+  }
+
   return (
     <SidebarInset className="flex-1 flex flex-col">
       <DashboardHeader />
@@ -217,7 +251,7 @@ export default function KnowledgeBasePage() {
                                 <Upload className="mr-2"/>
                                 Upload Files
                             </Button>
-                             <Dialog>
+                             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                                 <DialogTrigger asChild>
                                     <Button>
                                         <LinkIcon className="mr-2"/>
@@ -239,7 +273,14 @@ export default function KnowledgeBasePage() {
                                                     <p className="font-semibold">{source.name}</p>
                                                     <p className="text-sm text-muted-foreground">{source.description}</p>
                                                 </div>
-                                                <Button variant="outline">Connect</Button>
+                                                <Button 
+                                                    variant="outline" 
+                                                    onClick={() => handleConnectSource(source.name)}
+                                                    disabled={isConnecting !== null}
+                                                >
+                                                    {isConnecting === source.name ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                                                    {isConnecting === source.name ? 'Connecting...' : 'Connect'}
+                                                </Button>
                                             </div>
                                         ))}
                                     </div>
