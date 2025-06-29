@@ -1,5 +1,6 @@
 
 import { embeddingService } from './embedding.service';
+import { websiteCrawlerService } from './connectors/websiteCrawler.service';
 
 export type DataSourceType = 'website' | 'document' | 'confluence' | 'sharepoint' | 'gdrive' | 'notion' | 'github' | 'dropbox';
 export type SyncStatus = 'Synced' | 'Syncing' | 'Error' | 'Pending';
@@ -59,6 +60,7 @@ export interface SyncLog {
 class KnowledgeBaseService {
   private documentChunks: DocumentChunk[] = [];
   private dataSources: DataSource[] = [];
+  private syncLogs: SyncLog[] = [];
 
   constructor() {
     // Initialize with some default data
@@ -86,6 +88,10 @@ class KnowledgeBaseService {
   }
 
   // == SOURCE MANAGEMENT ==
+  public getAllDataSources(): DataSource[] {
+    return this.dataSources;
+  }
+  
   public getDataSources(tenantId: string): DataSource[] {
     return this.dataSources.filter(source => source.tenantId === tenantId).sort((a, b) => a.name.localeCompare(b.name));
   }
@@ -205,6 +211,88 @@ class KnowledgeBaseService {
     // Return the top K most similar chunks.
     return scoredChunks.slice(0, topK);
   }
+
+  // == SYNCING & LOGGING ==
+  
+  private async _addSyncLog(log: Omit<SyncLog, 'id' | 'timestamp'>) {
+    const newLog = {
+      ...log,
+      id: `${log.sourceId}-log-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+    };
+    this.syncLogs.unshift(newLog);
+  }
+
+  private async _syncWebsiteSource(source: DataSource) {
+     // Clear old chunks before syncing
+     this.deleteChunksBySourceId(source.tenantId, source.id);
+
+     const ingestResult = await websiteCrawlerService.ingestPage(source.name); // source.name holds the URL
+     if (ingestResult.success) {
+         await this.addChunks(source.tenantId, source.id, 'website', ingestResult.title || source.name, ingestResult.chunks, ingestResult.url);
+         this.updateDataSource(source.tenantId, source.id, {
+             status: 'Synced',
+             lastSynced: new Date().toLocaleDateString(),
+             itemCount: ingestResult.chunks.length,
+             name: ingestResult.title || source.name,
+         });
+         return { itemsProcessed: ingestResult.chunks.length };
+     } else {
+          throw new Error(ingestResult.error || 'Unknown ingestion error');
+     }
+  }
+
+  public async syncDataSource(tenantId: string, sourceId: string) {
+    const source = this.getDataSource(tenantId, sourceId);
+    if (!source) {
+      console.error(`syncDataSource failed: Source not found for id ${sourceId}`);
+      return;
+    }
+    
+    await this._addSyncLog({
+        tenantId,
+        sourceId,
+        status: 'InProgress',
+        message: `Sync started for ${source.name}`,
+        itemsProcessed: 0,
+    });
+
+    try {
+        let result: { itemsProcessed: number } | undefined;
+        switch(source.type) {
+            case 'website':
+                result = await this._syncWebsiteSource(source);
+                break;
+            // TODO: Add cases for other source types like 'gdrive', 'sharepoint' etc.
+            default:
+                throw new Error(`Syncing for source type "${source.type}" is not yet implemented.`);
+        }
+        
+        await this._addSyncLog({
+            tenantId,
+            sourceId,
+            status: 'Success',
+            message: 'Sync completed successfully.',
+            itemsProcessed: result?.itemsProcessed || 0,
+        });
+
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error during sync';
+        console.error(`Failed to sync source ${source.name}:`, error);
+        this.updateDataSource(tenantId, source.id, {
+            status: 'Error',
+            lastSynced: 'Failed to sync',
+        });
+        await this._addSyncLog({
+            tenantId,
+            sourceId,
+            status: 'Failure',
+            message: errorMessage,
+            itemsProcessed: 0,
+        });
+    }
+  }
+
 }
 
 export const knowledgeBaseService = new KnowledgeBaseService();

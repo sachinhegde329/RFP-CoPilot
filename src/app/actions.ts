@@ -6,8 +6,7 @@ import { generateDraftAnswer } from "@/ai/flows/smart-answer-generation"
 import { aiExpertReview } from "@/ai/flows/ai-expert-review"
 import { extractRfpQuestions } from "@/ai/flows/extract-rfp-questions"
 import { parseDocument } from "@/ai/flows/parse-document"
-import { knowledgeBaseService, type DataSource } from "@/lib/knowledge-base"
-import { websiteCrawlerService } from "@/lib/connectors/websiteCrawler.service"
+import { knowledgeBaseService } from "@/lib/knowledge-base"
 
 
 // This action is used by the main dashboard's RfpSummaryCard
@@ -157,33 +156,6 @@ export async function addDocumentSourceAction(documentDataUri: string, tenantId:
     return { source: newSource };
 }
 
-// Helper function to encapsulate the sync logic for websites
-async function _performWebsiteSync(tenantId: string, source: DataSource) {
-    try {
-       // Clear old chunks before syncing
-       knowledgeBaseService.deleteChunksBySourceId(tenantId, source.id);
-
-       const ingestResult = await websiteCrawlerService.ingestPage(source.name); // source.name holds the URL
-       if (ingestResult.success) {
-           await knowledgeBaseService.addChunks(tenantId, source.id, 'website', ingestResult.title || source.name, ingestResult.chunks, ingestResult.url);
-           knowledgeBaseService.updateDataSource(tenantId, source.id, {
-               status: 'Synced',
-               lastSynced: new Date().toLocaleDateString(),
-               itemCount: ingestResult.chunks.length,
-               name: ingestResult.title || source.name,
-           });
-       } else {
-            throw new Error(ingestResult.error || 'Unknown ingestion error');
-       }
-   } catch (error) {
-       console.error(`Failed to ingest and embed website ${source.name}:`, error);
-       knowledgeBaseService.updateDataSource(tenantId, source.id, {
-           status: 'Error',
-           lastSynced: 'Failed to sync',
-       });
-   }
-}
-
 export async function addWebsiteSourceAction(url: string, tenantId: string) {
     if (!url || !tenantId) {
         return { error: "Missing required parameters for adding website." };
@@ -199,7 +171,7 @@ export async function addWebsiteSourceAction(url: string, tenantId: string) {
     });
 
     // Don't await this, let it run in the background
-    _performWebsiteSync(tenantId, newSource);
+    knowledgeBaseService.syncDataSource(tenantId, newSource.id);
 
     return { source: newSource };
 }
@@ -226,7 +198,7 @@ export async function resyncKnowledgeSourceAction(tenantId: string, sourceId: st
     });
 
     // Don't await this, let it run in the background
-    _performWebsiteSync(tenantId, source);
+    knowledgeBaseService.syncDataSource(tenantId, sourceId);
 
     return { success: true };
 }
