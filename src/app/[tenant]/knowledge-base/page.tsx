@@ -26,7 +26,7 @@ const knowledgeBaseStats = {
   contentHealth: 89, // percentage
 }
 
-const answerLibrary = [
+const initialAnswerLibrary = [
   { id: 1, question: "What is your data encryption policy?", snippet: "All customer data is encrypted at rest using AES-256 and in transit using TLS 1.2+.", category: "Security", usage: 128, status: "Approved" },
   { id: 2, question: "Do you offer an SLA for uptime?", snippet: "Yes, our Enterprise plan includes a 99.95% uptime SLA.", category: "Legal", usage: 97, status: "Approved" },
   { id: 3, question: "How do you handle user authentication?", snippet: "We support SSO via SAML 2.0 and OpenID Connect, as well as password-based auth.", category: "Product", usage: 85, status: "In Review" },
@@ -52,12 +52,12 @@ const potentialSources = [
   { name: "GitHub", description: "Index content from repository wikis or markdown files.", icon: Github },
 ];
 
-const uploadedFiles = [
+const initialUploadedFiles = [
     { id: 1, name: "Security Whitepaper Q2 2024.pdf", uploader: "Alex Green", uploaded: "2024-06-28" },
     { id: 2, name: "Master Services Agreement.docx", uploader: "Sarah Lee", uploaded: "2024-06-25" },
 ]
 
-const reviewQueue = [
+const initialReviewQueue = [
     { id: 1, type: "New Answer", content: "What is the process for GDPR data deletion requests?", author: "John Doe", date: "2024-06-29" },
     { id: 2, type: "Document Update", content: "Security Whitepaper Q2 2024.pdf", author: "Alex Green", date: "2024-06-28" },
     { id: 3, type: "Answer Edit", content: "How do you handle user authentication?", author: "Jane Smith", date: "2024-06-28" },
@@ -91,7 +91,11 @@ function getSourceIcon(type: string, className?: string) {
 }
 
 export default function KnowledgeBasePage() {
+  const [answerLibrary, setAnswerLibrary] = useState(initialAnswerLibrary);
   const [connectedSources, setConnectedSources] = useState(initialConnectedSources);
+  const [uploadedFiles, setUploadedFiles] = useState(initialUploadedFiles);
+  const [reviewQueue, setReviewQueue] = useState(initialReviewQueue);
+  
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -214,6 +218,13 @@ export default function KnowledgeBasePage() {
                 title: "Upload Successful",
                 description: `Successfully parsed ${file.name} into ${result.chunksCount} chunks.`,
             });
+             const newFile = {
+                id: Date.now(),
+                name: file.name,
+                uploader: "Current User",
+                uploaded: new Date().toISOString().split('T')[0],
+            };
+            setUploadedFiles(prev => [newFile, ...prev]);
         }
         setIsUploading(false);
         if(fileInputRef.current) {
@@ -232,6 +243,14 @@ export default function KnowledgeBasePage() {
 
   const handleUploadClick = () => {
     fileInputRef.current?.click();
+  };
+
+  const handleDeleteFile = (fileId: number) => {
+    setUploadedFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
+    toast({
+      title: "File Removed",
+      description: "The file has been removed from your list.",
+    });
   };
 
 
@@ -493,25 +512,36 @@ export default function KnowledgeBasePage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {uploadedFiles.map(file => (
-                                            <TableRow key={file.id}>
-                                                <TableCell className="font-medium flex items-center gap-2">
-                                                    <FileText className="h-4 w-4 text-muted-foreground" />
-                                                    {file.name}
-                                                </TableCell>
-                                                <TableCell>{file.uploader}</TableCell>
-                                                <TableCell>{file.uploaded}</TableCell>
-                                                <TableCell className="text-right">
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
-                                                         <DropdownMenuContent>
-                                                            <DropdownMenuItem>View Content</DropdownMenuItem>
-                                                            <DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
+                                        {uploadedFiles.length === 0 ? (
+                                             <TableRow>
+                                                <TableCell colSpan={4} className="h-24 text-center">
+                                                    No documents uploaded yet.
                                                 </TableCell>
                                             </TableRow>
-                                        ))}
+                                        ) : (
+                                            uploadedFiles.map(file => (
+                                                <TableRow key={file.id}>
+                                                    <TableCell className="font-medium flex items-center gap-2">
+                                                        <FileText className="h-4 w-4 text-muted-foreground" />
+                                                        {file.name}
+                                                    </TableCell>
+                                                    <TableCell>{file.uploader}</TableCell>
+                                                    <TableCell>{file.uploaded}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
+                                                            <DropdownMenuContent>
+                                                                <DropdownMenuItem>View Content</DropdownMenuItem>
+                                                                <DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteFile(file.id)}>
+                                                                    <Trash2 className="mr-2 h-4 w-4" />
+                                                                    Delete
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
                                     </TableBody>
                                 </Table>
                             </TabsContent>
