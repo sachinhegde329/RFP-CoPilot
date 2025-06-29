@@ -36,7 +36,6 @@ const tenants: Tenant[] = [
 ];
 
 const freeEmailProviders = new Set([
-  'gmail.com',
   'yahoo.com',
   'hotmail.com',
   'outlook.com',
