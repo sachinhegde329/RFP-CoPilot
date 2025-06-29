@@ -1,4 +1,3 @@
-'use server';
 
 /**
  * @fileOverview A service for generating text embeddings using Genkit.
