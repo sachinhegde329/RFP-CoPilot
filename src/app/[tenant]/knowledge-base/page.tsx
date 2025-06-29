@@ -139,6 +139,8 @@ export default function KnowledgeBasePage() {
     } else if (sourceName === 'Google Drive') {
         // Redirect to the backend route that starts the OAuth flow
         window.location.href = `/api/auth/google/initiate?tenantId=${tenant.id}`;
+    } else if (sourceName === 'SharePoint') {
+      window.location.href = `/api/auth/microsoft/initiate?tenantId=${tenant.id}`;
     } else {
         toast({
             title: "Connector Coming Soon",
