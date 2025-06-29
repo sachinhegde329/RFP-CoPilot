@@ -66,36 +66,6 @@ class WebsiteCrawlerService {
       return { success: false, error: errorMessage };
     }
   }
-
-  /**
-   * The main sync method for a website data source.
-   * For now, it only crawls the single root URL provided in the source name.
-   * A full implementation would recursively crawl links up to a certain depth.
-   * @param source The website DataSource to sync.
-   * @returns A partial DataSource object with the updates to be applied.
-   */
-  async sync(source: DataSource): Promise<Partial<DataSource> | null> {
-    const url = source.name; // For websites, the name is the URL.
-    const ingestResult = await this.ingestPage(url);
-    
-    if (ingestResult.success) {
-      // In a real app, you'd add the chunks to the knowledge base here.
-      console.log(`Successfully ingested ${ingestResult.url}. Found ${ingestResult.chunks.length} chunks.`);
-      
-      return {
-        status: 'Synced',
-        lastSynced: new Date().toLocaleDateString(),
-        itemCount: ingestResult.chunks.length,
-        name: ingestResult.title || url, // Update name with page title
-      };
-    } else {
-      console.error(`Failed to ingest website ${url}:`, ingestResult.error);
-      return {
-        status: 'Error',
-        lastSynced: `Failed: ${ingestResult.error}`,
-      };
-    }
-  }
 }
 
 export const websiteCrawlerService = new WebsiteCrawlerService();

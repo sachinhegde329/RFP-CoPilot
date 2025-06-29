@@ -47,7 +47,7 @@ export async function generateAnswerAction(question: string, tenantId: string) {
   }
 
   try {
-    const relevantChunks = knowledgeBaseService.searchChunks(tenantId, question);
+    const relevantChunks = await knowledgeBaseService.searchChunks(tenantId, question);
     
     if (relevantChunks.length === 0) {
         return {
@@ -136,20 +136,23 @@ export async function addDocumentSourceAction(documentDataUri: string, tenantId:
     });
     
     // Don't await this, let it run in the background
-    parseDocument({ documentDataUri }).then(parseResult => {
-        knowledgeBaseService.addChunks(tenantId, newSource.id, 'document', fileName, parseResult.chunks);
-        knowledgeBaseService.updateDataSource(tenantId, newSource.id, {
-            status: 'Synced',
-            lastSynced: new Date().toLocaleDateString(),
-            itemCount: parseResult.chunks.length,
-        });
-    }).catch(error => {
-        console.error(`Failed to parse document ${fileName}:`, error);
-        knowledgeBaseService.updateDataSource(tenantId, newSource.id, {
-            status: 'Error',
-            lastSynced: 'Failed to parse',
-        });
-    });
+    (async () => {
+        try {
+            const parseResult = await parseDocument({ documentDataUri });
+            await knowledgeBaseService.addChunks(tenantId, newSource.id, 'document', fileName, parseResult.chunks);
+            knowledgeBaseService.updateDataSource(tenantId, newSource.id, {
+                status: 'Synced',
+                lastSynced: new Date().toLocaleDateString(),
+                itemCount: parseResult.chunks.length,
+            });
+        } catch (error) {
+            console.error(`Failed to parse and embed document ${fileName}:`, error);
+            knowledgeBaseService.updateDataSource(tenantId, newSource.id, {
+                status: 'Error',
+                lastSynced: 'Failed to process',
+            });
+        }
+    })();
     
     return { source: newSource };
 }
@@ -169,26 +172,28 @@ export async function addWebsiteSourceAction(url: string, tenantId: string) {
     });
 
     // Don't await this, let it run in the background
-    websiteCrawlerService.sync(newSource).then(update => {
-        if (update) {
-            knowledgeBaseService.updateDataSource(tenantId, newSource.id, update);
-            if (update.status === 'Synced' && update.itemCount) {
-                // In a real app, the chunks would be passed back from the sync and added here
-                // For now, we simulate this based on the ingest result.
-                websiteCrawlerService.ingestPage(url).then(ingestResult => {
-                    if (ingestResult.success) {
-                        knowledgeBaseService.addChunks(tenantId, newSource.id, 'website', ingestResult.title || url, ingestResult.chunks, ingestResult.url);
-                    }
-                })
+    (async () => {
+        try {
+            const ingestResult = await websiteCrawlerService.ingestPage(url);
+            if (ingestResult.success) {
+                await knowledgeBaseService.addChunks(tenantId, newSource.id, 'website', ingestResult.title || url, ingestResult.chunks, ingestResult.url);
+                knowledgeBaseService.updateDataSource(tenantId, newSource.id, {
+                    status: 'Synced',
+                    lastSynced: new Date().toLocaleDateString(),
+                    itemCount: ingestResult.chunks.length,
+                    name: ingestResult.title || url,
+                });
+            } else {
+                 throw new Error(ingestResult.error || 'Unknown ingestion error');
             }
+        } catch (error) {
+            console.error(`Failed to ingest and embed website ${url}:`, error);
+            knowledgeBaseService.updateDataSource(tenantId, newSource.id, {
+                status: 'Error',
+                lastSynced: 'Failed to sync',
+            });
         }
-    }).catch(error => {
-        console.error(`Failed to ingest website ${url}:`, error);
-        knowledgeBaseService.updateDataSource(tenantId, newSource.id, {
-            status: 'Error',
-            lastSynced: 'Failed to sync',
-        });
-    });
+    })();
 
     return { source: newSource };
 }

@@ -1,4 +1,6 @@
 
+import { embeddingService } from './embedding.service';
+
 export type DataSourceType = 'website' | 'document' | 'confluence' | 'sharepoint' | 'gdrive' | 'notion' | 'github' | 'dropbox';
 export type SyncStatus = 'Synced' | 'Syncing' | 'Error' | 'Pending';
 
@@ -32,6 +34,7 @@ export interface DocumentChunk {
   sourceId: string; // Foreign key to DataSource
   title: string; // e.g., page title or document name
   content: string;
+  embedding?: number[]; // Vector representation of the content
   metadata: {
     sourceType: DataSourceType;
     url?: string; // URL for websites or external sources
@@ -64,6 +67,8 @@ class KnowledgeBaseService {
         { id: 'megacorp-source-2', tenantId: 'megacorp', type: 'website', name: 'www.megacorp-public.com', status: 'Error', lastSynced: '1 day ago', itemCount: 87 },
     ];
 
+    // NOTE: Initial chunks do not have embeddings and will not be found by semantic search.
+    // Only content added at runtime will be embedded and searchable.
     const megacorpChunks: DocumentChunk[] = [
         { id: 'default-1', tenantId: 'megacorp', sourceId: 'megacorp-source-1', title: 'Initial Knowledge', content: "RFP CoPilot is an AI-powered platform designed to streamline the Request for Proposal (RFP) response process. Its core features include AI-driven document summarization, question extraction, and draft answer generation from an internal knowledge base.", metadata: { sourceType: 'document', chunkIndex: 0 } },
         { id: 'default-2', tenantId: 'megacorp', sourceId: 'megacorp-source-1', title: 'Initial Knowledge', content: "The platform supports various compliance standards like SOC 2 and ISO 27001. All customer data is encrypted at rest using AES-256 and in transit using TLS 1.2+.", metadata: { sourceType: 'document', chunkIndex: 1 } },
@@ -111,15 +116,49 @@ class KnowledgeBaseService {
     return this.dataSources.length < initialLength;
   }
 
+  /**
+   * Calculates the cosine similarity between two vectors.
+   * @param vecA The first vector.
+   * @param vecB The second vector.
+   * @returns The cosine similarity score (0 to 1).
+   */
+  private cosineSimilarity(vecA: number[], vecB: number[]): number {
+    if (!vecA || !vecB || vecA.length !== vecB.length) {
+        return 0;
+    }
+
+    let dotProduct = 0;
+    let normA = 0;
+    let normB = 0;
+    for (let i = 0; i < vecA.length; i++) {
+        dotProduct += vecA[i] * vecB[i];
+        normA += vecA[i] * vecA[i];
+        normB += vecB[i] * vecB[i];
+    }
+    
+    const divisor = Math.sqrt(normA) * Math.sqrt(normB);
+    if (divisor === 0) {
+        return 0;
+    }
+
+    return dotProduct / divisor;
+  }
+
 
   // == CHUNK MANAGEMENT ==
-  public addChunks(tenantId: string, sourceId: string, sourceType: DataSourceType, title: string, chunks: string[], url?: string) {
+  public async addChunks(tenantId: string, sourceId: string, sourceType: DataSourceType, title: string, chunks: string[], url?: string) {
+    // Generate embeddings for all chunks in parallel for efficiency
+    const chunkEmbeddings = await Promise.all(
+        chunks.map(content => embeddingService.generateEmbedding(content))
+    );
+      
     const newChunks: DocumentChunk[] = chunks.map((content, index) => ({
       id: `${sourceId}-chunk-${index}-${Date.now()}`,
       tenantId,
       sourceId,
       title,
       content,
+      embedding: chunkEmbeddings[index], // Store the generated embedding
       metadata: {
         sourceType,
         url,
@@ -129,33 +168,31 @@ class KnowledgeBaseService {
     this.documentChunks.unshift(...newChunks);
   }
 
-  public searchChunks(tenantId: string, query: string, topK = 5): DocumentChunk[] {
-    const queryLower = query.toLowerCase();
-    const queryWords = new Set(queryLower.split(/\s+/).filter(w => w.length > 2));
+  public async searchChunks(tenantId: string, query: string, topK = 5): Promise<DocumentChunk[]> {
+    // Filter for chunks that belong to the tenant and have an embedding.
+    const tenantChunks = this.documentChunks.filter(chunk => chunk.tenantId === tenantId && chunk.embedding);
     
-    const tenantChunks = this.documentChunks.filter(chunk => chunk.tenantId === tenantId);
+    if (tenantChunks.length === 0 || !query) {
+        return [];
+    }
     
-    if (tenantChunks.length === 0) return [];
+    // Generate an embedding for the user's query.
+    const queryEmbedding = await embeddingService.generateEmbedding(query);
 
-    const scoredChunks = tenantChunks
-      .map(chunk => {
-        const chunkLower = chunk.content.toLowerCase();
-        let score = 0;
-        queryWords.forEach(word => {
-          if (chunkLower.includes(word)) {
-            score++;
-          }
-        });
-        // Add a relevance boost for exact phrase matches
-        if(chunkLower.includes(queryLower)) {
-            score += 2;
-        }
-        return { ...chunk, score };
-      })
-      .filter(chunk => chunk.score > 0);
-      
+    if (queryEmbedding.length === 0) {
+        return [];
+    }
+    
+    // Calculate the similarity score for each chunk.
+    const scoredChunks = tenantChunks.map(chunk => ({
+        ...chunk,
+        score: this.cosineSimilarity(queryEmbedding, chunk.embedding!),
+    }));
+    
+    // Sort chunks by score in descending order.
     scoredChunks.sort((a, b) => b.score - a.score);
 
+    // Return the top K most similar chunks.
     return scoredChunks.slice(0, topK);
   }
 }
