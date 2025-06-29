@@ -52,7 +52,7 @@ export function ComplianceCard() {
                Access compliance validation and other premium features.
              </p>
              <Button asChild>
-                <Link href="/pricing">View Plans</Link>
+                <Link href={`/pricing?tenant=${tenant.subdomain}`}>View Plans</Link>
              </Button>
           </div>
       </Card>

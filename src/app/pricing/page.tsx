@@ -1,3 +1,7 @@
+"use client"
+
+import { useState } from "react"
+import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -7,12 +11,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { Check, FileBox } from "lucide-react"
+import { Check, FileBox, Loader2 } from "lucide-react"
 import Link from "next/link"
+import { useToast } from "@/hooks/use-toast"
+import { loadStripe } from "@stripe/stripe-js"
+import { createCheckoutSessionAction } from "@/app/actions"
+
+
+const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 
+    ? loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY) 
+    : null;
 
 const plans = [
   {
     name: "Free",
+    id: "free",
     price: "$0",
     description: "For individuals and small teams trying out RFP CoPilot.",
     features: [
@@ -27,6 +40,7 @@ const plans = [
   },
   {
     name: "Starter",
+    id: "starter",
     price: "$500",
     pricePeriod: "/ month",
     description: "For growing teams that need more power and collaboration.",
@@ -43,6 +57,7 @@ const plans = [
   },
   {
     name: "Growth",
+    id: "growth",
     price: "$1,250",
     pricePeriod: "/ month",
     description: "For established teams requiring analytics and integrations.",
@@ -58,6 +73,7 @@ const plans = [
   },
   {
     name: "Enterprise",
+    id: "enterprise",
     price: "Custom",
     description: "For large organizations needing enterprise-grade security and support.",
     features: [
@@ -73,6 +89,61 @@ const plans = [
 ]
 
 export default function PricingPage() {
+  const searchParams = useSearchParams()
+  const { toast } = useToast()
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
+
+  const tenantId = searchParams.get('tenant')
+
+  const handleCheckout = async (planId: 'starter' | 'growth', planName: string) => {
+    if (!tenantId) {
+      toast({
+        title: "Please log in",
+        description: "You need to be logged in to select a plan.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!stripePromise) {
+        toast({
+            title: "Configuration Error",
+            description: "Stripe is not configured correctly. Please provide a publishable key.",
+            variant: "destructive",
+        });
+        return;
+    }
+
+    setLoadingPlan(planName);
+
+    const result = await createCheckoutSessionAction(planId, tenantId);
+
+    if (result.error || !result.sessionId) {
+      toast({
+        title: "Error Creating Checkout",
+        description: result.error || "Could not initiate checkout.",
+        variant: "destructive",
+      });
+      setLoadingPlan(null);
+      return;
+    }
+
+    const stripe = await stripePromise;
+    if (stripe) {
+        const { error } = await stripe.redirectToCheckout({ sessionId: result.sessionId });
+        if (error) {
+            toast({
+                title: "Checkout Error",
+                description: error.message || "An unexpected error occurred.",
+                variant: "destructive",
+            });
+        }
+    }
+    
+    setLoadingPlan(null);
+  };
+
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -143,9 +214,31 @@ export default function PricingPage() {
                     </ul>
                   </CardContent>
                   <CardFooter className="flex-shrink-0">
-                    <Button asChild className="w-full" variant={plan.popular ? "default" : "outline"}>
-                      <Link href={plan.buttonLink}>{plan.buttonText}</Link>
-                    </Button>
+                    {(() => {
+                        const isLoading = loadingPlan === plan.name;
+                        const isPaidPlan = plan.id === 'starter' || plan.id === 'growth';
+                        const planId = plan.id as 'starter' | 'growth';
+
+                        if (isPaidPlan) {
+                            return (
+                                <Button
+                                    className="w-full"
+                                    variant={plan.popular ? "default" : "outline"}
+                                    onClick={() => handleCheckout(planId, plan.name)}
+                                    disabled={isLoading || !tenantId}
+                                >
+                                    {isLoading ? <Loader2 className="animate-spin" /> : null}
+                                    {!tenantId && plan.name !== 'Free' ? 'Log in to subscribe' : plan.buttonText}
+                                </Button>
+                            );
+                        }
+
+                        return (
+                           <Button asChild className="w-full" variant={plan.popular ? "default" : "outline"}>
+                             <Link href={plan.buttonLink}>{plan.buttonText}</Link>
+                           </Button>
+                        );
+                    })()}
                   </CardFooter>
                 </Card>
               ))}

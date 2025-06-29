@@ -75,7 +75,7 @@ export function TemplateCard() {
             Upgrade to use custom branding and export formats.
           </p>
           <Button asChild>
-            <Link href="/pricing">View Plans</Link>
+            <Link href={`/pricing?tenant=${tenant.subdomain}`}>View Plans</Link>
           </Button>
         </div>
       </Card>

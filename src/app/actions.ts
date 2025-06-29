@@ -7,6 +7,8 @@ import { aiExpertReview } from "@/ai/flows/ai-expert-review"
 import { extractRfpQuestions } from "@/ai/flows/extract-rfp-questions"
 import { parseDocument } from "@/ai/flows/parse-document"
 import { knowledgeBaseService } from "@/lib/knowledge-base"
+import { getTenantBySubdomain } from "@/lib/tenants"
+import { stripe } from "@/lib/stripe"
 
 
 // This action is used by the main dashboard's RfpSummaryCard
@@ -230,5 +232,63 @@ export async function checkSourceStatusAction(tenantId: string, sourceId: string
     } catch (e) {
         console.error(e);
         return { error: "Failed to check source status." };
+    }
+}
+
+// == BILLING ACTIONS ==
+
+const STRIPE_PRICE_IDS = {
+    // IMPORTANT: Replace these with your actual Price IDs from your Stripe dashboard
+    starter: 'price_1Pg_SAMPLE_STARTER', 
+    growth: 'price_1Pg_SAMPLE_GROWTH',   
+};
+
+export async function createCheckoutSessionAction(plan: 'starter' | 'growth', tenantId: string) {
+    if (!process.env.STRIPE_SECRET_KEY || !process.env.NEXT_PUBLIC_APP_URL) {
+        return { error: "Stripe is not configured. Please set STRIPE_SECRET_KEY and NEXT_PUBLIC_APP_URL." };
+    }
+    
+    const priceId = STRIPE_PRICE_IDS[plan];
+    if (!priceId) {
+        return { error: "Invalid plan selected." };
+    }
+
+    const tenant = getTenantBySubdomain(tenantId);
+    if (!tenant) {
+        return { error: "Tenant not found." };
+    }
+    
+    const successUrl = `${process.env.NEXT_PUBLIC_APP_URL}/${tenant.subdomain}?stripe=success`;
+    const cancelUrl = `${process.env.NEXT_PUBLIC_APP_URL}/pricing?tenant=${tenant.subdomain}`;
+
+    try {
+        const session = await stripe.checkout.sessions.create({
+            payment_method_types: ['card'],
+            line_items: [
+                {
+                    price: priceId,
+                    quantity: 1,
+                },
+            ],
+            mode: 'subscription',
+            success_url: successUrl,
+            cancel_url: cancelUrl,
+            // In a real app, you would associate the checkout session with your user/tenant
+            // using `client_reference_id` or `metadata`. We use metadata here.
+            metadata: {
+                tenantId: tenant.id,
+                plan: plan,
+            },
+        });
+
+        if (!session.id) {
+            return { error: "Could not create Stripe checkout session." };
+        }
+
+        return { sessionId: session.id };
+    } catch (e) {
+        console.error(e);
+        const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
+        return { error: `Stripe error: ${errorMessage}` };
     }
 }
