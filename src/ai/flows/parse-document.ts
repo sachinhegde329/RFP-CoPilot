@@ -65,38 +65,43 @@ const parseDocumentFlow = ai.defineFlow(
 
         let extractedText = '';
 
-        switch (mimeType) {
-            case 'application/pdf':
-                const pdfData = await pdf(buffer);
-                extractedText = pdfData.text;
-                break;
-            case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': // .docx
-                const docxResult = await mammoth.extractRawText({ buffer });
-                extractedText = docxResult.value;
-                break;
-            case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': // .xlsx
-                 const workbook = xlsx.read(buffer, { type: 'buffer' });
-                 const sheetNames = workbook.SheetNames;
-                 let xlsxText = '';
-                 sheetNames.forEach(sheetName => {
-                     const sheet = workbook.Sheets[sheetName];
-                     const sheetData = xlsx.utils.sheet_to_txt(sheet);
-                     xlsxText += `Sheet: ${sheetName}\n${sheetData}\n\n`;
-                 });
-                 extractedText = xlsxText;
-                break;
-            case 'text/markdown':
-                extractedText = marked.parse(buffer.toString('utf-8')) as string;
-                break;
-            case 'text/html':
-                // A very simple way to strip HTML tags. For production, a more robust library like cheerio or jsdom would be better.
-                extractedText = buffer.toString('utf-8').replace(/<[^>]*>?/gm, '');
-                break;
-            case 'text/plain':
-                 extractedText = buffer.toString('utf-8');
-                 break;
-            default:
-                throw new Error(`Unsupported MIME type: ${mimeType}`);
+        try {
+            switch (mimeType) {
+                case 'application/pdf':
+                    const pdfData = await pdf(buffer);
+                    extractedText = pdfData.text;
+                    break;
+                case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': // .docx
+                    const docxResult = await mammoth.extractRawText({ buffer });
+                    extractedText = docxResult.value;
+                    break;
+                case 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': // .xlsx
+                     const workbook = xlsx.read(buffer, { type: 'buffer' });
+                     const sheetNames = workbook.SheetNames;
+                     let xlsxText = '';
+                     sheetNames.forEach(sheetName => {
+                         const sheet = workbook.Sheets[sheetName];
+                         const sheetData = xlsx.utils.sheet_to_txt(sheet);
+                         xlsxText += `Sheet: ${sheetName}\n${sheetData}\n\n`;
+                     });
+                     extractedText = xlsxText;
+                    break;
+                case 'text/markdown':
+                    extractedText = await marked.parse(buffer.toString('utf-8'));
+                    break;
+                case 'text/html':
+                    // A very simple way to strip HTML tags. For production, a more robust library like cheerio or jsdom would be better.
+                    extractedText = buffer.toString('utf-8').replace(/<[^>]*>?/gm, '');
+                    break;
+                case 'text/plain':
+                     extractedText = buffer.toString('utf-8');
+                     break;
+                default:
+                    throw new Error(`Unsupported MIME type: ${mimeType}`);
+            }
+        } catch (error) {
+            console.error(`Error parsing ${mimeType}:`, error);
+            throw new Error(`Failed to parse document with MIME type: ${mimeType}`);
         }
         
         const chunks = chunkText(extractedText);
