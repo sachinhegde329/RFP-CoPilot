@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react"
+import { useState, useRef, ChangeEvent } from "react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { SidebarInset } from "@/components/ui/sidebar"
@@ -14,6 +14,7 @@ import { MoreHorizontal, PlusCircle, Upload, Link as LinkIcon, FileText, CheckCi
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog"
+import { parseDocumentAction } from "@/app/actions"
 
 // Mock data for the components
 const knowledgeBaseStats = {
@@ -91,6 +92,8 @@ export default function KnowledgeBasePage() {
   const [connectedSources, setConnectedSources] = useState(initialConnectedSources);
   const [isConnecting, setIsConnecting] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const handleConnectSource = (sourceName: string) => {
@@ -119,6 +122,51 @@ export default function KnowledgeBasePage() {
         setIsDialogOpen(false);
     }, 1500);
   }
+  
+  const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = async () => {
+        const dataUri = reader.result as string;
+        const result = await parseDocumentAction(dataUri);
+
+        if (result.error) {
+            toast({
+                variant: "destructive",
+                title: "Upload Failed",
+                description: result.error,
+            });
+        } else {
+            toast({
+                title: "Upload Successful",
+                description: `Successfully parsed ${file.name} into ${result.chunksCount} chunks.`,
+            });
+        }
+        setIsUploading(false);
+        // Reset file input
+        if(fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+    };
+    reader.onerror = () => {
+        toast({
+            variant: "destructive",
+            title: "Upload Failed",
+            description: "Could not read the selected file.",
+        });
+        setIsUploading(false);
+    }
+  }
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
 
   return (
     <SidebarInset className="flex-1 flex flex-col">
@@ -247,9 +295,17 @@ export default function KnowledgeBasePage() {
                             <CardDescription>Manage automated and manual content sources for your knowledge base.</CardDescription>
                         </div>
                         <div className="flex gap-2">
-                             <Button variant="outline">
-                                <Upload className="mr-2"/>
-                                Upload Files
+                             <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileUpload}
+                                className="hidden"
+                                accept=".pdf,.docx,.xlsx,.md,.txt,.html"
+                                disabled={isUploading}
+                            />
+                            <Button variant="outline" onClick={handleUploadClick} disabled={isUploading}>
+                                {isUploading ? <Loader2 className="mr-2 animate-spin" /> : <Upload className="mr-2" />}
+                                {isUploading ? 'Uploading...' : 'Upload Files'}
                             </Button>
                              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                                 <DialogTrigger asChild>

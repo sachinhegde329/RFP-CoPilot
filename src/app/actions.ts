@@ -4,6 +4,7 @@ import { autoSummarizeRfp } from "@/ai/flows/auto-summarize-rfp"
 import { generateDraftAnswer } from "@/ai/flows/smart-answer-generation"
 import { aiExpertReview } from "@/ai/flows/ai-expert-review"
 import { extractRfpQuestions } from "@/ai/flows/extract-rfp-questions"
+import { parseDocument } from "@/ai/flows/parse-document"
 
 export async function summarizeRfpAction(rfpText: string) {
   if (!rfpText) {
@@ -67,4 +68,18 @@ export async function extractQuestionsAction(rfpText: string) {
     console.error(e)
     return { error: "Failed to extract questions from RFP." }
   }
+}
+
+export async function parseDocumentAction(documentDataUri: string) {
+    if (!documentDataUri) {
+        return { error: "Document data cannot be empty." };
+    }
+    try {
+        const result = await parseDocument({ documentDataUri });
+        return { success: true, chunksCount: result.chunks.length };
+    } catch (e) {
+        console.error(e);
+        const errorMessage = e instanceof Error ? e.message : "Failed to parse document.";
+        return { error: errorMessage };
+    }
 }
