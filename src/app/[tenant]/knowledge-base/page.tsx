@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { MoreHorizontal, PlusCircle, Upload, Link as LinkIcon, FileText, CheckCircle, Clock, Search, Globe, FolderCloud, BookOpen, Network } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Upload, Link as LinkIcon, FileText, CheckCircle, Clock, Search, Globe, FolderSync, BookOpen, Network } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog"
@@ -37,7 +37,7 @@ const connectedSources = [
 const potentialSources = [
   { name: "Confluence", description: "Sync pages from your Confluence workspace.", icon: BookOpen },
   { name: "SharePoint", description: "Connect to your organization's SharePoint sites.", icon: Network },
-  { name: "Google Drive", description: "Ingest documents from selected Drive folders.", icon: FolderCloud },
+  { name: "Google Drive", description: "Ingest documents from selected Drive folders.", icon: FolderSync },
   { name: "Website", description: "Crawl and index content from a public website.", icon: Globe },
 ];
 
@@ -65,7 +65,7 @@ function getSourceIcon(type: string) {
     switch(type) {
         case 'confluence': return <BookOpen className="h-5 w-5 text-blue-600" />;
         case 'sharepoint': return <Network className="h-5 w-5 text-teal-500" />;
-        case 'gdrive': return <FolderCloud className="h-5 w-5 text-yellow-500" />;
+        case 'gdrive': return <FolderSync className="h-5 w-5 text-yellow-500" />;
         default: return <FileText className="h-5 w-5 text-muted-foreground"/>
     }
 }
