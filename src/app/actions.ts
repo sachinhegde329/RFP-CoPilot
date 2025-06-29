@@ -7,7 +7,7 @@ import { aiExpertReview } from "@/ai/flows/ai-expert-review"
 import { extractRfpQuestions } from "@/ai/flows/extract-rfp-questions"
 import { parseDocument } from "@/ai/flows/parse-document"
 import { knowledgeBaseService } from "@/lib/knowledge-base"
-import { getTenantBySubdomain } from "@/lib/tenants"
+import { getTenantBySubdomain, plansConfig } from "@/lib/tenants"
 import { stripe } from "@/lib/stripe"
 
 
@@ -269,6 +269,7 @@ export async function checkSourceStatusAction(tenantId: string, sourceId: string
 
 const STRIPE_PRICE_IDS = {
     // IMPORTANT: Replace these with your actual Price IDs from your Stripe dashboard
+    // These prices should be configured in Stripe as "per unit" for per-seat billing.
     starter: 'price_1Pg_SAMPLE_STARTER', 
     growth: 'price_1Pg_SAMPLE_GROWTH',   
 };
@@ -291,13 +292,15 @@ export async function createCheckoutSessionAction(plan: 'starter' | 'growth', te
     const successUrl = `${process.env.NEXT_PUBLIC_APP_URL}/${tenant.subdomain}?stripe=success`;
     const cancelUrl = `${process.env.NEXT_PUBLIC_APP_URL}/pricing?tenant=${tenant.subdomain}`;
 
+    const seats = plansConfig[plan].seats;
+
     try {
         const session = await stripe.checkout.sessions.create({
             payment_method_types: ['card'],
             line_items: [
                 {
                     price: priceId,
-                    quantity: 1,
+                    quantity: seats,
                 },
             ],
             mode: 'subscription',

@@ -26,8 +26,7 @@ export default function TeamSettingsPage() {
     const { tenant } = useTenant();
     const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
 
-    // Placeholder logic for seat count
-    const totalSeats = tenant.plan === 'free' ? 2 : (tenant.plan === 'starter' ? 5 : 25);
+    const totalSeats = tenant.limits.seats;
     const usedSeats = teamMembers.length;
     const availableSeats = totalSeats - usedSeats;
 

@@ -11,8 +11,16 @@ export interface Tenant {
   };
   limits: {
     fileSizeMb: number;
+    seats: number;
   };
 }
+
+export const plansConfig = {
+  free: { seats: 2, fileSizeMb: 2 },
+  starter: { seats: 5, fileSizeMb: 5 },
+  growth: { seats: 25, fileSizeMb: 10 },
+  enterprise: { seats: 50, fileSizeMb: 50 },
+};
 
 const tenants: Tenant[] = [
   {
@@ -25,9 +33,7 @@ const tenants: Tenant[] = [
       logoUrl: 'https://placehold.co/128x32.png',
       logoDataAiHint: 'modern logo',
     },
-    limits: {
-      fileSizeMb: 10,
-    },
+    limits: plansConfig.growth,
   },
   {
     id: 'megacorp',
@@ -39,9 +45,7 @@ const tenants: Tenant[] = [
       logoUrl: 'https://placehold.co/128x32.png',
       logoDataAiHint: 'corporate logo',
     },
-    limits: {
-      fileSizeMb: 2,
-    },
+    limits: plansConfig.free,
   },
 ];
 
@@ -70,9 +74,7 @@ function createFreeTenant(subdomain: string): Tenant {
       logoUrl: 'https://placehold.co/128x32.png',
       logoDataAiHint: 'generic logo',
     },
-    limits: {
-      fileSizeMb: 2,
-    },
+    limits: plansConfig.free,
   };
 }
 

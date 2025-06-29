@@ -29,7 +29,7 @@ const plans = [
     price: "$0",
     description: "For individuals and small teams trying out RFP CoPilot.",
     features: [
-      "1 user",
+      "2 users",
       "3 RFPs/month",
       "Up to 25 questions/month",
       "Export with watermark",
