@@ -34,11 +34,12 @@ export default function LoginPage() {
       const rootDomain = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || window.location.host).replace(/www\./, '');
       window.location.href = `${protocol}//${tenant.subdomain}.${rootDomain}`;
     } else {
+      // This path is only taken if the email format is invalid
       toast({
         variant: 'destructive',
-        title: 'Unknown Company',
+        title: 'Invalid Email',
         description:
-          "We couldn't find a company associated with that email domain. Please contact support.",
+          "Please enter a valid email address.",
       });
       setIsLoading(false);
     }
@@ -53,9 +54,9 @@ export default function LoginPage() {
         </div>
         <Card className="w-full">
           <CardHeader>
-            <CardTitle>Sign In</CardTitle>
+            <CardTitle>Sign In or Sign Up</CardTitle>
             <CardDescription>
-              Enter your work email to access your company's workspace.
+              Enter your work email to access your workspace or start a free trial.
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>

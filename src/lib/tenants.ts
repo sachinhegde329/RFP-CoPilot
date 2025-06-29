@@ -35,14 +35,53 @@ const tenants: Tenant[] = [
   },
 ];
 
+function createFreeTenant(domainOrSubdomain: string, type: 'domain' | 'subdomain'): Tenant {
+  let subdomain, domain, name;
+
+  if (type === 'domain') {
+    domain = domainOrSubdomain;
+    subdomain = domain.split('.')[0];
+  } else { // type === 'subdomain'
+    subdomain = domainOrSubdomain;
+    domain = `${subdomain}.com`; // Make an assumption for the domain
+  }
+  
+  // Capitalize first letter of each part of the subdomain
+  name = subdomain.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+
+  return {
+    id: subdomain,
+    name: `${name}`,
+    subdomain: subdomain,
+    domains: [domain],
+    plan: 'free',
+    branding: {
+      logoUrl: 'https://placehold.co/128x32.png',
+      logoDataAiHint: 'generic logo',
+    },
+  };
+}
+
 export function getTenantBySubdomain(subdomain: string): Tenant | null {
-  return tenants.find((t) => t.subdomain === subdomain) || null;
+  const tenant = tenants.find((t) => t.subdomain === subdomain);
+  if (tenant) {
+    return tenant;
+  }
+  // If no hardcoded tenant, assume it's a new free tenant being accessed.
+  return createFreeTenant(subdomain, 'subdomain');
 }
 
 export function getTenantByEmail(email: string): Tenant | null {
   const domain = email.split('@')[1];
   if (!domain) return null;
-  return tenants.find((t) => t.domains.includes(domain)) || null;
+  
+  const tenant = tenants.find((t) => t.domains.includes(domain));
+  if (tenant) {
+    return tenant;
+  }
+
+  // If no tenant for this domain, create a new free one on the fly.
+  return createFreeTenant(domain, 'domain');
 }
 
 export function getAllTenants(): Tenant[] {
