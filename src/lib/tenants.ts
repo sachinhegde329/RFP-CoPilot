@@ -3,6 +3,7 @@ export interface Tenant {
   name: string;
   subdomain: string;
   domains: string[];
+  plan: 'free' | 'starter' | 'growth' | 'enterprise';
   branding: {
     logoUrl: string;
     logoDataAiHint: string;
@@ -15,6 +16,7 @@ const tenants: Tenant[] = [
     name: 'Acme Inc.',
     subdomain: 'acme',
     domains: ['acme.com', 'acmeinc.com'],
+    plan: 'growth',
     branding: {
       logoUrl: 'https://placehold.co/128x32.png',
       logoDataAiHint: 'modern logo',
@@ -25,6 +27,7 @@ const tenants: Tenant[] = [
     name: 'MegaCorp',
     subdomain: 'megacorp',
     domains: ['megacorp.com'],
+    plan: 'free',
     branding: {
       logoUrl: 'https://placehold.co/128x32.png',
       logoDataAiHint: 'corporate logo',
