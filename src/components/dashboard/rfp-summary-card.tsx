@@ -14,36 +14,18 @@ import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { UploadCloud, Sparkles, Loader2, CalendarClock } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import { summarizeRfpAction } from "@/app/actions"
 
-export function RfpSummaryCard() {
+type RfpSummaryCardProps = {
+  summary: string;
+  isLoading: boolean;
+  onProcessRfp: (rfpText: string) => void;
+};
+
+export function RfpSummaryCard({ summary, isLoading, onProcessRfp }: RfpSummaryCardProps) {
   const [rfpText, setRfpText] = useState("")
-  const [summary, setSummary] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const { toast } = useToast()
 
-  const handleSummarize = async () => {
-    if (!rfpText.trim()) {
-      toast({
-        variant: "destructive",
-        title: "Input required",
-        description: "Please paste your RFP content to generate a summary.",
-      })
-      return
-    }
-    setIsLoading(true)
-    const result = await summarizeRfpAction(rfpText)
-    if (result.error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: result.error,
-      })
-    } else {
-      setSummary(result.summary || "")
-    }
-    setIsLoading(false)
+  const handleProcess = () => {
+    onProcessRfp(rfpText);
   }
 
   return (
@@ -51,7 +33,7 @@ export function RfpSummaryCard() {
       <CardHeader>
         <CardTitle>RFP Ingestion &amp; Auto-Summary</CardTitle>
         <CardDescription>
-          Upload or paste your RFP document to get an AI-generated summary.
+          Upload or paste your RFP document to get an AI-generated summary and question list.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -60,17 +42,18 @@ export function RfpSummaryCard() {
           className="min-h-[150px] text-sm"
           value={rfpText}
           onChange={(e) => setRfpText(e.target.value)}
+          disabled={isLoading}
         />
         <div className="flex gap-2">
-          <Button onClick={handleSummarize} disabled={isLoading}>
+          <Button onClick={handleProcess} disabled={isLoading || !rfpText}>
             {isLoading ? (
               <Loader2 className="animate-spin" />
             ) : (
               <Sparkles />
             )}
-            Summarize
+            Process RFP
           </Button>
-          <Button variant="outline">
+          <Button variant="outline" disabled={isLoading}>
             <UploadCloud />
             Upload Document
           </Button>
@@ -88,6 +71,7 @@ export function RfpSummaryCard() {
       <Separator />
       <CardFooter className="flex flex-col items-start gap-4 pt-6">
         <h3 className="font-semibold flex items-center gap-2"><CalendarClock className="h-5 w-5 text-primary" /> Key Deadlines &amp; Milestones</h3>
+        <p className="text-sm text-muted-foreground -mt-2">Extracted by AI from the document.</p>
         <div className="w-full grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
             <div className="p-3 bg-muted/50 rounded-lg">
                 <p className="font-medium">Submission Deadline</p>

@@ -34,6 +34,7 @@ import {
   Bot,
   Clipboard,
   ClipboardCheck,
+  Tag,
 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { generateAnswerAction, reviewAnswerAction } from "@/app/actions"
@@ -42,10 +43,11 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 type QAndAItemProps = {
   question: string
   id: number
+  category: string
   compliance: "passed" | "failed" | "pending"
 }
 
-export function QAndAItem({ question, id, compliance }: QAndAItemProps) {
+export function QAndAItem({ question, id, category, compliance }: QAndAItemProps) {
   const [answer, setAnswer] = useState("")
   const [review, setReview] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
@@ -130,7 +132,11 @@ export function QAndAItem({ question, id, compliance }: QAndAItemProps) {
           <CardTitle className="text-base font-medium flex-1">
             {`Q${id}: ${question}`}
           </CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Badge variant="outline" className="hidden sm:flex items-center">
+              <Tag className="mr-1 h-3 w-3" />
+              {category}
+            </Badge>
             <ComplianceBadge />
           </div>
         </div>

@@ -3,6 +3,7 @@
 import { autoSummarizeRfp } from "@/ai/flows/auto-summarize-rfp"
 import { generateDraftAnswer } from "@/ai/flows/smart-answer-generation"
 import { aiExpertReview } from "@/ai/flows/ai-expert-review"
+import { extractRfpQuestions } from "@/ai/flows/extract-rfp-questions"
 
 export async function summarizeRfpAction(rfpText: string) {
   if (!rfpText) {
@@ -47,5 +48,23 @@ export async function reviewAnswerAction(question: string, answer: string) {
   } catch (e) {
     console.error(e)
     return { error: "Failed to get AI review." }
+  }
+}
+
+export async function extractQuestionsAction(rfpText: string) {
+  if (!rfpText) {
+    return { error: "RFP text cannot be empty." }
+  }
+  try {
+    const result = await extractRfpQuestions({ documentText: rfpText })
+    // Add a default 'pending' compliance status to each question for the UI
+    const questionsWithStatus = result.questions.map(q => ({
+      ...q,
+      compliance: "pending" as const,
+    }))
+    return { questions: questionsWithStatus }
+  } catch (e) {
+    console.error(e)
+    return { error: "Failed to extract questions from RFP." }
   }
 }

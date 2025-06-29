@@ -1,34 +1,37 @@
 import { QAndAItem } from "./q-and-a-item"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 
-const mockQuestions = [
-  {
-    id: 1,
-    question: "Please describe your company's approach to data security and privacy.",
-    compliance: "passed",
-  },
-  {
-    id: 2,
-    question: "What is your customer support model and what are the associated SLAs?",
-    compliance: "pending",
-  },
-  {
-    id: 3,
-    question: "Provide a detailed breakdown of the pricing structure for your solution.",
-    compliance: "failed",
-  },
-]
+type Question = {
+  id: number
+  question: string
+  category: string
+  compliance: "passed" | "failed" | "pending"
+}
 
-export function QAndAList() {
+type QAndAListProps = {
+  questions: Question[]
+}
+
+export function QAndAList({ questions }: QAndAListProps) {
   return (
-    <div className="space-y-4">
-      {mockQuestions.map((q) => (
-        <QAndAItem
-          key={q.id}
-          id={q.id}
-          question={q.question}
-          compliance={q.compliance as any}
-        />
-      ))}
-    </div>
+    <Card>
+      <CardHeader>
+        <CardTitle>Extracted Questions</CardTitle>
+        <CardDescription>
+          Review, edit, and generate answers for the questions extracted from the RFP.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {questions.map((q) => (
+          <QAndAItem
+            key={q.id}
+            id={q.id}
+            question={q.question}
+            category={q.category}
+            compliance={q.compliance}
+          />
+        ))}
+      </CardContent>
+    </Card>
   )
 }
