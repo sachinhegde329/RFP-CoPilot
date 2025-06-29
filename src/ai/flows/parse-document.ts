@@ -59,13 +59,14 @@ const parseDocumentFlow = ai.defineFlow(
         if (!mimeTypeMatch) {
             throw new Error('Could not extract MIME type from data URI.');
         }
-        const mimeType = mimeTypeMatch[1];
+        const mimeType = mimeTypeMatch[1].trim();
         const buffer = Buffer.from(base64Data, 'base64');
 
         let extractedText = '';
 
         try {
             switch (mimeType) {
+                case 'application pdf': // Handle malformed MIME type
                 case 'application/pdf':
                     const pdfParse = (await import('pdf-parse')).default;
                     const pdfData = await pdfParse(buffer);
