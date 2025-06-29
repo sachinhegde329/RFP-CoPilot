@@ -21,9 +21,22 @@ import {
 } from "lucide-react"
 import { useTenant } from "@/components/providers/tenant-provider"
 import Image from "next/image"
+import Link from "next/link"
+import { usePathname } from "next/navigation"
 
 export function AppSidebar() {
   const { tenant } = useTenant();
+  const pathname = usePathname();
+
+  const dashboardPath = `/${tenant.subdomain}`;
+  const isDashboardActive = pathname === dashboardPath;
+
+  const navItems = [
+    { href: `/${tenant.subdomain}/rfps`, label: "RFPs", icon: FileText },
+    { href: `/${tenant.subdomain}/knowledge-base`, label: "Knowledge Base", icon: Database },
+    { href: `/${tenant.subdomain}/templates`, label: "Templates", icon: Blocks },
+    { href: `/${tenant.subdomain}/analytics`, label: "Analytics", icon: BarChartHorizontalBig },
+  ];
 
   return (
     <Sidebar>
@@ -40,54 +53,46 @@ export function AppSidebar() {
       <SidebarContent className="p-4">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton href="#" isActive>
-              <LayoutDashboard />
-              Dashboard
+            <SidebarMenuButton asChild isActive={isDashboardActive}>
+              <Link href={dashboardPath}>
+                <LayoutDashboard />
+                Dashboard
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton href="#">
-              <FileText />
-              RFPs
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton href="#">
-              <Database />
-              Knowledge Base
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton href="#">
-              <Blocks />
-              Templates
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton href="#">
-              <BarChartHorizontalBig />
-              Analytics
-            </SidebarMenuButton>
-          </SidebarMenuItem>
+          {navItems.map((item) => (
+            <SidebarMenuItem key={item.label}>
+              <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)}>
+                <Link href={item.href}>
+                  <item.icon />
+                  {item.label}
+                </Link>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          ))}
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="p-4">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton href="#">
-              <Settings />
-              Settings
+             <SidebarMenuButton asChild>
+              <Link href="#">
+                <Settings />
+                Settings
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton href="#">
-              <Avatar className="size-6">
-                <AvatarImage src="https://placehold.co/100x100" />
-                <AvatarFallback>
-                  <CircleUserRound />
-                </AvatarFallback>
-              </Avatar>
-              My Account
+            <SidebarMenuButton asChild>
+              <Link href="#">
+                <Avatar className="size-6">
+                  <AvatarImage src="https://placehold.co/100x100" />
+                  <AvatarFallback>
+                    <CircleUserRound />
+                  </AvatarFallback>
+                </Avatar>
+                My Account
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
