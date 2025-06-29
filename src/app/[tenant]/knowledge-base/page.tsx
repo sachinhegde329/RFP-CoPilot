@@ -100,7 +100,6 @@ export default function KnowledgeBasePage() {
   const [configStep, setConfigStep] = useState<'select' | 'configure'>('select');
   const [sourceToConfigure, setSourceToConfigure] = useState<string | null>(null);
   const [websiteUrl, setWebsiteUrl] = useState('');
-  const [isSyncing, setIsSyncing] = useState(false);
   
   const handleSelectSource = (sourceName: string) => {
     if (sourceName === 'Website') {
@@ -114,7 +113,7 @@ export default function KnowledgeBasePage() {
     }
   }
 
-  const handleSyncWebsite = async () => {
+  const handleSyncWebsite = () => {
     if (!websiteUrl || !/^(https?:\/\/)/.test(websiteUrl)) {
         toast({
             variant: "destructive",
@@ -123,34 +122,64 @@ export default function KnowledgeBasePage() {
         });
         return;
     }
-    setIsSyncing(true);
-    const result = await ingestWebsiteAction(websiteUrl);
+    
+    const tempId = Date.now();
+    const newSourcePlaceholder = {
+        id: tempId,
+        name: websiteUrl,
+        type: "website",
+        status: "Syncing",
+        lastSynced: "In progress...",
+        docsSynced: 0,
+    };
 
-    if (result.error || !result.success) {
+    setConnectedSources(prev => [...prev, newSourcePlaceholder]);
+    setIsDialogOpen(false);
+
+    ingestWebsiteAction(websiteUrl).then(result => {
+        if (result.error || !result.success) {
+            setConnectedSources(prev => prev.map(source => 
+                source.id === tempId 
+                    ? { ...source, status: 'Error', lastSynced: 'Failed to sync' }
+                    : source
+            ));
+            toast({
+                variant: "destructive",
+                title: "Ingestion Failed",
+                description: result.error,
+            });
+        } else {
+            setConnectedSources(prev => prev.map(source => 
+                source.id === tempId 
+                    ? { 
+                        id: prev.length,
+                        name: result.title || websiteUrl,
+                        type: "website",
+                        status: "Synced",
+                        lastSynced: "Just now",
+                        docsSynced: 1,
+                      } 
+                    : source
+            ));
+            toast({
+                title: "Website Synced",
+                description: `Successfully ingested content from ${result.title || websiteUrl}`,
+            });
+        }
+    }).catch(error => {
+        setConnectedSources(prev => prev.map(source => 
+            source.id === tempId 
+                ? { ...source, status: 'Error', lastSynced: 'Failed to sync' }
+                : source
+        ));
         toast({
             variant: "destructive",
-            title: "Ingestion Failed",
-            description: result.error,
+            title: "An Unexpected Error Occurred",
+            description: "The sync process could not be completed.",
         });
-    } else {
-        const newSource = {
-            id: connectedSources.length + 1,
-            name: result.title || websiteUrl,
-            type: "website",
-            status: "Synced",
-            lastSynced: "Just now",
-            docsSynced: 1, // Represents one page crawled
-        };
-        setConnectedSources(prev => [...prev, newSource]);
-        toast({
-            title: "Website Synced",
-            description: `Successfully ingested content from ${result.title || websiteUrl}`,
-        });
-        
-        setIsDialogOpen(false);
-    }
-    setIsSyncing(false);
+    });
   }
+
 
   useEffect(() => {
     if (!isDialogOpen) {
@@ -398,13 +427,11 @@ export default function KnowledgeBasePage() {
                                                 placeholder="https://www.example.com"
                                                 value={websiteUrl}
                                                 onChange={(e) => setWebsiteUrl(e.target.value)}
-                                                disabled={isSyncing}
                                                 />
                                                 <p className="text-xs text-muted-foreground">The crawler will start from this page. Only a single page is supported for now.</p>
                                             </div>
-                                            <Button onClick={handleSyncWebsite} disabled={isSyncing || !websiteUrl}>
-                                                {isSyncing && <Loader2 className="mr-2 animate-spin" />}
-                                                {isSyncing ? 'Syncing...' : 'Sync Website'}
+                                            <Button onClick={handleSyncWebsite} disabled={!websiteUrl}>
+                                                Sync Website
                                             </Button>
                                         </div>
                                     ) : null}
@@ -532,5 +559,7 @@ export default function KnowledgeBasePage() {
     </SidebarInset>
   )
 }
+
+    
 
     
