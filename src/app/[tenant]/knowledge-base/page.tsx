@@ -300,7 +300,7 @@ export default function KnowledgeBasePage() {
         </div>
 
         <Tabs defaultValue="library">
-            <TabsList className="mb-4">
+            <TabsList className="mb-4 h-auto flex-wrap">
                 <TabsTrigger value="library">Answer Library</TabsTrigger>
                 <TabsTrigger value="sources">Content Sources</TabsTrigger>
                 <TabsTrigger value="review">Review Queue <Badge className="ml-2">{reviewQueue.length}</Badge></TabsTrigger>
@@ -447,7 +447,7 @@ export default function KnowledgeBasePage() {
                     </CardHeader>
                     <CardContent>
                          <Tabs defaultValue="connected">
-                            <TabsList>
+                            <TabsList className="h-auto flex-wrap">
                                 <TabsTrigger value="connected">Connected Integrations</TabsTrigger>
                                 <TabsTrigger value="uploaded">Uploaded Documents</TabsTrigger>
                             </TabsList>
