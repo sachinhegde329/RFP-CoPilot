@@ -60,31 +60,3 @@ export function DashboardHeader() {
     </header>
   )
 }
-
-// Minimal Breadcrumb component if not available in shadcn/ui
-const Breadcrumb = ({ children }: { children: React.ReactNode }) => (
-  <nav aria-label="breadcrumb">{children}</nav>
-)
-const BreadcrumbList = ({ children }: { children: React.ReactNode }) => (
-  <ol className="flex items-center gap-1.5">{children}</ol>
-)
-const BreadcrumbItem = ({ children }: { children: React.ReactNode }) => (
-  <li className="inline-flex items-center gap-1.5">{children}</li>
-)
-const BreadcrumbLink = ({
-  href,
-  children,
-}: {
-  href: string
-  children: React.ReactNode
-}) => (
-  <a href={href} className="text-sm font-medium text-muted-foreground hover:text-foreground">
-    {children}
-  </a>
-)
-const BreadcrumbPage = ({ children }: { children: React.ReactNode }) => (
-  <span className="text-sm font-medium text-foreground">{children}</span>
-)
-const BreadcrumbSeparator = () => (
-  <span className="text-muted-foreground">/</span>
-)
