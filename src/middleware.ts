@@ -28,16 +28,16 @@ export default function middleware(req: NextRequest) {
 
   const path = url.pathname;
 
-  // If we are on a subdomain, rewrite the path to include the subdomain.
-  // e.g. acme.localhost:3000/dashboard -> /acme/dashboard
-  if (hostWithoutPort !== rootDomain && hostWithoutPort !== `www.${rootDomain}`) {
+  // Check if it's a subdomain of the root domain.
+  // e.g. `acme.localhost` is a subdomain of `localhost`.
+  // It handles `www` as a non-subdomain request.
+  if (hostWithoutPort.endsWith(`.${rootDomain}`)) {
     const subdomain = hostWithoutPort.replace(`.${rootDomain}`, '');
-    return NextResponse.rewrite(new URL(`/${subdomain}${path}`, req.url));
+    if (subdomain !== 'www') {
+        return NextResponse.rewrite(new URL(`/${subdomain}${path}`, req.url));
+    }
   }
   
-  // Otherwise, we are on the root domain, so we let the request pass through.
-  // This will render pages from the /app directory.
-  // e.g. localhost:9002/ -> /app/page.tsx
-  //      localhost:9002/login -> /app/login/page.tsx
+  // All other requests (to the root domain, www, or an IP address) are passed through.
   return NextResponse.next();
 }
