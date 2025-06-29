@@ -29,7 +29,9 @@ export function AppSidebar() {
   const pathname = usePathname();
 
   const dashboardPath = `/${tenant.subdomain}`;
+  const settingsPath = `/${tenant.subdomain}/settings`;
   const isDashboardActive = pathname === dashboardPath;
+  const isSettingsActive = pathname.startsWith(settingsPath);
 
   const navItems = [
     { href: `/${tenant.subdomain}/rfps`, label: "RFPs", icon: FileText },
@@ -75,8 +77,8 @@ export function AppSidebar() {
       <SidebarFooter className="p-4">
         <SidebarMenu>
           <SidebarMenuItem>
-             <SidebarMenuButton asChild>
-              <Link href="#">
+             <SidebarMenuButton asChild isActive={isSettingsActive}>
+              <Link href={settingsPath}>
                 <Settings />
                 Settings
               </Link>
