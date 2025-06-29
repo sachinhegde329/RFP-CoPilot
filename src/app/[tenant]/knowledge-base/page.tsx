@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useState, useRef, ChangeEvent, useEffect } from "react"
+import { useState, useRef, ChangeEvent, useEffect, useMemo } from "react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { SidebarInset } from "@/components/ui/sidebar"
@@ -11,13 +11,15 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { MoreHorizontal, PlusCircle, Upload, Link as LinkIcon, FileText, CheckCircle, Clock, Search, Globe, FolderSync, BookOpen, Network, AlertTriangle, RefreshCw, Box, BookText, Github, Settings, Trash2, Loader2, ChevronLeft } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Upload, Link as LinkIcon, FileText, CheckCircle, Clock, Search, Globe, FolderSync, BookOpen, Network, AlertTriangle, RefreshCw, Box, BookText, Github, Settings, Trash2, Loader2, ChevronLeft, Info } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog"
-import { parseDocumentAction, ingestWebsiteAction } from "@/app/actions"
 import { Label } from "@/components/ui/label"
 import { useTenant } from "@/components/providers/tenant-provider"
+import { addDocumentSourceAction, addWebsiteSourceAction, getKnowledgeSourcesAction, deleteKnowledgeSourceAction, checkSourceStatusAction } from "@/app/actions"
+import type { KnowledgeSource } from "@/lib/knowledge-base"
+import { Skeleton } from "@/components/ui/skeleton"
 
 // Mock data for the components
 const knowledgeBaseStats = {
@@ -35,14 +37,6 @@ const initialAnswerLibrary = [
   { id: 5, question: "Can we export our data?", snippet: "Yes, data can be exported in CSV or JSON format at any time.", category: "Product", usage: 34, status: "Draft" },
 ]
 
-const initialConnectedSources = [
-    { id: 1, name: "Confluence - Product Docs", type: "confluence", status: "Synced", lastSynced: "2 hours ago", docsSynced: 1254 },
-    { id: 2, name: "SharePoint - Legal Contracts", type: "sharepoint", status: "Synced", lastSynced: "8 hours ago", docsSynced: 342 },
-    { id: 3, name: "Google Drive - Marketing Assets", type: "gdrive", status: "Error", lastSynced: "1 day ago", docsSynced: 87 },
-    { id: 4, name: "www.acme.com", type: "website", status: "Syncing", lastSynced: "5 minutes ago", docsSynced: 450 },
-    { id: 5, name: "GitHub - Engineering Wiki", type: "github", status: "Synced", lastSynced: "3 days ago", docsSynced: 78 },
-]
-
 const potentialSources = [
   { name: "Website", description: "Crawl and index content from a public website.", icon: Globe },
   { name: "Confluence", description: "Sync pages from your Confluence workspace.", icon: BookOpen },
@@ -52,11 +46,6 @@ const potentialSources = [
   { name: "Dropbox", description: "Sync files and folders from your Dropbox account.", icon: Box },
   { name: "GitHub", description: "Index content from repository wikis or markdown files.", icon: Github },
 ];
-
-const initialUploadedFiles = [
-    { id: 1, name: "Security Whitepaper Q2 2024.pdf", uploader: "Alex Green", uploaded: "2024-06-28" },
-    { id: 2, name: "Master Services Agreement.docx", uploader: "Sarah Lee", uploaded: "2024-06-25" },
-]
 
 const initialReviewQueue = [
     { id: 1, type: "New Answer", content: "What is the process for GDPR data deletion requests?", author: "John Doe", date: "2024-06-29" },
@@ -87,15 +76,17 @@ function getSourceIcon(type: string, className?: string) {
         case 'github': return <Github className={cn(classes, "text-gray-800 dark:text-gray-200")} />;
         case 'notion': return <BookText className={cn(classes, "text-black dark:text-white")} />;
         case 'dropbox': return <Box className={cn(classes, "text-blue-500")} />;
-        default: return <FileText className={cn(classes, "text-muted-foreground")}/>
+        case 'document': return <FileText className={cn(classes, "text-muted-foreground")} />;
+        default: return <Info className={cn(classes, "text-muted-foreground")}/>
     }
 }
 
 export default function KnowledgeBasePage() {
   const [answerLibrary, setAnswerLibrary] = useState(initialAnswerLibrary);
-  const [connectedSources, setConnectedSources] = useState(initialConnectedSources);
-  const [uploadedFiles, setUploadedFiles] = useState(initialUploadedFiles);
   const [reviewQueue, setReviewQueue] = useState(initialReviewQueue);
+
+  const [sources, setSources] = useState<KnowledgeSource[]>([]);
+  const [isLoadingSources, setIsLoadingSources] = useState(true);
   
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -107,6 +98,39 @@ export default function KnowledgeBasePage() {
   const [sourceToConfigure, setSourceToConfigure] = useState<string | null>(null);
   const [websiteUrl, setWebsiteUrl] = useState('');
   
+  const fetchSources = async () => {
+    setIsLoadingSources(true);
+    const result = await getKnowledgeSourcesAction(tenant.id);
+    if (result.error) {
+        toast({ variant: "destructive", title: "Failed to load sources", description: result.error });
+    } else if (result.sources) {
+        setSources(result.sources);
+    }
+    setIsLoadingSources(false);
+  };
+
+  useEffect(() => {
+    fetchSources();
+  }, [tenant.id]);
+
+   useEffect(() => {
+    // Polling for status updates
+    const syncingSources = sources.filter(s => s.status === 'Syncing');
+    if (syncingSources.length === 0) return;
+
+    const intervalId = setInterval(() => {
+        syncingSources.forEach(async (syncingSource) => {
+            const result = await checkSourceStatusAction(tenant.id, syncingSource.id);
+            if (result.source && result.source.status !== 'Syncing') {
+                setSources(prevSources => prevSources.map(s => s.id === result.source?.id ? result.source : s));
+            }
+        });
+    }, 3000); // Poll every 3 seconds
+
+    return () => clearInterval(intervalId);
+  }, [sources, tenant.id]);
+
+
   const handleSelectSource = (sourceName: string) => {
     if (sourceName === 'Website') {
         setSourceToConfigure('Website');
@@ -119,84 +143,24 @@ export default function KnowledgeBasePage() {
     }
   }
 
-  const handleSyncWebsite = () => {
+  const handleSyncWebsite = async () => {
     if (!websiteUrl || !/^(https?:\/\/)/.test(websiteUrl)) {
-        toast({
-            variant: "destructive",
-            title: "Invalid URL",
-            description: "Please enter a valid URL starting with http:// or https://",
-        });
+        toast({ variant: "destructive", title: "Invalid URL", description: "Please enter a valid URL starting with http:// or https://" });
         return;
     }
     
-    const tempId = Date.now();
-    const newSourcePlaceholder = {
-        id: tempId,
-        name: websiteUrl,
-        type: "website",
-        status: "Syncing",
-        lastSynced: "In progress...",
-        docsSynced: 0,
-    };
-
-    setConnectedSources(prev => [...prev, newSourcePlaceholder]);
     setIsDialogOpen(false);
+    
+    const result = await addWebsiteSourceAction(websiteUrl, tenant.id);
 
-    ingestWebsiteAction(websiteUrl, tenant.id).then(result => {
-        if (result.error || !result.success) {
-            setConnectedSources(prev => prev.map(source => 
-                source.id === tempId 
-                    ? { ...source, status: 'Error', lastSynced: 'Failed to sync' }
-                    : source
-            ));
-            toast({
-                variant: "destructive",
-                title: "Ingestion Failed",
-                description: result.error,
-            });
-        } else {
-            setConnectedSources(prev => prev.map(source => 
-                source.id === tempId 
-                    ? { 
-                        id: prev.length,
-                        name: result.title || websiteUrl,
-                        type: "website",
-                        status: "Synced",
-                        lastSynced: "Just now",
-                        docsSynced: 1, // simplified for now
-                      } 
-                    : source
-            ));
-            toast({
-                title: "Website Synced",
-                description: `Successfully ingested content from ${result.title || websiteUrl}`,
-            });
-        }
-    }).catch(error => {
-        setConnectedSources(prev => prev.map(source => 
-            source.id === tempId 
-                ? { ...source, status: 'Error', lastSynced: 'Failed to sync' }
-                : source
-        ));
-        toast({
-            variant: "destructive",
-            title: "An Unexpected Error Occurred",
-            description: "The sync process could not be completed.",
-        });
-    });
+    if(result.error || !result.source) {
+        toast({ variant: "destructive", title: "Sync Failed", description: result.error });
+    } else {
+        setSources(prev => [result.source!, ...prev]);
+        toast({ title: "Sync Started", description: `Started syncing content from ${websiteUrl}` });
+    }
   }
 
-
-  useEffect(() => {
-    if (!isDialogOpen) {
-      setTimeout(() => {
-        setConfigStep('select');
-        setSourceToConfigure(null);
-        setWebsiteUrl('');
-      }, 300);
-    }
-  }, [isDialogOpen]);
-  
   const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -207,26 +171,13 @@ export default function KnowledgeBasePage() {
     reader.readAsDataURL(file);
     reader.onload = async () => {
         const dataUri = reader.result as string;
-        const result = await parseDocumentAction(dataUri, tenant.id, file.name);
+        const result = await addDocumentSourceAction(dataUri, tenant.id, file.name);
 
-        if (result.error) {
-            toast({
-                variant: "destructive",
-                title: "Upload Failed",
-                description: result.error,
-            });
+        if (result.error || !result.source) {
+            toast({ variant: "destructive", title: "Upload Failed", description: result.error });
         } else {
-            toast({
-                title: "Upload Successful",
-                description: `Successfully parsed ${file.name}. Added ${result.chunksCount} chunks to the knowledge base.`,
-            });
-             const newFile = {
-                id: Date.now(),
-                name: file.name,
-                uploader: "Current User",
-                uploaded: new Date().toISOString().split('T')[0],
-            };
-            setUploadedFiles(prev => [newFile, ...prev]);
+            setSources(prev => [result.source!, ...prev]);
+            toast({ title: "Upload Started", description: `Parsing ${file.name}. This may take a moment.` });
         }
         setIsUploading(false);
         if(fileInputRef.current) {
@@ -234,11 +185,7 @@ export default function KnowledgeBasePage() {
         }
     };
     reader.onerror = () => {
-        toast({
-            variant: "destructive",
-            title: "Upload Failed",
-            description: "Could not read the selected file.",
-        });
+        toast({ variant: "destructive", title: "Upload Failed", description: "Could not read the selected file." });
         setIsUploading(false);
     }
   }
@@ -247,14 +194,31 @@ export default function KnowledgeBasePage() {
     fileInputRef.current?.click();
   };
 
-  const handleDeleteFile = (fileId: number) => {
-    setUploadedFiles(prevFiles => prevFiles.filter(file => file.id !== fileId));
-    toast({
-      title: "File Removed",
-      description: "The file has been removed from your list.",
-    });
+  const handleDeleteSource = async (sourceId: string) => {
+    const originalSources = sources;
+    setSources(prev => prev.filter(s => s.id !== sourceId));
+    
+    const result = await deleteKnowledgeSourceAction(tenant.id, sourceId);
+    if (result.error) {
+        setSources(originalSources);
+        toast({ variant: "destructive", title: "Delete Failed", description: result.error });
+    } else {
+        toast({ title: "Source Removed", description: "The source has been removed from your knowledge base." });
+    }
   };
 
+  useEffect(() => {
+    if (!isDialogOpen) {
+      setTimeout(() => {
+        setConfigStep('select');
+        setSourceToConfigure(null);
+        setWebsiteUrl('');
+      }, 300);
+    }
+  }, [isDialogOpen]);
+
+  const connectedSources = useMemo(() => sources.filter(s => s.type === 'website'), [sources]);
+  const uploadedFiles = useMemo(() => sources.filter(s => s.type === 'document'), [sources]);
 
   return (
     <SidebarInset className="flex-1 flex flex-col">
@@ -473,33 +437,51 @@ export default function KnowledgeBasePage() {
                                         <TableRow>
                                             <TableHead className="w-[40%]">Source</TableHead>
                                             <TableHead>Status</TableHead>
-                                            <TableHead>Docs Synced</TableHead>
+                                            <TableHead>Items Synced</TableHead>
                                             <TableHead>Last Synced</TableHead>
                                             <TableHead className="text-right">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {connectedSources.map(source => (
-                                            <TableRow key={source.id}>
-                                                <TableCell className="flex items-center gap-3">
-                                                    {getSourceIcon(source.type)}
-                                                    <span className="font-medium">{source.name}</span>
-                                                </TableCell>
-                                                <TableCell>{getStatusBadge(source.status)}</TableCell>
-                                                <TableCell>{source.docsSynced.toLocaleString()}</TableCell>
-                                                <TableCell>{source.lastSynced}</TableCell>
-                                                <TableCell className="text-right">
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
-                                                        <DropdownMenuContent>
-                                                            <DropdownMenuItem><RefreshCw className="mr-2"/> Sync Now</DropdownMenuItem>
-                                                            <DropdownMenuItem><Settings className="mr-2" /> Settings</DropdownMenuItem>
-                                                            <DropdownMenuItem className="text-destructive"><Trash2 className="mr-2"/> Remove</DropdownMenuItem>
-                                                        </DropdownMenuContent>
-                                                    </DropdownMenu>
+                                        {isLoadingSources ? (
+                                            Array.from({length: 2}).map((_, i) => (
+                                                <TableRow key={`skel-conn-${i}`}>
+                                                    <TableCell><Skeleton className="h-5 w-40" /></TableCell>
+                                                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                                                    <TableCell><Skeleton className="h-5 w-12" /></TableCell>
+                                                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                                                    <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : connectedSources.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={5} className="h-24 text-center">
+                                                    No integrations connected yet.
                                                 </TableCell>
                                             </TableRow>
-                                        ))}
+                                        ) : (
+                                            connectedSources.map(source => (
+                                                <TableRow key={source.id}>
+                                                    <TableCell className="flex items-center gap-3">
+                                                        {getSourceIcon(source.type)}
+                                                        <span className="font-medium truncate">{source.name}</span>
+                                                    </TableCell>
+                                                    <TableCell>{getStatusBadge(source.status)}</TableCell>
+                                                    <TableCell>{source.itemCount?.toLocaleString()}</TableCell>
+                                                    <TableCell>{source.lastSynced}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
+                                                            <DropdownMenuContent>
+                                                                <DropdownMenuItem disabled={source.status === 'Syncing'}><RefreshCw className="mr-2"/> Sync Now</DropdownMenuItem>
+                                                                <DropdownMenuItem><Settings className="mr-2" /> Settings</DropdownMenuItem>
+                                                                <DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteSource(source.id)}><Trash2 className="mr-2"/> Remove</DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
                                     </TableBody>
                                 </Table>
                             </TabsContent>
@@ -509,12 +491,21 @@ export default function KnowledgeBasePage() {
                                         <TableRow>
                                             <TableHead className="w-[50%]">File Name</TableHead>
                                             <TableHead>Uploader</TableHead>
-                                            <TableHead>Date Uploaded</TableHead>
+                                            <TableHead>Status</TableHead>
                                             <TableHead className="text-right">Actions</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {uploadedFiles.length === 0 ? (
+                                        {isLoadingSources ? (
+                                            Array.from({length: 3}).map((_, i) => (
+                                                <TableRow key={`skel-up-${i}`}>
+                                                    <TableCell><Skeleton className="h-5 w-48" /></TableCell>
+                                                    <TableCell><Skeleton className="h-5 w-24" /></TableCell>
+                                                    <TableCell><Skeleton className="h-5 w-20" /></TableCell>
+                                                    <TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
+                                                </TableRow>
+                                            ))
+                                        ) : uploadedFiles.length === 0 ? (
                                              <TableRow>
                                                 <TableCell colSpan={4} className="h-24 text-center">
                                                     No documents uploaded yet.
@@ -524,17 +515,17 @@ export default function KnowledgeBasePage() {
                                             uploadedFiles.map(file => (
                                                 <TableRow key={file.id}>
                                                     <TableCell className="font-medium flex items-center gap-2">
-                                                        <FileText className="h-4 w-4 text-muted-foreground" />
+                                                        {getSourceIcon(file.type)}
                                                         {file.name}
                                                     </TableCell>
                                                     <TableCell>{file.uploader}</TableCell>
-                                                    <TableCell>{file.uploaded}</TableCell>
+                                                    <TableCell>{getStatusBadge(file.status)}</TableCell>
                                                     <TableCell className="text-right">
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
                                                             <DropdownMenuContent>
                                                                 <DropdownMenuItem>View Content</DropdownMenuItem>
-                                                                <DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteFile(file.id)}>
+                                                                <DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteSource(file.id)}>
                                                                     <Trash2 className="mr-2 h-4 w-4" />
                                                                     Delete
                                                                 </DropdownMenuItem>
