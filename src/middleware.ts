@@ -28,19 +28,16 @@ export default function middleware(req: NextRequest) {
 
   const path = url.pathname;
 
-  // Prevent redirect loops
-  if (path === '/login') {
-    return NextResponse.next();
+  // If we are on a subdomain, rewrite the path to include the subdomain.
+  // e.g. acme.localhost:3000/dashboard -> /acme/dashboard
+  if (hostWithoutPort !== rootDomain && hostWithoutPort !== `www.${rootDomain}`) {
+    const subdomain = hostWithoutPort.replace(`.${rootDomain}`, '');
+    return NextResponse.rewrite(new URL(`/${subdomain}${path}`, req.url));
   }
   
-  // If we're on the root domain, rewrite to the login page
-  if (hostWithoutPort === rootDomain || hostWithoutPort === `www.${rootDomain}`) {
-    return NextResponse.rewrite(new URL('/login', req.url));
-  }
-
-  // Extract subdomain
-  const subdomain = hostWithoutPort.replace(`.${rootDomain}`, '');
-  
-  // Rewrite the path to include the subdomain
-  return NextResponse.rewrite(new URL(`/${subdomain}${path}`, req.url));
+  // Otherwise, we are on the root domain, so we let the request pass through.
+  // This will render pages from the /app directory.
+  // e.g. localhost:9002/ -> /app/page.tsx
+  //      localhost:9002/login -> /app/login/page.tsx
+  return NextResponse.next();
 }
