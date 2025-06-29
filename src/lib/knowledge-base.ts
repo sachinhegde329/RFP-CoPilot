@@ -1,6 +1,4 @@
 
-'use server';
-
 export interface KnowledgeChunk {
   id: string;
   tenantId: string;
