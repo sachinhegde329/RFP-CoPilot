@@ -8,9 +8,6 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarMenuSub,
-  SidebarMenuSubItem,
-  SidebarMenuSubButton,
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -21,17 +18,24 @@ import {
   BarChartHorizontalBig,
   Settings,
   CircleUserRound,
-  FileBox,
 } from "lucide-react"
+import { useTenant } from "@/components/providers/tenant-provider"
+import Image from "next/image"
 
 export function AppSidebar() {
+  const { tenant } = useTenant();
+
   return (
     <Sidebar>
-      <SidebarHeader className="p-4">
-        <div className="flex items-center gap-2">
-          <FileBox className="size-8 text-primary" />
-          <h1 className="text-xl font-semibold">RFP CoPilot</h1>
-        </div>
+      <SidebarHeader className="p-4 flex items-center justify-center">
+        <Image 
+          src={tenant.branding.logoUrl} 
+          alt={`${tenant.name} Logo`}
+          width={128}
+          height={32}
+          className="h-8 w-auto"
+          data-ai-hint={tenant.branding.logoDataAiHint}
+        />
       </SidebarHeader>
       <SidebarContent className="p-4">
         <SidebarMenu>

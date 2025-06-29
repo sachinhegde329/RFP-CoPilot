@@ -19,8 +19,11 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { SidebarTrigger } from "@/components/ui/sidebar"
 import { CircleUserRound } from "lucide-react"
+import { useTenant } from "@/components/providers/tenant-provider"
 
 export function DashboardHeader() {
+  const { tenant } = useTenant()
+
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 md:px-6">
       <div className="md:hidden">
@@ -31,7 +34,7 @@ export function DashboardHeader() {
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
-              <BreadcrumbLink href="#">Home</BreadcrumbLink>
+              <BreadcrumbLink href="#">{tenant.name}</BreadcrumbLink>
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
