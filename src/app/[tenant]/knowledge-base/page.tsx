@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { MoreHorizontal, PlusCircle, Upload, Link as LinkIcon, FileText, Share2, CheckCircle, Clock, Search } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Upload, Link as LinkIcon, FileText, CheckCircle, Clock, Search, Globe, FolderCloud, BookOpen, Network } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog"
 
 // Mock data for the components
 const knowledgeBaseStats = {
@@ -33,6 +34,13 @@ const connectedSources = [
     { id: 3, name: "Google Drive - Marketing Assets", type: "gdrive", status: "Error", lastSynced: "1 day ago" },
 ]
 
+const potentialSources = [
+  { name: "Confluence", description: "Sync pages from your Confluence workspace.", icon: BookOpen },
+  { name: "SharePoint", description: "Connect to your organization's SharePoint sites.", icon: Network },
+  { name: "Google Drive", description: "Ingest documents from selected Drive folders.", icon: FolderCloud },
+  { name: "Website", description: "Crawl and index content from a public website.", icon: Globe },
+];
+
 const uploadedFiles = [
     { id: 1, name: "Security Whitepaper Q2 2024.pdf", uploader: "Alex Green", uploaded: "2024-06-28" },
     { id: 2, name: "Master Services Agreement.docx", uploader: "Sarah Lee", uploaded: "2024-06-25" },
@@ -55,9 +63,9 @@ function getStatusBadge(status: string) {
 
 function getSourceIcon(type: string) {
     switch(type) {
-        case 'confluence': return <Share2 className="h-5 w-5 text-blue-600" />; // Simplified, in reality would use brand icons
-        case 'sharepoint': return <Share2 className="h-5 w-5 text-teal-500" />;
-        case 'gdrive': return <Share2 className="h-5 w-5 text-yellow-500" />;
+        case 'confluence': return <BookOpen className="h-5 w-5 text-blue-600" />;
+        case 'sharepoint': return <Network className="h-5 w-5 text-teal-500" />;
+        case 'gdrive': return <FolderCloud className="h-5 w-5 text-yellow-500" />;
         default: return <FileText className="h-5 w-5 text-muted-foreground"/>
     }
 }
@@ -207,10 +215,34 @@ export default function KnowledgeBasePage() {
                            </ul>
                         </CardContent>
                         <CardFooter>
-                            <Button className="w-full">
-                                <LinkIcon className="mr-2"/>
-                                Connect New Source
-                            </Button>
+                           <Dialog>
+                              <DialogTrigger asChild>
+                                  <Button className="w-full">
+                                      <LinkIcon className="mr-2"/>
+                                      Connect New Source
+                                  </Button>
+                              </DialogTrigger>
+                              <DialogContent>
+                                  <DialogHeader>
+                                      <DialogTitle>Connect a new data source</DialogTitle>
+                                      <DialogDescription>
+                                          Select a source to sync content with your Knowledge Base. Your existing content will not be affected.
+                                      </DialogDescription>
+                                  </DialogHeader>
+                                  <div className="space-y-4 py-4">
+                                      {potentialSources.map(source => (
+                                          <div key={source.name} className="flex items-center gap-4 p-3 border rounded-lg">
+                                              <source.icon className="h-6 w-6 text-muted-foreground flex-shrink-0" />
+                                              <div className="flex-1">
+                                                  <p className="font-semibold">{source.name}</p>
+                                                  <p className="text-sm text-muted-foreground">{source.description}</p>
+                                              </div>
+                                              <Button variant="outline">Connect</Button>
+                                          </div>
+                                      ))}
+                                  </div>
+                              </DialogContent>
+                          </Dialog>
                         </CardFooter>
                     </Card>
                     <Card>
