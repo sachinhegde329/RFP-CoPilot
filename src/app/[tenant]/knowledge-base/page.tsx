@@ -1,6 +1,7 @@
+
 'use client'
 
-import { useState, useRef, ChangeEvent } from "react"
+import { useState, useRef, ChangeEvent, useEffect } from "react"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { SidebarInset } from "@/components/ui/sidebar"
@@ -10,11 +11,12 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { MoreHorizontal, PlusCircle, Upload, Link as LinkIcon, FileText, CheckCircle, Clock, Search, Globe, FolderSync, BookOpen, Network, AlertTriangle, RefreshCw, Box, BookText, Github, Settings, Trash2, Loader2 } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Upload, Link as LinkIcon, FileText, CheckCircle, Clock, Search, Globe, FolderSync, BookOpen, Network, AlertTriangle, RefreshCw, Box, BookText, Github, Settings, Trash2, Loader2, ChevronLeft } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog"
-import { parseDocumentAction } from "@/app/actions"
+import { parseDocumentAction, ingestWebsiteAction } from "@/app/actions"
+import { Label } from "@/components/ui/label"
 
 // Mock data for the components
 const knowledgeBaseStats = {
@@ -41,10 +43,10 @@ const initialConnectedSources = [
 ]
 
 const potentialSources = [
+  { name: "Website", description: "Crawl and index content from a public website.", icon: Globe },
   { name: "Confluence", description: "Sync pages from your Confluence workspace.", icon: BookOpen },
   { name: "SharePoint", description: "Connect to your organization's SharePoint sites.", icon: Network },
   { name: "Google Drive", description: "Ingest documents from selected Drive folders.", icon: FolderSync },
-  { name: "Website", description: "Crawl and index content from a public website.", icon: Globe },
   { name: "Notion", description: "Import pages and databases from your Notion workspace.", icon: BookText },
   { name: "Dropbox", description: "Sync files and folders from your Dropbox account.", icon: Box },
   { name: "GitHub", description: "Index content from repository wikis or markdown files.", icon: Github },
@@ -90,38 +92,75 @@ function getSourceIcon(type: string, className?: string) {
 
 export default function KnowledgeBasePage() {
   const [connectedSources, setConnectedSources] = useState(initialConnectedSources);
-  const [isConnecting, setIsConnecting] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const handleConnectSource = (sourceName: string) => {
-    setIsConnecting(sourceName);
-
-    setTimeout(() => {
-        const sourceToConnect = potentialSources.find(p => p.name === sourceName);
-        if (sourceToConnect) {
-            const newSource = {
-                id: connectedSources.length + 1,
-                name: `${sourceToConnect.name} - New Connection`,
-                type: sourceToConnect.name.toLowerCase(),
-                status: "Synced",
-                lastSynced: "Just now",
-                docsSynced: Math.floor(Math.random() * 500)
-            };
-            setConnectedSources(prev => [...prev, newSource]);
-        }
-
+  const [configStep, setConfigStep] = useState<'select' | 'configure'>('select');
+  const [sourceToConfigure, setSourceToConfigure] = useState<string | null>(null);
+  const [websiteUrl, setWebsiteUrl] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
+  
+  const handleSelectSource = (sourceName: string) => {
+    if (sourceName === 'Website') {
+        setSourceToConfigure('Website');
+        setConfigStep('configure');
+    } else {
         toast({
-            title: "Source Connected",
-            description: `${sourceName} has been successfully connected.`,
+            title: "Connector Coming Soon",
+            description: `The ${sourceName} connector is under development.`,
         });
-
-        setIsConnecting(null);
-        setIsDialogOpen(false);
-    }, 1500);
+    }
   }
+
+  const handleSyncWebsite = async () => {
+    if (!websiteUrl || !/^(https?:\/\/)/.test(websiteUrl)) {
+        toast({
+            variant: "destructive",
+            title: "Invalid URL",
+            description: "Please enter a valid URL starting with http:// or https://",
+        });
+        return;
+    }
+    setIsSyncing(true);
+    const result = await ingestWebsiteAction(websiteUrl);
+
+    if (result.error || !result.success) {
+        toast({
+            variant: "destructive",
+            title: "Ingestion Failed",
+            description: result.error,
+        });
+    } else {
+        const newSource = {
+            id: connectedSources.length + 1,
+            name: result.title || websiteUrl,
+            type: "website",
+            status: "Synced",
+            lastSynced: "Just now",
+            docsSynced: 1, // Represents one page crawled
+        };
+        setConnectedSources(prev => [...prev, newSource]);
+        toast({
+            title: "Website Synced",
+            description: `Successfully ingested content from ${result.title || websiteUrl}`,
+        });
+        
+        setIsDialogOpen(false);
+    }
+    setIsSyncing(false);
+  }
+
+  useEffect(() => {
+    if (!isDialogOpen) {
+      setTimeout(() => {
+        setConfigStep('select');
+        setSourceToConfigure(null);
+        setWebsiteUrl('');
+      }, 300);
+    }
+  }, [isDialogOpen]);
   
   const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -148,7 +187,6 @@ export default function KnowledgeBasePage() {
             });
         }
         setIsUploading(false);
-        // Reset file input
         if(fileInputRef.current) {
             fileInputRef.current.value = "";
         }
@@ -316,30 +354,61 @@ export default function KnowledgeBasePage() {
                                 </DialogTrigger>
                                 <DialogContent className="sm:max-w-2xl">
                                     <DialogHeader>
-                                        <DialogTitle>Connect a new data source</DialogTitle>
-                                        <DialogDescription>
-                                            Select a source to sync content with your Knowledge Base. Your existing content will not be affected.
+                                        {configStep === 'configure' && sourceToConfigure && (
+                                            <Button variant="ghost" size="sm" className="absolute left-4 top-4 h-auto p-1 text-sm" onClick={() => { setConfigStep('select'); setSourceToConfigure(null); }}>
+                                                <ChevronLeft className="h-4 w-4 mr-1" />
+                                                Back
+                                            </Button>
+                                        )}
+                                        <DialogTitle className="text-center sm:text-left">
+                                            {configStep === 'select' ? 'Connect a new data source' : `Configure ${sourceToConfigure}`}
+                                        </DialogTitle>
+                                        <DialogDescription className="text-center sm:text-left">
+                                            {configStep === 'select' 
+                                                ? 'Select a source to sync content with your Knowledge Base.' 
+                                                : `Enter the required information to connect to your ${sourceToConfigure} source.`
+                                            }
                                         </DialogDescription>
                                     </DialogHeader>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-                                        {potentialSources.map(source => (
-                                            <div key={source.name} className="flex items-center gap-4 p-3 border rounded-lg hover:border-primary hover:bg-muted/50 transition-colors">
-                                                {getSourceIcon(source.name.toLowerCase(), "h-8 w-8 flex-shrink-0")}
-                                                <div className="flex-1">
-                                                    <p className="font-semibold">{source.name}</p>
-                                                    <p className="text-sm text-muted-foreground">{source.description}</p>
+
+                                    {configStep === 'select' ? (
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+                                            {potentialSources.map(source => (
+                                                <div key={source.name} className="flex items-center gap-4 p-3 border rounded-lg hover:border-primary hover:bg-muted/50 transition-colors">
+                                                    {getSourceIcon(source.name.toLowerCase(), "h-8 w-8 flex-shrink-0")}
+                                                    <div className="flex-1">
+                                                        <p className="font-semibold">{source.name}</p>
+                                                        <p className="text-sm text-muted-foreground">{source.description}</p>
+                                                    </div>
+                                                    <Button 
+                                                        variant="outline" 
+                                                        onClick={() => handleSelectSource(source.name)}
+                                                    >
+                                                        Connect
+                                                    </Button>
                                                 </div>
-                                                <Button 
-                                                    variant="outline" 
-                                                    onClick={() => handleConnectSource(source.name)}
-                                                    disabled={isConnecting !== null}
-                                                >
-                                                    {isConnecting === source.name ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                                                    {isConnecting === source.name ? 'Connecting...' : 'Connect'}
-                                                </Button>
+                                            ))}
+                                        </div>
+                                    ) : sourceToConfigure === 'Website' ? (
+                                        <div className="py-4 space-y-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="website-url">Root URL</Label>
+                                                <Input 
+                                                id="website-url"
+                                                placeholder="https://www.example.com"
+                                                value={websiteUrl}
+                                                onChange={(e) => setWebsiteUrl(e.target.value)}
+                                                disabled={isSyncing}
+                                                />
+                                                <p className="text-xs text-muted-foreground">The crawler will start from this page. Only a single page is supported for now.</p>
                                             </div>
-                                        ))}
-                                    </div>
+                                            <Button onClick={handleSyncWebsite} disabled={isSyncing || !websiteUrl}>
+                                                {isSyncing && <Loader2 className="mr-2 animate-spin" />}
+                                                {isSyncing ? 'Syncing...' : 'Sync Website'}
+                                            </Button>
+                                        </div>
+                                    ) : null}
+
                                 </DialogContent>
                             </Dialog>
                         </div>
@@ -463,3 +532,5 @@ export default function KnowledgeBasePage() {
     </SidebarInset>
   )
 }
+
+    
