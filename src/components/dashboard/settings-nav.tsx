@@ -4,7 +4,7 @@ import { usePathname } from "next/navigation"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
-import { User, Users, CreditCard, Settings as SettingsIcon } from "lucide-react"
+import { User, Users, CreditCard, Settings as SettingsIcon, Shield } from "lucide-react"
 
 export function SettingsNav() {
     const pathname = usePathname();
@@ -15,6 +15,7 @@ export function SettingsNav() {
         { href: `/${tenant.subdomain}/settings/billing`, label: "Billing", icon: CreditCard },
         { href: `/${tenant.subdomain}/settings/profile`, label: "My Profile", icon: User },
         { href: `/${tenant.subdomain}/settings/workspace`, label: "Workspace", icon: SettingsIcon },
+        { href: `/${tenant.subdomain}/settings/security`, label: "Security", icon: Shield },
     ];
 
     return (

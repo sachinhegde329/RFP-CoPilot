@@ -7,6 +7,6 @@ export default function SettingsPage({ params }: { params: { tenant: string } })
     // This case should be handled by layout, but for safety:
     redirect('/');
   }
-  // Redirect to the first/default settings tab
-  redirect(`/${tenant.subdomain}/settings/team`);
+  // Redirect to the new default settings tab
+  redirect(`/${tenant.subdomain}/settings/security`);
 }
