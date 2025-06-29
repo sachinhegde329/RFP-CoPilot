@@ -34,12 +34,12 @@ export default function LoginPage() {
       const rootDomain = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || window.location.host).replace(/www\./, '');
       window.location.href = `${protocol}//${tenant.subdomain}.${rootDomain}`;
     } else {
-      // This path is only taken if the email format is invalid
+      // This path is taken if the email format is invalid or it's a free email provider
       toast({
         variant: 'destructive',
-        title: 'Invalid Email',
+        title: 'Unsupported Email Provider',
         description:
-          "Please enter a valid email address.",
+          "Please use a valid work email to create a workspace. Personal email addresses are not supported.",
       });
       setIsLoading(false);
     }

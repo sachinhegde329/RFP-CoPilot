@@ -35,6 +35,17 @@ const tenants: Tenant[] = [
   },
 ];
 
+const freeEmailProviders = new Set([
+  'gmail.com',
+  'yahoo.com',
+  'hotmail.com',
+  'outlook.com',
+  'aol.com',
+  'icloud.com',
+  'live.com',
+  'msn.com',
+]);
+
 function createFreeTenant(domainOrSubdomain: string, type: 'domain' | 'subdomain'): Tenant {
   let subdomain, domain, name;
 
@@ -75,6 +86,10 @@ export function getTenantByEmail(email: string): Tenant | null {
   const domain = email.split('@')[1];
   if (!domain) return null;
   
+  if (freeEmailProviders.has(domain.toLowerCase())) {
+    return null;
+  }
+
   const tenant = tenants.find((t) => t.domains.includes(domain));
   if (tenant) {
     return tenant;
