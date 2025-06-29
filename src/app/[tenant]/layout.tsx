@@ -5,8 +5,9 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/dashboard/app-sidebar';
 import type { Metadata } from 'next';
 
-export async function generateMetadata({ params }: { params: { tenant: string } }): Promise<Metadata> {
-  const tenant = getTenantBySubdomain(params.tenant);
+export async function generateMetadata({ params }: { params: Promise<{ tenant: string }> }): Promise<Metadata> {
+  const resolvedParams = await params;
+  const tenant = getTenantBySubdomain(resolvedParams.tenant);
   return {
     title: tenant ? `${tenant.name} | RFP CoPilot` : 'RFP CoPilot',
   };
