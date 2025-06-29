@@ -327,3 +327,34 @@ export async function createCheckoutSessionAction(plan: 'starter' | 'growth', te
         return { error: `Stripe error: ${errorMessage}` };
     }
 }
+
+export async function createCustomerPortalSessionAction(tenantId: string) {
+  if (!process.env.STRIPE_SECRET_KEY || !process.env.NEXT_PUBLIC_APP_URL) {
+    return { error: "Stripe is not configured." };
+  }
+
+  const tenant = getTenantBySubdomain(tenantId);
+  if (!tenant) {
+    return { error: "Tenant not found." };
+  }
+
+  if (!tenant.stripeCustomerId) {
+    return { error: "Stripe customer ID not found for this tenant." };
+  }
+  
+  const returnUrl = `${process.env.NEXT_PUBLIC_APP_URL}/${tenant.subdomain}/settings/billing`;
+
+  try {
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: tenant.stripeCustomerId,
+      return_url: returnUrl,
+    });
+    
+    return { portalUrl: portalSession.url };
+
+  } catch (e) {
+    console.error(e);
+    const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
+    return { error: `Stripe error: ${errorMessage}` };
+  }
+}

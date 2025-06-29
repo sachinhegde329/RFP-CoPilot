@@ -8,6 +8,7 @@ export interface Tenant {
   domains: string[];
   plan: 'free' | 'starter' | 'growth' | 'enterprise';
   addOns?: AddOn[];
+  stripeCustomerId?: string;
   branding: {
     logoUrl: string;
     logoDataAiHint: string;
@@ -52,6 +53,7 @@ const tenants: Omit<Tenant, 'limits'>[] = [
     domains: ['acme.com', 'acmeinc.com'],
     plan: 'enterprise',
     addOns: [],
+    stripeCustomerId: 'cus_Pabx3EMG9pDRgI', // Replace with actual Stripe Customer ID
     branding: {
       logoUrl: 'https://placehold.co/128x32.png',
       logoDataAiHint: 'modern logo',
@@ -64,6 +66,7 @@ const tenants: Omit<Tenant, 'limits'>[] = [
     domains: ['megacorp.com'],
     plan: 'free',
     addOns: [],
+    stripeCustomerId: 'cus_Paby6e5S6f6Kj3', // Replace with actual Stripe Customer ID
     branding: {
       logoUrl: 'https://placehold.co/128x32.png',
       logoDataAiHint: 'corporate logo',
@@ -99,6 +102,7 @@ function createFreeTenant(subdomain: string): Tenant {
     domains: [`${sanitizedSubdomain}.com`], // Best guess for domain
     plan: 'free',
     addOns: [],
+    stripeCustomerId: `cus_sample_${sanitizedSubdomain}`, // Placeholder
     branding: {
       logoUrl: 'https://placehold.co/128x32.png',
       logoDataAiHint: 'generic logo',
