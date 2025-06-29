@@ -67,8 +67,8 @@ const parseDocumentFlow = ai.defineFlow(
         try {
             switch (mimeType) {
                 case 'application/pdf':
-                    const pdf = require('pdf-parse');
-                    const pdfData = await pdf(buffer);
+                    const pdfParse = (await import('pdf-parse')).default;
+                    const pdfData = await pdfParse(buffer);
                     extractedText = pdfData.text;
                     break;
                 case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': // .docx
