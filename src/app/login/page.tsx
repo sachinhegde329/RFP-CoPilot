@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -21,6 +22,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isGuestLoading, setIsGuestLoading] = useState(false);
   const { toast } = useToast();
+  const router = useRouter();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,10 +40,8 @@ export default function LoginPage() {
 
     if (tenant) {
       // In a real app, you'd handle auth here.
-      // For now, we'll just redirect to the tenant's subdomain.
-      const protocol = window.location.protocol;
-      const rootDomain = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || window.location.host).replace(/www\./, '');
-      window.location.href = `${protocol}//${tenant.subdomain}.${rootDomain}`;
+      // For now, we'll just navigate to the tenant's page.
+      router.push(`/${tenant.subdomain}`);
     } else {
       // This path is taken if the email format is invalid or it's a free email provider
       toast({
@@ -56,10 +56,8 @@ export default function LoginPage() {
 
   const handleGuestLogin = () => {
     setIsGuestLoading(true);
-    // Hardcode the free tenant 'megacorp' for testing
-    const protocol = window.location.protocol;
-    const rootDomain = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || window.location.host).replace(/www\./, '');
-    window.location.href = `${protocol}//megacorp.${rootDomain}`;
+    // Hardcode the free tenant 'megacorp' for testing and navigate to its page
+    router.push('/megacorp');
   };
 
   return (
