@@ -18,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Label } from "@/components/ui/label"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { addDocumentSourceAction, addWebsiteSourceAction, getKnowledgeSourcesAction, deleteKnowledgeSourceAction, checkSourceStatusAction } from "@/app/actions"
-import type { DataSource } from "@/lib/knowledge-base"
+import type { DataSource, SyncStatus } from "@/lib/knowledge-base"
 import { Skeleton } from "@/components/ui/skeleton"
 
 // Mock data for the components
@@ -53,13 +53,14 @@ const initialReviewQueue = [
     { id: 3, type: "Answer Edit", content: "How do you handle user authentication?", author: "Jane Smith", date: "2024-06-28" },
 ]
 
-function getStatusBadge(status: string) {
+function getStatusBadge(status: SyncStatus | string) {
     switch (status) {
         case "Approved": return <Badge variant="secondary" className="text-green-600"><CheckCircle className="mr-1 h-3 w-3" />Approved</Badge>;
         case "In Review": return <Badge variant="outline"><Clock className="mr-1 h-3 w-3" />In Review</Badge>;
         case "Draft": return <Badge variant="secondary">Draft</Badge>;
         case "Synced": return <Badge variant="secondary" className="text-green-600"><CheckCircle className="mr-1 h-3 w-3" />Synced</Badge>;
         case "Syncing": return <Badge variant="outline"><RefreshCw className="mr-1 h-3 w-3 animate-spin" />Syncing</Badge>;
+        case "Pending": return <Badge variant="outline"><Clock className="mr-1 h-3 w-3" />Pending</Badge>;
         case "Error": return <Badge variant="destructive"><AlertTriangle className="mr-1 h-3 w-3" />Error</Badge>;
         default: return <Badge>{status}</Badge>;
     }
@@ -135,6 +136,9 @@ export default function KnowledgeBasePage() {
     if (sourceName === 'Website') {
         setSourceToConfigure('Website');
         setConfigStep('configure');
+    } else if (sourceName === 'Google Drive') {
+        // Redirect to the backend route that starts the OAuth flow
+        window.location.href = `/api/auth/google/initiate?tenantId=${tenant.id}`;
     } else {
         toast({
             title: "Connector Coming Soon",
@@ -217,7 +221,7 @@ export default function KnowledgeBasePage() {
     }
   }, [isDialogOpen]);
 
-  const connectedSources = useMemo(() => sources.filter(s => s.type === 'website'), [sources]);
+  const connectedSources = useMemo(() => sources.filter(s => s.type !== 'document'), [sources]);
   const uploadedFiles = useMemo(() => sources.filter(s => s.type === 'document'), [sources]);
 
   return (

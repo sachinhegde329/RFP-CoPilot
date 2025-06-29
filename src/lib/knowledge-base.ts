@@ -9,11 +9,18 @@ export interface DataSource {
   id: string;
   tenantId: string;
   type: DataSourceType;
-  name: string; // e.g., "Company Website" or "Q3 Sales Playbook.docx"
+  name: string;
   status: SyncStatus;
   lastSynced: string;
   itemCount?: number;
   uploader?: string; // For manually uploaded documents
+  auth?: {
+    accessToken: string;
+    refreshToken?: string;
+    scope: string;
+    tokenType: string;
+    expiryDate: number;
+  } | null;
 }
 
 /**
@@ -81,7 +88,7 @@ class KnowledgeBaseService {
   public addDataSource(source: Omit<DataSource, 'id'>): DataSource {
     const newSource: DataSource = {
       ...source,
-      id: `${source.tenantId}-${source.name.replace(/[^a-zA-Z0-9]/g, '-')}-${Date.now()}`
+      id: `${source.tenantId}-${source.type}-${Date.now()}`
     };
     this.dataSources.unshift(newSource);
     return newSource;
