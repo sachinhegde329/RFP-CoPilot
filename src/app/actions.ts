@@ -6,7 +6,7 @@ import { generateDraftAnswer } from "@/ai/flows/smart-answer-generation"
 import { aiExpertReview } from "@/ai/flows/ai-expert-review"
 import { extractRfpQuestions } from "@/ai/flows/extract-rfp-questions"
 import { parseDocument } from "@/ai/flows/parse-document"
-import { knowledgeBaseService } from "@/lib/knowledge-base"
+import { knowledgeBaseService, type DataSource } from "@/lib/knowledge-base"
 import { websiteCrawlerService } from "@/lib/connectors/websiteCrawler.service"
 
 
@@ -157,6 +157,33 @@ export async function addDocumentSourceAction(documentDataUri: string, tenantId:
     return { source: newSource };
 }
 
+// Helper function to encapsulate the sync logic for websites
+async function _performWebsiteSync(tenantId: string, source: DataSource) {
+    try {
+       // Clear old chunks before syncing
+       knowledgeBaseService.deleteChunksBySourceId(tenantId, source.id);
+
+       const ingestResult = await websiteCrawlerService.ingestPage(source.name); // source.name holds the URL
+       if (ingestResult.success) {
+           await knowledgeBaseService.addChunks(tenantId, source.id, 'website', ingestResult.title || source.name, ingestResult.chunks, ingestResult.url);
+           knowledgeBaseService.updateDataSource(tenantId, source.id, {
+               status: 'Synced',
+               lastSynced: new Date().toLocaleDateString(),
+               itemCount: ingestResult.chunks.length,
+               name: ingestResult.title || source.name,
+           });
+       } else {
+            throw new Error(ingestResult.error || 'Unknown ingestion error');
+       }
+   } catch (error) {
+       console.error(`Failed to ingest and embed website ${source.name}:`, error);
+       knowledgeBaseService.updateDataSource(tenantId, source.id, {
+           status: 'Error',
+           lastSynced: 'Failed to sync',
+       });
+   }
+}
+
 export async function addWebsiteSourceAction(url: string, tenantId: string) {
     if (!url || !tenantId) {
         return { error: "Missing required parameters for adding website." };
@@ -172,30 +199,36 @@ export async function addWebsiteSourceAction(url: string, tenantId: string) {
     });
 
     // Don't await this, let it run in the background
-    (async () => {
-        try {
-            const ingestResult = await websiteCrawlerService.ingestPage(url);
-            if (ingestResult.success) {
-                await knowledgeBaseService.addChunks(tenantId, newSource.id, 'website', ingestResult.title || url, ingestResult.chunks, ingestResult.url);
-                knowledgeBaseService.updateDataSource(tenantId, newSource.id, {
-                    status: 'Synced',
-                    lastSynced: new Date().toLocaleDateString(),
-                    itemCount: ingestResult.chunks.length,
-                    name: ingestResult.title || url,
-                });
-            } else {
-                 throw new Error(ingestResult.error || 'Unknown ingestion error');
-            }
-        } catch (error) {
-            console.error(`Failed to ingest and embed website ${url}:`, error);
-            knowledgeBaseService.updateDataSource(tenantId, newSource.id, {
-                status: 'Error',
-                lastSynced: 'Failed to sync',
-            });
-        }
-    })();
+    _performWebsiteSync(tenantId, newSource);
 
     return { source: newSource };
+}
+
+
+export async function resyncKnowledgeSourceAction(tenantId: string, sourceId: string) {
+    if (!tenantId || !sourceId) {
+        return { error: "Missing required parameters." };
+    }
+    
+    const source = knowledgeBaseService.getDataSource(tenantId, sourceId);
+    if (!source) {
+        return { error: "Source not found." };
+    }
+
+    // Only website re-sync is supported for now.
+    if (source.type !== 'website') {
+        return { error: `Re-syncing for '${source.type}' sources is not yet supported.` };
+    }
+
+    knowledgeBaseService.updateDataSource(tenantId, sourceId, {
+        status: 'Syncing',
+        lastSynced: 'In progress...',
+    });
+
+    // Don't await this, let it run in the background
+    _performWebsiteSync(tenantId, source);
+
+    return { success: true };
 }
 
 export async function deleteKnowledgeSourceAction(tenantId: string, sourceId: string) {

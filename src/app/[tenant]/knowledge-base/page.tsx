@@ -17,7 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { useTenant } from "@/components/providers/tenant-provider"
-import { addDocumentSourceAction, addWebsiteSourceAction, getKnowledgeSourcesAction, deleteKnowledgeSourceAction, checkSourceStatusAction } from "@/app/actions"
+import { addDocumentSourceAction, addWebsiteSourceAction, getKnowledgeSourcesAction, deleteKnowledgeSourceAction, checkSourceStatusAction, resyncKnowledgeSourceAction } from "@/app/actions"
 import type { DataSource, SyncStatus } from "@/lib/knowledge-base"
 import { Skeleton } from "@/components/ui/skeleton"
 
@@ -164,6 +164,20 @@ export default function KnowledgeBasePage() {
     } else {
         setSources(prev => [result.source!, ...prev]);
         toast({ title: "Sync Started", description: `Started syncing content from ${websiteUrl}` });
+    }
+  }
+  
+  const handleResync = async (source: DataSource) => {
+    // Optimistically update the UI
+    setSources(prev => prev.map(s => s.id === source.id ? { ...s, status: 'Syncing' } : s));
+    toast({ title: "Re-sync Started", description: `Re-syncing content from ${source.name}` });
+
+    const result = await resyncKnowledgeSourceAction(tenant.id, source.id);
+
+    if (result.error) {
+        toast({ variant: "destructive", title: "Sync Failed", description: result.error });
+        // Revert UI on error
+        fetchSources();
     }
   }
 
@@ -479,7 +493,9 @@ export default function KnowledgeBasePage() {
                                                         <DropdownMenu>
                                                             <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
                                                             <DropdownMenuContent>
-                                                                <DropdownMenuItem disabled={source.status === 'Syncing'}><RefreshCw className="mr-2"/> Sync Now</DropdownMenuItem>
+                                                                <DropdownMenuItem onSelect={() => handleResync(source)} disabled={source.status === 'Syncing' || source.type !== 'website'}>
+                                                                    <RefreshCw className="mr-2"/> Sync Now
+                                                                </DropdownMenuItem>
                                                                 <DropdownMenuItem><Settings className="mr-2" /> Settings</DropdownMenuItem>
                                                                 <DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteSource(source.id)}><Trash2 className="mr-2"/> Remove</DropdownMenuItem>
                                                             </DropdownMenuContent>

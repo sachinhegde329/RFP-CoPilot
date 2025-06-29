@@ -64,7 +64,7 @@ class KnowledgeBaseService {
     // Initialize with some default data
     const megacorpSources: DataSource[] = [
         { id: 'megacorp-source-1', tenantId: 'megacorp', type: 'document', name: 'Initial Knowledge.docx', status: 'Synced', lastSynced: 'Initial Setup', uploader: 'System', itemCount: 2 },
-        { id: 'megacorp-source-2', tenantId: 'megacorp', type: 'website', name: 'www.megacorp-public.com', status: 'Error', lastSynced: '1 day ago', itemCount: 87 },
+        { id: 'megacorp-source-2', tenantId: 'megacorp', type: 'website', name: 'https://en.wikipedia.org/wiki/Mega-corporation', status: 'Error', lastSynced: '1 day ago', itemCount: 87 },
     ];
 
     // NOTE: Initial chunks do not have embeddings and will not be found by semantic search.
@@ -88,6 +88,10 @@ class KnowledgeBaseService {
   // == SOURCE MANAGEMENT ==
   public getDataSources(tenantId: string): DataSource[] {
     return this.dataSources.filter(source => source.tenantId === tenantId).sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  public getDataSource(tenantId: string, sourceId: string): DataSource | undefined {
+    return this.dataSources.find(s => s.id === sourceId && s.tenantId === tenantId);
   }
 
   public addDataSource(source: Omit<DataSource, 'id'>): DataSource {
@@ -166,6 +170,12 @@ class KnowledgeBaseService {
       }
     }));
     this.documentChunks.unshift(...newChunks);
+  }
+
+  public deleteChunksBySourceId(tenantId: string, sourceId:string): boolean {
+    const initialLength = this.documentChunks.length;
+    this.documentChunks = this.documentChunks.filter(c => !(c.sourceId === sourceId && c.tenantId === tenantId));
+    return this.documentChunks.length < initialLength;
   }
 
   public async searchChunks(tenantId: string, query: string, topK = 5): Promise<DocumentChunk[]> {
