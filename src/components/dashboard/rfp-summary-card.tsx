@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef, type ChangeEvent } from "react"
 import {
   Card,
   CardContent,
@@ -14,6 +14,8 @@ import { Textarea } from "@/components/ui/textarea"
 import { Separator } from "@/components/ui/separator"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { UploadCloud, Sparkles, Loader2, CalendarClock } from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { parseDocumentAction } from "@/app/actions"
 
 type RfpSummaryCardProps = {
   summary: string;
@@ -23,9 +25,57 @@ type RfpSummaryCardProps = {
 
 export function RfpSummaryCard({ summary, isLoading, onProcessRfp }: RfpSummaryCardProps) {
   const [rfpText, setRfpText] = useState("")
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const { toast } = useToast()
 
   const handleProcess = () => {
     onProcessRfp(rfpText);
+  }
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    setIsUploading(true)
+
+    const reader = new FileReader()
+    reader.readAsDataURL(file)
+    reader.onload = async () => {
+        const dataUri = reader.result as string;
+        const result = await parseDocumentAction(dataUri)
+
+        if (result.error || !result.text) {
+            toast({
+                variant: "destructive",
+                title: "Upload Failed",
+                description: result.error || "Could not extract text from document.",
+            })
+        } else {
+            toast({
+                title: "Upload Successful",
+                description: `Successfully parsed ${file.name}.`,
+            });
+            setRfpText(result.text)
+            onProcessRfp(result.text)
+        }
+        setIsUploading(false)
+        if(fileInputRef.current) {
+            fileInputRef.current.value = ""
+        }
+    };
+    reader.onerror = () => {
+        toast({
+            variant: "destructive",
+            title: "Upload Failed",
+            description: "Could not read the selected file.",
+        })
+        setIsUploading(false)
+    }
   }
 
   return (
@@ -37,25 +87,33 @@ export function RfpSummaryCard({ summary, isLoading, onProcessRfp }: RfpSummaryC
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+         <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileUpload}
+            className="hidden"
+            accept=".pdf,.docx,.xlsx,.md,.txt,.html"
+            disabled={isLoading || isUploading}
+        />
         <Textarea
           placeholder="Paste the content of your RFP here to get started..."
           className="min-h-[150px] text-sm"
           value={rfpText}
           onChange={(e) => setRfpText(e.target.value)}
-          disabled={isLoading}
+          disabled={isLoading || isUploading}
         />
         <div className="flex gap-2">
-          <Button onClick={handleProcess} disabled={isLoading || !rfpText}>
-            {isLoading ? (
+          <Button onClick={handleProcess} disabled={isLoading || isUploading || !rfpText}>
+            {isLoading && !isUploading ? (
               <Loader2 className="animate-spin" />
             ) : (
               <Sparkles />
             )}
             Process RFP
           </Button>
-          <Button variant="outline" disabled={isLoading}>
-            <UploadCloud />
-            Upload Document
+          <Button variant="outline" disabled={isLoading || isUploading} onClick={handleUploadClick}>
+            {isUploading ? <Loader2 className="animate-spin" /> : <UploadCloud />}
+            {isUploading ? 'Uploading...' : 'Upload Document'}
           </Button>
         </div>
         {summary && (

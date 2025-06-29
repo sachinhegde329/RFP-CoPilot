@@ -76,7 +76,7 @@ export async function parseDocumentAction(documentDataUri: string) {
     }
     try {
         const result = await parseDocument({ documentDataUri });
-        return { success: true, chunksCount: result.chunks.length };
+        return { success: true, text: result.text, chunksCount: result.chunks.length };
     } catch (e) {
         console.error(e);
         const errorMessage = e instanceof Error ? e.message : "Failed to parse document.";
