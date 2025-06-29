@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from "react"
+import { useTenant } from "@/components/providers/tenant-provider"
 import { SidebarInset } from "@/components/ui/sidebar"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { RfpSummaryCard } from "@/components/dashboard/rfp-summary-card"
@@ -24,6 +25,7 @@ export default function DashboardPage() {
   const [questions, setQuestions] = useState<Question[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
+  const { tenant } = useTenant();
 
   const handleProcessRfp = async (rfpText: string) => {
     if (!rfpText.trim()) {
@@ -99,7 +101,7 @@ export default function DashboardPage() {
                  </CardContent>
                </Card>
             ) : questions.length > 0 ? (
-              <QAndAList questions={questions} />
+              <QAndAList questions={questions} tenantId={tenant.id} />
             ) : !isLoading ? (
                <Card>
                  <CardContent className="pt-6">

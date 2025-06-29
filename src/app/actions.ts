@@ -7,6 +7,7 @@ import { aiExpertReview } from "@/ai/flows/ai-expert-review"
 import { extractRfpQuestions } from "@/ai/flows/extract-rfp-questions"
 import { parseDocument } from "@/ai/flows/parse-document"
 import { ingestWebsiteContent } from "@/ai/flows/ingest-website-content"
+import { knowledgeBaseService } from "@/lib/knowledge-base"
 
 export async function summarizeRfpAction(rfpText: string) {
   if (!rfpText) {
@@ -21,15 +22,30 @@ export async function summarizeRfpAction(rfpText: string) {
   }
 }
 
-export async function generateAnswerAction(question: string, context: string) {
+export async function generateAnswerAction(question: string, tenantId: string) {
   if (!question) {
     return { error: "Question cannot be empty." }
   }
+   if (!tenantId) {
+    return { error: "Tenant ID is missing." }
+  }
+
   try {
+    const relevantChunks = knowledgeBaseService.searchChunks(tenantId, question);
+    
+    if (relevantChunks.length === 0) {
+        return {
+            answer: "I could not find any relevant information in the knowledge base to answer this question. Please add more documents or try rewording the question.",
+            sources: []
+        };
+    }
+
     const result = await generateDraftAnswer({
       rfpQuestion: question,
-      // Simulate retrieval by creating a single chunk from the context string
-      knowledgeBaseChunks: [{ content: context, source: "Internal Knowledge Base" }],
+      knowledgeBaseChunks: relevantChunks.map(chunk => ({
+          content: chunk.content,
+          source: chunk.sourceName
+      })),
       tone: "Formal",
     })
     return { answer: result.draftAnswer, sources: result.sources }
@@ -73,12 +89,16 @@ export async function extractQuestionsAction(rfpText: string) {
   }
 }
 
-export async function parseDocumentAction(documentDataUri: string) {
+export async function parseDocumentAction(documentDataUri: string, tenantId: string, fileName: string) {
     if (!documentDataUri) {
         return { error: "Document data cannot be empty." };
     }
+     if (!tenantId || !fileName) {
+        return { error: "Missing required parameters for parsing." };
+    }
     try {
         const result = await parseDocument({ documentDataUri });
+        knowledgeBaseService.addChunks(tenantId, 'document', fileName, result.chunks);
         return { success: true, text: result.text, chunksCount: result.chunks.length };
     } catch (e) {
         console.error(e);
@@ -87,12 +107,16 @@ export async function parseDocumentAction(documentDataUri: string) {
     }
 }
 
-export async function ingestWebsiteAction(url: string) {
+export async function ingestWebsiteAction(url: string, tenantId: string) {
     if (!url) {
         return { error: "URL cannot be empty." };
     }
+    if (!tenantId) {
+        return { error: "Tenant ID is missing." };
+    }
     try {
         const result = await ingestWebsiteContent({ url });
+        knowledgeBaseService.addChunks(tenantId, 'website', result.url, result.chunks);
         return { success: true, ...result };
     } catch (e) {
         console.error(e);

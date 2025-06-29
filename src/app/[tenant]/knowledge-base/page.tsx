@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog"
 import { parseDocumentAction, ingestWebsiteAction } from "@/app/actions"
 import { Label } from "@/components/ui/label"
+import { useTenant } from "@/components/providers/tenant-provider"
 
 // Mock data for the components
 const knowledgeBaseStats = {
@@ -100,6 +101,7 @@ export default function KnowledgeBasePage() {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+  const { tenant } = useTenant();
 
   const [configStep, setConfigStep] = useState<'select' | 'configure'>('select');
   const [sourceToConfigure, setSourceToConfigure] = useState<string | null>(null);
@@ -140,7 +142,7 @@ export default function KnowledgeBasePage() {
     setConnectedSources(prev => [...prev, newSourcePlaceholder]);
     setIsDialogOpen(false);
 
-    ingestWebsiteAction(websiteUrl).then(result => {
+    ingestWebsiteAction(websiteUrl, tenant.id).then(result => {
         if (result.error || !result.success) {
             setConnectedSources(prev => prev.map(source => 
                 source.id === tempId 
@@ -161,7 +163,7 @@ export default function KnowledgeBasePage() {
                         type: "website",
                         status: "Synced",
                         lastSynced: "Just now",
-                        docsSynced: 1,
+                        docsSynced: 1, // simplified for now
                       } 
                     : source
             ));
@@ -205,7 +207,7 @@ export default function KnowledgeBasePage() {
     reader.readAsDataURL(file);
     reader.onload = async () => {
         const dataUri = reader.result as string;
-        const result = await parseDocumentAction(dataUri);
+        const result = await parseDocumentAction(dataUri, tenant.id, file.name);
 
         if (result.error) {
             toast({
@@ -216,7 +218,7 @@ export default function KnowledgeBasePage() {
         } else {
             toast({
                 title: "Upload Successful",
-                description: `Successfully parsed ${file.name} into ${result.chunksCount} chunks.`,
+                description: `Successfully parsed ${file.name}. Added ${result.chunksCount} chunks to the knowledge base.`,
             });
              const newFile = {
                 id: Date.now(),
@@ -589,7 +591,3 @@ export default function KnowledgeBasePage() {
     </SidebarInset>
   )
 }
-
-    
-
-    

@@ -40,9 +40,10 @@ type QAndAItemProps = {
   id: number
   category: string
   compliance: "passed" | "failed" | "pending"
+  tenantId: string
 }
 
-export function QAndAItem({ question, id, category, compliance }: QAndAItemProps) {
+export function QAndAItem({ question, id, category, compliance, tenantId }: QAndAItemProps) {
   const [answer, setAnswer] = useState("")
   const [sources, setSources] = useState<string[]>([])
   const [review, setReview] = useState("")
@@ -55,9 +56,8 @@ export function QAndAItem({ question, id, category, compliance }: QAndAItemProps
     setIsGenerating(true)
     setReview("")
     setSources([])
-    // In a real app, context would come from a knowledge base
-    const context = "RFP CoPilot is an AI-powered platform to streamline RFP responses. It uses generative AI for summarization, answer drafting, and expert review. It supports various compliance standards and offers customizable templates."
-    const result = await generateAnswerAction(question, context)
+    
+    const result = await generateAnswerAction(question, tenantId)
     if (result.error) {
       toast({
         variant: "destructive",

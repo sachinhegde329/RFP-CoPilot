@@ -10,9 +10,10 @@ type Question = {
 
 type QAndAListProps = {
   questions: Question[]
+  tenantId: string
 }
 
-export function QAndAList({ questions }: QAndAListProps) {
+export function QAndAList({ questions, tenantId }: QAndAListProps) {
   return (
     <Card>
       <CardHeader>
@@ -29,6 +30,7 @@ export function QAndAList({ questions }: QAndAListProps) {
             question={q.question}
             category={q.category}
             compliance={q.compliance}
+            tenantId={tenantId}
           />
         ))}
       </CardContent>
