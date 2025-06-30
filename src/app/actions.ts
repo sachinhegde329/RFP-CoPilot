@@ -562,9 +562,7 @@ export async function exportRfpAction(payload: {
                 questions.forEach(q => {
                     doc.fontSize(14).font('Helvetica-Bold').text(`Q${q.id}: ${q.question}`);
                     doc.moveDown(0.5);
-                    doc.fontSize(12).font('Helvetica').text(q.answer || "No answer provided.", {
-                        align: 'justify'
-                    });
+                    doc.fontSize(12).font('Helvetica').text(q.answer || "No answer provided.");
                     doc.moveDown(1.5);
                 });
 
@@ -575,9 +573,7 @@ export async function exportRfpAction(payload: {
                     acknowledgments.forEach(ack => {
                         doc.fontSize(14).font('Helvetica-Bold').text(`${ack.name} (${ack.role})`);
                         doc.moveDown(0.5);
-                        doc.fontSize(12).font('Helvetica-Oblique').text(`"${ack.comment}"`, {
-                            align: 'justify'
-                        });
+                        doc.fontSize(12).font('Helvetica-Oblique').text(`"${ack.comment}"`);
                         doc.moveDown(1.5);
                     });
                 }
