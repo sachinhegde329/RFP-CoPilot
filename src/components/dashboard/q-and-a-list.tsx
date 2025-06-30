@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useState, useMemo, useEffect } from "react"
@@ -37,7 +36,7 @@ type QAndAListProps = {
   onUpdateQuestion: (questionId: number, updates: Partial<Question>) => void;
 }
 
-type FilterType = "all" | "assignedToMe" | "unassigned" | "completed"
+type FilterType = "all" | "assignedToMe" | "unassigned" | "inProgress" | "completed"
 
 export function QAndAList({ initialQuestions, tenantId, members, isLocked, onUpdateQuestion }: QAndAListProps) {
   const [questions, setQuestions] = useState<Question[]>(initialQuestions)
@@ -55,6 +54,8 @@ export function QAndAList({ initialQuestions, tenantId, members, isLocked, onUpd
         return questions.filter(q => q.assignee?.id === currentUser.id)
       case "unassigned":
         return questions.filter(q => !q.assignee)
+      case "inProgress":
+        return questions.filter(q => q.status === 'In Progress')
       case "completed":
         return questions.filter(q => q.status === 'Completed')
       case "all":
@@ -75,6 +76,15 @@ export function QAndAList({ initialQuestions, tenantId, members, isLocked, onUpd
     if (activeFilter === 'unassigned') return 'Unassigned';
     return 'Filter by Assignee';
   }, [activeFilter]);
+
+  const isStatusFilterActive = activeFilter === 'inProgress' || activeFilter === 'completed';
+  
+  const statusFilterLabel = useMemo(() => {
+    if (activeFilter === 'inProgress') return 'In Progress';
+    if (activeFilter === 'completed') return 'Completed';
+    return 'Filter by Status';
+  }, [activeFilter]);
+
 
   return (
     <Card>
@@ -120,7 +130,20 @@ export function QAndAList({ initialQuestions, tenantId, members, isLocked, onUpd
               </DropdownMenuContent>
             </DropdownMenu>
 
-            <Button variant={activeFilter === 'completed' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('completed')}>Completed ({questions.filter(q => q.status === 'Completed').length})</Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant={isStatusFilterActive ? 'default' : 'outline'} size="sm" className="flex items-center">
+                  {statusFilterLabel}
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                  <DropdownMenuRadioGroup value={activeFilter} onValueChange={(value) => setActiveFilter(value as FilterType)}>
+                    <DropdownMenuRadioItem value="inProgress">In Progress ({questions.filter(q => q.status === 'In Progress').length})</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="completed">Completed ({questions.filter(q => q.status === 'Completed').length})</DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
         </div>
       </CardHeader>
       <CardContent className="p-0">
