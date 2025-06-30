@@ -5,7 +5,6 @@ import { useTenant } from "@/components/providers/tenant-provider"
 import { RfpSummaryCard } from "@/components/dashboard/rfp-summary-card"
 import { QAndAList } from "@/components/dashboard/q-and-a-list"
 import { ComplianceCard } from "@/components/dashboard/compliance-card"
-import { TemplateCard } from "@/components/dashboard/template-card"
 import { extractQuestionsAction, updateQuestionAction, addQuestionAction } from "@/app/actions"
 import { useToast } from "@/hooks/use-toast"
 import { Card, CardContent } from "@/components/ui/card"
@@ -32,7 +31,6 @@ export function DashboardClient({ initialQuestions }: DashboardClientProps) {
   const [questions, setQuestions] = useState<Question[]>(initialQuestions)
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isLoading, setIsLoading] = useState(false)
-  const [isLocked, setIsLocked] = useState(false)
   const { toast } = useToast()
 
   // Clean up Object URLs when the component unmounts to prevent memory leaks
@@ -87,7 +85,6 @@ export function DashboardClient({ initialQuestions }: DashboardClientProps) {
     }
     setIsLoading(true)
     setQuestions([])
-    setIsLocked(false) // Unlock when new RFP is processed
 
     if (file) {
       const newAttachment: Attachment = {
@@ -163,7 +160,6 @@ export function DashboardClient({ initialQuestions }: DashboardClientProps) {
             questions={questions} 
             tenantId={tenant.id} 
             members={tenant.members} 
-            isLocked={isLocked}
             onUpdateQuestion={handleUpdateQuestion}
             onAddQuestion={handleAddQuestion}
           />
@@ -185,12 +181,6 @@ export function DashboardClient({ initialQuestions }: DashboardClientProps) {
             onUpdateAttachments={handleUpdateAttachments}
         />
         <ComplianceCard />
-        <TemplateCard 
-          questions={questions}
-          isLocked={isLocked}
-          onLockChange={setIsLocked}
-          members={tenant.members}
-        />
       </div>
     </div>
   )

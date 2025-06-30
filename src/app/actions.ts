@@ -494,17 +494,12 @@ export async function exportRfpAction(payload: {
     tenantId: string;
     rfpId: string;
     questions: { id: number, question: string, status: string, answer: string }[],
-    isLocked: boolean,
     currentUser: { name: string, role: Role },
     exportVersion: string,
     format: 'pdf' | 'docx',
     acknowledgments: { name: string, role: string, comment: string }[]
 }) {
-    const { tenantId, rfpId, questions, isLocked, currentUser, exportVersion, format, acknowledgments } = payload;
-
-    if (!isLocked) {
-        return { error: "Export failed: The RFP must be locked before exporting." };
-    }
+    const { tenantId, rfpId, questions, currentUser, exportVersion, format, acknowledgments } = payload;
 
     const isAdmin = currentUser.role === 'Admin' || currentUser.role === 'Owner';
     const allQuestionsCompleted = questions.every(q => q.status === 'Completed');
@@ -563,8 +558,8 @@ export async function exportRfpAction(payload: {
             doc.fontSize(12);
 
             questions.forEach(q => {
-                doc.text(`Q${q.id}: ${q.question}`, { paragraphGap: 5 });
-                doc.text(q.answer || "No answer provided.", { indent: 20, paragraphGap: 10 });
+                doc.font('Helvetica-Bold').text(`Q${q.id}: ${q.question}`, { paragraphGap: 5 });
+                doc.font('Helvetica').text(q.answer || "No answer provided.", { indent: 20, paragraphGap: 10 });
             });
 
             if (acknowledgments.length > 0) {
@@ -574,8 +569,8 @@ export async function exportRfpAction(payload: {
                 doc.fontSize(12);
 
                 acknowledgments.forEach(ack => {
-                    doc.text(`${ack.name} (${ack.role})`, { paragraphGap: 5 });
-                    doc.text(`"${ack.comment}"`, { indent: 20, paragraphGap: 10 });
+                    doc.font('Helvetica-Bold').text(`${ack.name} (${ack.role})`, { paragraphGap: 5 });
+                    doc.font('Helvetica-Oblique').text(`"${ack.comment}"`, { indent: 20, paragraphGap: 10 });
                 });
             }
 
