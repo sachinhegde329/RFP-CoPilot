@@ -88,7 +88,7 @@ export async function generateAnswerAction(question: string, tenantId: string) {
       })),
       tone: "Formal",
     })
-    return { answer: result.draftAnswer, sources: result.sources }
+    return { answer: result.draftAnswer, sources: result.sources, confidenceScore: result.confidenceScore }
   } catch (e) {
     console.error(e)
     return { error: "Failed to generate answer." }
@@ -554,13 +554,12 @@ export async function exportRfpAction(payload: {
         } else if (format === 'pdf') {
             const doc = new PDFDocument({ margin: 50, bufferPages: true });
 
-            // Add content
             doc.fontSize(18).text(`RFP Response - Version ${exportVersion}`, { align: 'center' });
             doc.moveDown(2);
 
             questions.forEach(q => {
                 doc.fontSize(12).text(`Q${q.id}: ${q.question}`);
-                doc.text(q.answer || "No answer provided.", { indent: 20 });
+                doc.fontSize(10).text(q.answer || "No answer provided.", { indent: 20 });
                 doc.moveDown();
             });
 
@@ -571,7 +570,7 @@ export async function exportRfpAction(payload: {
 
                 acknowledgments.forEach(ack => {
                     doc.fontSize(12).text(`${ack.name} (${ack.role})`);
-                    doc.text(`"${ack.comment}"`, { indent: 20 });
+                    doc.fontSize(10).text(`"${ack.comment}"`, { indent: 20, italic: true });
                     doc.moveDown();
                 });
             }
@@ -621,3 +620,6 @@ export async function getExportHistoryAction(tenantId: string, rfpId: string) {
     }
 }
 
+
+
+    

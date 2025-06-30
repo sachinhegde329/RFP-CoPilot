@@ -5,7 +5,7 @@ import { useState, useMemo } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Sparkles, ShieldCheck, CheckCircle2, XCircle, History, Loader2, Bot, Clipboard, ClipboardCheck, Tag, BookOpenCheck, UserPlus, Circle, CheckCircle, CircleDotDashed, Bold, Italic, Underline, List, MessageSquare, Send } from "lucide-react"
+import { Sparkles, ShieldCheck, CheckCircle2, XCircle, History, Loader2, Bot, Clipboard, ClipboardCheck, AlertTriangle, BookOpenCheck, UserPlus, Circle, CheckCircle, CircleDotDashed, Bold, Italic, Underline, List, MessageSquare, Send } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { generateAnswerAction, reviewAnswerAction } from "@/app/actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -49,6 +49,7 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
   const { toast } = useToast();
   
   const [sources, setSources] = useState<string[]>([])
+  const [confidence, setConfidence] = useState<number | null>(null);
   const [review, setReview] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
   const [isReviewing, setIsReviewing] = useState(false)
@@ -80,6 +81,7 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
     setIsGenerating(true)
     setReview("")
     setSources([])
+    setConfidence(null);
     
     const result = await generateAnswerAction(question, tenantId)
     if (result.error) {
@@ -91,6 +93,7 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
     } else {
       onUpdateQuestion(id, { answer: result.answer || "" });
       setSources(result.sources || [])
+      setConfidence(result.confidenceScore || null);
     }
     setIsGenerating(false)
   }
@@ -337,6 +340,12 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
                         <li key={index}>{source}</li>
                     ))}
                   </ul>
+                  {confidence !== null && (
+                    <div className="flex items-center gap-2 text-xs font-semibold whitespace-nowrap text-muted-foreground pt-2 mt-2 border-t border-muted-foreground/20">
+                        {confidence > 0.8 ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <AlertTriangle className="h-4 w-4 text-yellow-600" />}
+                        <span>Confidence Score: {(confidence * 100).toFixed(0)}%</span>
+                    </div>
+                  )}
                 </AlertDescription>
               </Alert>
             )}
@@ -433,3 +442,5 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
     </>
   )
 }
+
+    
