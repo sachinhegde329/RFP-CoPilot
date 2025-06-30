@@ -3,6 +3,7 @@
 export type AddOn = 'analytics' | 'customTemplates' | 'complianceValidation';
 export type Role = 'Owner' | 'Admin' | 'Approver' | 'Editor' | 'Viewer';
 export type MemberStatus = 'Active' | 'Pending';
+export type BrandTone = 'Formal' | 'Consultative' | 'Technical';
 
 export interface TeamMember {
   id: number;
@@ -22,6 +23,7 @@ export interface Tenant {
   ssoProvider?: 'microsoft' | 'okta' | 'google' | null;
   addOns?: AddOn[];
   stripeCustomerId?: string;
+  defaultTone?: BrandTone;
   branding: {
     logoUrl: string;
     logoDataAiHint: string;
@@ -69,6 +71,7 @@ const tenants: Omit<Tenant, 'limits'>[] = [
     ssoProvider: 'microsoft',
     addOns: [],
     stripeCustomerId: 'cus_Pabx3EMG9pDRgI', // Replace with actual Stripe Customer ID
+    defaultTone: 'Formal',
     branding: {
       logoUrl: 'https://placehold.co/128x32.png',
       logoDataAiHint: 'modern logo',
@@ -87,6 +90,7 @@ const tenants: Omit<Tenant, 'limits'>[] = [
     ssoProvider: null,
     addOns: [],
     stripeCustomerId: 'cus_Paby6e5S6f6Kj3', // Replace with actual Stripe Customer ID
+    defaultTone: 'Consultative',
     branding: {
       logoUrl: 'https://placehold.co/128x32.png',
       logoDataAiHint: 'corporate logo',
@@ -134,6 +138,7 @@ function createFreeTenant(subdomain: string): Tenant {
     ssoProvider: null,
     addOns: [],
     stripeCustomerId: `cus_sample_${sanitizedSubdomain}`, // Placeholder
+    defaultTone: 'Formal',
     branding: {
       logoUrl: 'https://placehold.co/128x32.png',
       logoDataAiHint: 'generic logo',
@@ -265,3 +270,4 @@ export function getAllTenants(): Tenant[] {
       limits: getLimitsForTenant(t)
   }));
 }
+

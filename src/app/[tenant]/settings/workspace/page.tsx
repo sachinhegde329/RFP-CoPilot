@@ -22,12 +22,15 @@ import { useToast } from "@/hooks/use-toast"
 import { Upload } from "lucide-react"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { Label } from "@/components/ui/label"
+import { type BrandTone } from "@/lib/tenants"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 
 const workspaceFormSchema = z.object({
   name: z.string().min(2, {
     message: "Workspace name must be at least 2 characters.",
   }),
+  defaultTone: z.enum(['Formal', 'Consultative', 'Technical']),
 })
 
 type WorkspaceFormValues = z.infer<typeof workspaceFormSchema>
@@ -35,24 +38,22 @@ type WorkspaceFormValues = z.infer<typeof workspaceFormSchema>
 
 export default function WorkspaceSettingsPage() {
     const { toast } = useToast()
-    const { tenant, setTenant } = useTenant(); // Assuming setTenant is available to update context
+    const { tenant, setTenant } = useTenant();
 
     const form = useForm<WorkspaceFormValues>({
         resolver: zodResolver(workspaceFormSchema),
         defaultValues: {
             name: tenant.name,
+            defaultTone: tenant.defaultTone || 'Formal',
         },
         mode: "onChange",
     })
 
     function onSubmit(data: WorkspaceFormValues) {
-        // In a real app, you would call a server action to update the workspace
-        // For now, we'll just log it and show a toast
         console.log(data)
 
         // Optimistically update the tenant context
-        // This is not persisted, but provides a good UX
-        // setTenant(prev => ({ ...prev, name: data.name }))
+        setTenant(prev => ({ ...prev, name: data.name, defaultTone: data.defaultTone }))
         
         toast({
             title: "Workspace Updated",
@@ -102,6 +103,32 @@ export default function WorkspaceSettingsPage() {
                                 </FormItem>
                             )}
                         />
+
+                        <FormField
+                            control={form.control}
+                            name="defaultTone"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Default AI Tone</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select a default tone for AI answers" />
+                                            </SelectTrigger>
+                                        </FormControl>
+                                        <SelectContent>
+                                            <SelectItem value="Formal">Formal</SelectItem>
+                                            <SelectItem value="Consultative">Consultative</SelectItem>
+                                            <SelectItem value="Technical">Technical</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                    <FormDescription>
+                                        This tone will be used by default when generating draft answers.
+                                    </FormDescription>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                         
                          <div className="space-y-2">
                              <Label htmlFor="subdomain">Workspace URL</Label>
@@ -125,3 +152,4 @@ export default function WorkspaceSettingsPage() {
         </Card>
     )
 }
+

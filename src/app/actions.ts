@@ -67,6 +67,11 @@ export async function generateAnswerAction(question: string, tenantId: string) {
     return { error: "Tenant ID is missing." }
   }
 
+  const tenant = getTenantBySubdomain(tenantId);
+  if (!tenant) {
+    return { error: "Tenant not found." }
+  }
+
   try {
     const relevantChunks = await knowledgeBaseService.searchChunks(tenantId, question, {
         topK: 5,
@@ -86,7 +91,7 @@ export async function generateAnswerAction(question: string, tenantId: string) {
           content: chunk.content,
           source: chunk.title
       })),
-      tone: "Formal",
+      tone: tenant.defaultTone || "Formal",
     })
     return { answer: result.draftAnswer, sources: result.sources, confidenceScore: result.confidenceScore }
   } catch (e) {
@@ -558,8 +563,8 @@ export async function exportRfpAction(payload: {
             doc.moveDown(2);
 
             questions.forEach(q => {
-                doc.fontSize(12).text(`Q${q.id}: ${q.question}`);
-                doc.fontSize(10).text(q.answer || "No answer provided.", { indent: 20 });
+                doc.font('Helvetica-Bold').fontSize(12).text(`Q${q.id}: ${q.question}`);
+                doc.font('Helvetica').fontSize(10).text(q.answer || "No answer provided.", { indent: 20 });
                 doc.moveDown();
             });
 
@@ -569,8 +574,8 @@ export async function exportRfpAction(payload: {
                 doc.moveDown(2);
 
                 acknowledgments.forEach(ack => {
-                    doc.fontSize(12).text(`${ack.name} (${ack.role})`);
-                    doc.fontSize(10).text(`"${ack.comment}"`, { indent: 20, italic: true });
+                    doc.font('Helvetica-Bold').fontSize(12).text(`${ack.name} (${ack.role})`);
+                    doc.font('Helvetica-Oblique').fontSize(10).text(`"${ack.comment}"`, { indent: 20 });
                     doc.moveDown();
                 });
             }
