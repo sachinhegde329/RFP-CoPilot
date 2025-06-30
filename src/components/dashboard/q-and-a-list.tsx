@@ -1,7 +1,7 @@
 
 'use client'
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { QAndAItem } from "./q-and-a-item"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -31,8 +31,9 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import type { Question } from "@/lib/rfp.service"
+import type { Template } from "@/lib/template.service"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { exportRfpAction } from "@/app/actions"
+import { exportRfpAction, getTemplatesAction } from "@/app/actions"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -54,6 +55,10 @@ function ExportDialog({ questions, members }: { questions: Question[], members: 
     });
     const [acknowledgments, setAcknowledgments] = useState<Acknowledgments>({});
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [templates, setTemplates] = useState<Template[]>([]);
+    const [selectedTemplate, setSelectedTemplate] = useState('system-default-categorized');
+    const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
+
 
     const currentUser = tenant.members[0]; // For demo
     const canFinalize = canPerformAction(currentUser.role, 'finalizeExport');
@@ -67,6 +72,26 @@ function ExportDialog({ questions, members }: { questions: Question[], members: 
         : !allQuestionsCompleted && !isAdminOrOwner
         ? "All questions must be 'Completed' before a non-admin can export."
         : "Ready to export.";
+    
+    useEffect(() => {
+        if (isDialogOpen) {
+            const fetchTemplates = async () => {
+                setIsLoadingTemplates(true);
+                const result = await getTemplatesAction(tenant.id, currentUser);
+                if (result.templates) {
+                    setTemplates(result.templates);
+                    if (result.templates.length > 0 && !result.templates.find(t => t.id === selectedTemplate)) {
+                        setSelectedTemplate(result.templates[0].id);
+                    }
+                } else {
+                    toast({ variant: 'destructive', title: "Could not load templates" });
+                }
+                setIsLoadingTemplates(false);
+            };
+            fetchTemplates();
+        }
+    }, [isDialogOpen, tenant.id, currentUser, toast, selectedTemplate]);
+
 
     const handleChecklistChange = (key: 'answersReviewed' | 'complianceVerified') => {
         setChecklist(prev => ({ ...prev, [key]: !prev[key] }));
@@ -101,6 +126,7 @@ function ExportDialog({ questions, members }: { questions: Question[], members: 
         const result = await exportRfpAction({
             tenantId: tenant.id,
             rfpId: 'main_rfp',
+            templateId: selectedTemplate,
             questions,
             currentUser: { name: currentUser.name, role: currentUser.role, id: currentUser.id },
             exportVersion,
@@ -203,13 +229,18 @@ function ExportDialog({ questions, members }: { questions: Question[], members: 
 
                         <div className="space-y-2">
                             <Label htmlFor="export-template">Export Template</Label>
-                            <Select defaultValue="default">
+                            <Select value={selectedTemplate} onValueChange={setSelectedTemplate} disabled={isLoadingTemplates}>
                                 <SelectTrigger id="export-template">
                                     <SelectValue placeholder="Select a template" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="default">Default Template (Categorized)</SelectItem>
-                                    <SelectItem value="formal" disabled>Formal Proposal (Coming Soon)</SelectItem>
+                                     {isLoadingTemplates ? (
+                                        <SelectItem value="loading" disabled>Loading templates...</SelectItem>
+                                    ) : (
+                                        templates.map(template => (
+                                            <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>
+                                        ))
+                                    )}
                                 </SelectContent>
                             </Select>
                         </div>

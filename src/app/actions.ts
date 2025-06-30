@@ -23,7 +23,7 @@ import { notificationService } from "@/lib/notifications.service";
 import { exportService } from "@/lib/export.service";
 import { templateService, type Template } from "@/lib/template.service"
 
-import { Document, Packer, Paragraph, HeadingLevel, TextRun } from 'docx';
+import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType } from 'docx';
 import PDFDocument from 'pdfkit';
 
 type CurrentUser = { id: number; role: Role; name: string; }
@@ -549,17 +549,18 @@ async function generatePdfBuffer(doc: InstanceType<typeof PDFDocument>): Promise
 export async function exportRfpAction(payload: {
     tenantId: string;
     rfpId: string;
+    templateId: string;
     questions: Question[],
     currentUser: CurrentUser,
     exportVersion: string,
     format: 'pdf' | 'docx',
     acknowledgments: { name: string, role: string, comment: string }[]
 }) {
-    const { tenantId, rfpId, questions, currentUser, exportVersion, format, acknowledgments } = payload;
+    const { tenantId, rfpId, templateId, questions, currentUser, exportVersion, format, acknowledgments } = payload;
     
     const permCheck = checkPermission(tenantId, currentUser, 'finalizeExport');
     if (permCheck.error) return { error: permCheck.error };
-    const { user } = permCheck;
+    const { user, tenant } = permCheck;
 
     const isAdminOrOwner = user.role === 'Admin' || user.role === 'Owner';
     const allQuestionsCompleted = questions.every(q => q.status === 'Completed');
@@ -586,10 +587,22 @@ export async function exportRfpAction(payload: {
         let mimeType;
 
         if (format === 'docx') {
-            const docChildren: Paragraph[] = [
-                new Paragraph({ text: `RFP Response - Version ${exportVersion}`, heading: HeadingLevel.TITLE }),
-            ];
+            const docChildren: Paragraph[] = [];
+
+            // Template-based header
+            if (templateId === 'system-formal-proposal') {
+                 docChildren.push(
+                    new Paragraph({ text: `Request for Proposal Response`, heading: HeadingLevel.TITLE, alignment: AlignmentType.CENTER }),
+                    new Paragraph({ text: ' ', spacing: { after: 480 } }),
+                    new Paragraph({ text: `Prepared by: ${tenant.name}`, heading: HeadingLevel.HEADING_2 }),
+                    new Paragraph({ text: `Date: ${new Date().toLocaleDateString()}`, heading: HeadingLevel.HEADING_2 }),
+                    new Paragraph({ pageBreakBefore: true })
+                );
+            } else { // Default categorized template
+                docChildren.push(new Paragraph({ text: `RFP Response - Version ${exportVersion}`, heading: HeadingLevel.TITLE }));
+            }
             
+            // Main content
             for (const category in questionsByCategory) {
                 docChildren.push(
                     new Paragraph({
@@ -611,6 +624,7 @@ export async function exportRfpAction(payload: {
                 });
             }
 
+            // Acknowledgments
             if (acknowledgments.length > 0) {
                 docChildren.push(new Paragraph({ text: 'Acknowledgments', heading: HeadingLevel.HEADING_1, pageBreakBefore: true, spacing: { before: 480, after: 240 } }));
                 acknowledgments.forEach(ack => {
@@ -635,9 +649,20 @@ export async function exportRfpAction(payload: {
         } else if (format === 'pdf') {
             const doc = new PDFDocument({ margin: 50, bufferPages: true });
 
-            doc.fontSize(18).text(`RFP Response - Version ${exportVersion}`, { align: 'center' });
-            doc.moveDown(2);
+            // Template-based header
+             if (templateId === 'system-formal-proposal') {
+                doc.fontSize(24).text(`Request for Proposal Response`, { align: 'center' });
+                doc.moveDown(4);
+                doc.fontSize(16).text(`Prepared by: ${tenant.name}`, { align: 'left' });
+                doc.moveDown(1);
+                doc.fontSize(16).text(`Date: ${new Date().toLocaleDateString()}`, { align: 'left' });
+                doc.addPage();
+            } else { // Default
+                doc.fontSize(18).text(`RFP Response - Version ${exportVersion}`, { align: 'center' });
+                doc.moveDown(2);
+            }
 
+            // Main content
             for (const category in questionsByCategory) {
                 doc.font('Helvetica-Bold').fontSize(14).text(category, { underline: true });
                 doc.moveDown(0.5);
@@ -650,7 +675,7 @@ export async function exportRfpAction(payload: {
                 doc.moveDown();
             }
 
-
+            // Acknowledgments
             if (acknowledgments.length > 0) {
                 doc.addPage();
                 doc.fontSize(18).text('Acknowledgments', { align: 'center' });
