@@ -3,6 +3,7 @@
 
 /**
  * @fileOverview This file defines a Genkit flow for generating draft answers to RFP questions using a knowledge base.
+ * This implements the final "generation" step of a Retrieval-Augmented Generation (RAG) pipeline.
  *
  * - generateDraftAnswer - A function that generates a draft answer to an RFP question.
  * - GenerateDraftAnswerInput - The input type for the generateDraftAnswer function.
@@ -26,7 +27,7 @@ export type GenerateDraftAnswerInput = z.infer<typeof GenerateDraftAnswerInputSc
 
 const GenerateDraftAnswerOutputSchema = z.object({
   draftAnswer: z.string().describe('The generated draft answer to the RFP question.'),
-  confidenceScore: z.number().describe('A score indicating the confidence level of the generated answer (0-1).').optional(),
+  confidenceScore: z.number().describe('A score from 0.0 to 1.0 indicating how well the provided context answered the question.').optional(),
   sources: z.array(z.string()).describe('A list of sources used to generate the answer.'),
 });
 export type GenerateDraftAnswerOutput = z.infer<typeof GenerateDraftAnswerOutputSchema>;
@@ -36,22 +37,25 @@ export async function generateDraftAnswer(input: GenerateDraftAnswerInput): Prom
 }
 
 const prompt = ai.definePrompt({
-  name: 'generateDraftAnswerPrompt',
+  name: 'ragAnswerGeneratorPrompt',
   input: {schema: GenerateDraftAnswerInputSchema},
   output: {schema: GenerateDraftAnswerOutputSchema},
-  prompt: `You are an expert RFP response generator. Your task is to generate a complete, accurate, and confident response to an RFP question using the provided internal company knowledge.
+  prompt: `You are an expert RFP assistant. Your task is to use the provided context to answer the user's question.
 
-RFP Question: {{{rfpQuestion}}}
-
-Knowledge Base Context:
+---
+Context:
 {{#each knowledgeBaseChunks}}
 - {{{this.content}}} (source: {{{this.source}}})
 {{/each}}
+---
+Question: {{{rfpQuestion}}}
 
-Tone: {{#if tone}}{{{tone}}}{{else}}Formal{{/if}}
-
-Based on the context, generate a high-quality draft answer. Cite the relevant sources in parentheses where appropriate in the answer text, for example: (source: Security Policy 2023).
-Also, list all the source titles you used in the 'sources' output field.
+Instructions:
+1. Based **only** on the context provided, generate a comprehensive and accurate answer in a {{#if tone}}{{{tone}}}{{else}}Formal{{/if}} tone.
+2. If the context does not contain enough information to answer the question, state that you cannot provide an answer based on the available knowledge.
+3. In your generated answer, cite the sources you used in parentheses, like this: (source: Security Policy 2023).
+4. In the output, provide a \`confidenceScore\` from 0.0 to 1.0, representing how well the context answered the question.
+5. In the output, list all the \`sources\` you used to formulate the answer.
 `,
 });
 
