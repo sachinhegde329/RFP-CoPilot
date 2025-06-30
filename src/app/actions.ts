@@ -449,3 +449,33 @@ export async function markNotificationsAsReadAction(tenantId: string, userId: nu
         return { error: "Failed to update notifications." };
     }
 }
+
+// == EXPORT ACTION ==
+
+export async function exportRfpAction(
+    payload: {
+        questions: { status: string }[],
+        isLocked: boolean,
+        currentUserRole: Role,
+        exportVersion: string
+    }
+) {
+    const { questions, isLocked, currentUserRole, exportVersion } = payload;
+
+    if (!isLocked) {
+        return { error: "Export failed: The RFP must be locked before exporting." };
+    }
+
+    const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'Owner';
+    const allQuestionsCompleted = questions.every(q => q.status === 'Completed');
+
+    if (!allQuestionsCompleted && !isAdmin) {
+        return { error: "Export failed: All questions must be marked as 'Completed' before a non-admin can export." };
+    }
+
+    // In a real app, this is where you would generate the PDF/DOCX file.
+    // For now, we just simulate a successful export.
+    console.log(`Simulating export for version: ${exportVersion}`);
+    
+    return { success: `RFP successfully exported as version "${exportVersion}".` };
+}

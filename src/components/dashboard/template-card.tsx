@@ -11,7 +11,7 @@ import {
   CardFooter,
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Lock, Unlock, Download, ShieldAlert, AlertTriangle } from "lucide-react"
+import { Lock, Unlock, Download, ShieldAlert, AlertTriangle, Loader2 } from "lucide-react"
 import { useTenant } from "@/components/providers/tenant-provider"
 import Link from "next/link"
 import { hasFeatureAccess } from "@/lib/access-control"
@@ -21,6 +21,8 @@ import { Input } from "@/components/ui/input"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import type { TeamMember } from "@/lib/tenants"
+import { exportRfpAction } from "@/app/actions"
+import { useToast } from "@/hooks/use-toast"
 
 type Question = {
   id: number
@@ -39,7 +41,9 @@ type TemplateCardProps = {
 
 export function TemplateCard({ questions, isLocked, onLockChange }: TemplateCardProps) {
   const { tenant } = useTenant()
+  const { toast } = useToast()
   const [exportVersion, setExportVersion] = useState("v1.0")
+  const [isExporting, setIsExporting] = useState(false)
 
   const canAccess = hasFeatureAccess(tenant, 'customTemplates');
   const currentUser = tenant.members[0]; // For demo
@@ -61,6 +65,32 @@ export function TemplateCard({ questions, isLocked, onLockChange }: TemplateCard
     : isExportDisabled && !isAdmin
     ? "All questions must be 'Completed' before exporting."
     : "Ready to export.";
+    
+  const handleExport = async () => {
+    setIsExporting(true);
+    const result = await exportRfpAction({
+        questions,
+        isLocked,
+        currentUserRole: currentUser.role,
+        exportVersion
+    });
+
+    if (result.error) {
+        toast({
+            variant: "destructive",
+            title: "Export Failed",
+            description: result.error,
+        });
+    } else {
+        toast({
+            title: "Export Successful",
+            description: result.success,
+        });
+    }
+
+    setIsExporting(false);
+  };
+
 
   if (!canAccess) {
     return (
@@ -147,9 +177,9 @@ export function TemplateCard({ questions, isLocked, onLockChange }: TemplateCard
                 <TooltipTrigger asChild>
                     {/* The div wrapper is necessary for the tooltip to work on a disabled button */}
                     <div className="w-full"> 
-                        <Button className="w-full" disabled={isExportDisabled}>
-                            <Download className="mr-2" />
-                            Export as PDF
+                        <Button className="w-full" disabled={isExportDisabled || isExporting} onClick={handleExport}>
+                            {isExporting ? <Loader2 className="mr-2 animate-spin" /> : <Download className="mr-2" />}
+                            {isExporting ? 'Exporting...' : 'Export as PDF'}
                         </Button>
                     </div>
                 </TooltipTrigger>
