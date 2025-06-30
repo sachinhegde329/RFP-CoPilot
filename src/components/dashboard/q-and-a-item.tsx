@@ -216,20 +216,6 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
                 AI Expert Review
               </Button>
             </div>
-
-            <div className="flex items-center gap-2">
-              <History className="text-muted-foreground" />
-              <Select defaultValue="v3">
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue placeholder="Version" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="v3">Version 3</SelectItem>
-                  <SelectItem value="v2">Version 2</SelectItem>
-                  <SelectItem value="v1">Version 1</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
           </div>
           {review && (
             <Alert>
@@ -254,7 +240,7 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
             </Alert>
           )}
         </CardContent>
-        <CardFooter className="flex items-center justify-between bg-muted/50 p-3 border-t">
+        <CardFooter className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-muted/50 p-3 border-t">
           <div className="flex items-center gap-2">
              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
@@ -324,11 +310,29 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
               </Tooltip>
             </TooltipProvider>
 
+             <Button variant="ghost" size="icon" onClick={() => setIsCommentSheetOpen(true)} className="text-muted-foreground hover:text-foreground h-8 w-8 relative">
+                <MessageSquare className="h-4 w-4" />
+                <span className="sr-only">Comments</span>
+                {comments.length > 0 && (
+                    <div className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
+                        {comments.length}
+                    </div>
+                )}
+            </Button>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => setIsCommentSheetOpen(true)} className="text-muted-foreground hover:text-foreground">
-            <MessageSquare className="mr-1.5 h-4 w-4" />
-            <span className="text-xs font-medium">{comments.length}</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            <History className="h-4 w-4 text-muted-foreground" />
+            <Select defaultValue="v3">
+              <SelectTrigger className="h-8 w-[120px] text-xs">
+                <SelectValue placeholder="Version" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="v3">Version 3</SelectItem>
+                <SelectItem value="v2">Version 2</SelectItem>
+                <SelectItem value="v1">Version 1</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </CardFooter>
       </Card>
       <Sheet open={isCommentSheetOpen} onOpenChange={setIsCommentSheetOpen}>
@@ -377,5 +381,3 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
     </>
   )
 }
-
-    
