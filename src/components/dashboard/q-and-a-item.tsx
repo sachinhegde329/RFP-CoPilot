@@ -178,24 +178,25 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="p-2 border rounded-md flex items-center gap-1">
+          <div className="rounded-md border">
+            <div className="p-2 border-b flex items-center gap-1">
               <Button variant="ghost" size="icon" disabled><Bold /></Button>
               <Button variant="ghost" size="icon" disabled><Italic /></Button>
               <Button variant="ghost" size="icon" disabled><Underline /></Button>
               <Button variant="ghost" size="icon" disabled><List /></Button>
-          </div>
-          <div className="relative">
-            <Textarea
-              placeholder="Draft your answer here..."
-              value={answer}
-              onChange={(e) => setAnswer(e.target.value)}
-              className="pr-10"
-              rows={5}
-            />
-            <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={handleCopy}>
-              {isCopied ? <ClipboardCheck className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
-              <span className="sr-only">Copy</span>
-            </Button>
+            </div>
+            <div className="relative">
+              <Textarea
+                placeholder="Draft your answer here..."
+                value={answer}
+                onChange={(e) => setAnswer(e.target.value)}
+                className="min-h-[120px] w-full resize-y border-0 pr-10 focus-visible:ring-0"
+              />
+              <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={handleCopy}>
+                {isCopied ? <ClipboardCheck className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
+                <span className="sr-only">Copy</span>
+              </Button>
+            </div>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
