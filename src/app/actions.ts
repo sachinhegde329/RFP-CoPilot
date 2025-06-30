@@ -21,9 +21,9 @@ import { stripe } from "@/lib/stripe"
 import { hasFeatureAccess, canPerformAction, type Action } from "@/lib/access-control"
 import { notificationService } from "@/lib/notifications.service";
 import { exportService } from "@/lib/export.service";
-import { templateService, type Template } from "@/lib/template.service"
+import { templateService, type Template, type TemplateSection } from "@/lib/template.service"
 
-import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType } from 'docx';
+import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType, PageBreak } from 'docx';
 import PDFDocument from 'pdfkit';
 
 type CurrentUser = { id: number; role: Role; name: string; }
@@ -545,6 +545,32 @@ async function generatePdfBuffer(doc: InstanceType<typeof PDFDocument>): Promise
     });
 }
 
+function replacePlaceholders(text: string, placeholders: Record<string, string>): string {
+    return text.replace(/\{\{(\w+)\}\}/g, (match, key) => placeholders[key] || match);
+}
+
+const renderQACategory = (category: string, questions: Question[], doc: InstanceType<typeof PDFDocument>) => {
+    doc.font('Helvetica-Bold').fontSize(14).text(category, { underline: true });
+    doc.moveDown(0.5);
+    questions.forEach(q => {
+        doc.font('Helvetica-Bold').fontSize(11).text(`Q${q.id}: ${q.question}`);
+        doc.font('Helvetica').fontSize(10).text(q.answer || "No answer provided.", { indent: 20 });
+        doc.moveDown();
+    });
+    doc.moveDown();
+};
+
+const renderAcknowledgments = (acknowledgments: any[], doc: InstanceType<typeof PDFDocument>) => {
+    if (acknowledgments.length === 0) return;
+    doc.addPage();
+    doc.fontSize(18).text('Acknowledgments', { align: 'center' });
+    doc.moveDown(2);
+    acknowledgments.forEach(ack => {
+        doc.font('Helvetica-Bold').fontSize(12).text(`${ack.name} (${ack.role})`);
+        doc.font('Helvetica-Oblique').fontSize(10).text(`"${ack.comment}"`, { indent: 20 });
+        doc.moveDown();
+    });
+};
 
 export async function exportRfpAction(payload: {
     tenantId: string;
@@ -562,6 +588,11 @@ export async function exportRfpAction(payload: {
     if (permCheck.error) return { error: permCheck.error };
     const { user, tenant } = permCheck;
 
+    const template = templateService.getTemplate(tenantId, templateId);
+    if (!template) {
+        return { error: "Template not found." };
+    }
+
     const isAdminOrOwner = user.role === 'Admin' || user.role === 'Owner';
     const allQuestionsCompleted = questions.every(q => q.status === 'Completed');
 
@@ -572,16 +603,18 @@ export async function exportRfpAction(payload: {
     const fileName = `RFP_Response_${exportVersion.replace(/\s+/g, '_')}.${format}`;
 
     try {
-        // Group questions by category for structured export
         const questionsByCategory = questions.reduce((acc, q) => {
             const category = q.category || 'Uncategorized';
-            if (!acc[category]) {
-                acc[category] = [];
-            }
+            if (!acc[category]) acc[category] = [];
             acc[category].push(q);
             return acc;
         }, {} as Record<string, Question[]>);
 
+        const placeholderValues = {
+            version: exportVersion,
+            tenantName: tenant.name,
+            currentDate: new Date().toLocaleDateString(),
+        };
 
         let fileData;
         let mimeType;
@@ -589,103 +622,80 @@ export async function exportRfpAction(payload: {
         if (format === 'docx') {
             const docChildren: Paragraph[] = [];
 
-            // Template-based header
-            if (templateId === 'system-formal-proposal') {
-                 docChildren.push(
-                    new Paragraph({ text: `Request for Proposal Response`, heading: HeadingLevel.TITLE, alignment: AlignmentType.CENTER }),
-                    new Paragraph({ text: ' ', spacing: { after: 480 } }),
-                    new Paragraph({ text: `Prepared by: ${tenant.name}`, heading: HeadingLevel.HEADING_2 }),
-                    new Paragraph({ text: `Date: ${new Date().toLocaleDateString()}`, heading: HeadingLevel.HEADING_2 }),
-                    new Paragraph({ pageBreakBefore: true })
-                );
-            } else { // Default categorized template
-                docChildren.push(new Paragraph({ text: `RFP Response - Version ${exportVersion}`, heading: HeadingLevel.TITLE }));
-            }
-            
-            // Main content
-            for (const category in questionsByCategory) {
-                docChildren.push(
-                    new Paragraph({
-                        text: category,
-                        heading: HeadingLevel.HEADING_1,
-                        spacing: { before: 480, after: 240 },
-                    })
-                );
-                questionsByCategory[category].forEach(q => {
-                    docChildren.push(
-                        new Paragraph({
-                            children: [new TextRun({ text: `Q${q.id}: ${q.question}`, bold: true })],
-                            spacing: { before: 240, after: 120 }
-                        }),
-                        new Paragraph({
-                            text: q.answer || "No answer provided.",
-                        })
-                    );
-                });
-            }
-
-            // Acknowledgments
-            if (acknowledgments.length > 0) {
-                docChildren.push(new Paragraph({ text: 'Acknowledgments', heading: HeadingLevel.HEADING_1, pageBreakBefore: true, spacing: { before: 480, after: 240 } }));
-                acknowledgments.forEach(ack => {
-                    docChildren.push(
-                        new Paragraph({
-                            children: [new TextRun({ text: `${ack.name} (${ack.role})`, bold: true })],
-                            spacing: { before: 240, after: 60 }
-                        }),
-                        new Paragraph({
-                            children: [new TextRun({ text: `"${ack.comment}"`, italics: true })],
-                            indent: { left: 720 },
-                        })
-                    );
-                });
+            for (const section of template.structure) {
+                const content = replacePlaceholders(section.content, placeholderValues);
+                switch (section.type) {
+                    case 'title':
+                        docChildren.push(new Paragraph({ text: content, heading: HeadingLevel.TITLE, alignment: AlignmentType.CENTER }));
+                        break;
+                    case 'header':
+                        content.split('\n').forEach(line => 
+                            docChildren.push(new Paragraph({ text: line, heading: HeadingLevel.HEADING_2 }))
+                        );
+                        break;
+                    case 'custom_text':
+                        docChildren.push(new Paragraph({ text: content, spacing: { before: 240, after: 240 } }));
+                        break;
+                    case 'qa_by_category':
+                        for (const category in questionsByCategory) {
+                            docChildren.push(new Paragraph({ text: category, heading: HeadingLevel.HEADING_1, spacing: { before: 480, after: 240 } }));
+                            questionsByCategory[category].forEach(q => {
+                                docChildren.push(new Paragraph({ children: [new TextRun({ text: `Q${q.id}: ${q.question}`, bold: true })], spacing: { before: 240, after: 120 } }));
+                                docChildren.push(new Paragraph({ text: q.answer || "No answer provided." }));
+                            });
+                        }
+                        break;
+                    case 'acknowledgments':
+                         if (acknowledgments.length > 0) {
+                            docChildren.push(new Paragraph({ text: 'Acknowledgments', heading: HeadingLevel.HEADING_1, spacing: { before: 480, after: 240 } }));
+                            acknowledgments.forEach(ack => {
+                                docChildren.push(new Paragraph({ children: [new TextRun({ text: `${ack.name} (${ack.role})`, bold: true })], spacing: { before: 240, after: 60 } }));
+                                docChildren.push(new Paragraph({ children: [new TextRun({ text: `"${ack.comment}"`, italics: true })], indent: { left: 720 } }));
+                            });
+                        }
+                        break;
+                    case 'page_break':
+                        docChildren.push(new Paragraph({ children: [new PageBreak()] }));
+                        break;
+                }
             }
 
             const doc = new Document({ sections: [{ properties: {}, children: docChildren }] });
-            
             fileData = await Packer.toBase64String(doc);
             mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
         } else if (format === 'pdf') {
             const doc = new PDFDocument({ margin: 50, bufferPages: true });
 
-            // Template-based header
-             if (templateId === 'system-formal-proposal') {
-                doc.fontSize(24).text(`Request for Proposal Response`, { align: 'center' });
-                doc.moveDown(4);
-                doc.fontSize(16).text(`Prepared by: ${tenant.name}`, { align: 'left' });
-                doc.moveDown(1);
-                doc.fontSize(16).text(`Date: ${new Date().toLocaleDateString()}`, { align: 'left' });
-                doc.addPage();
-            } else { // Default
-                doc.fontSize(18).text(`RFP Response - Version ${exportVersion}`, { align: 'center' });
-                doc.moveDown(2);
-            }
-
-            // Main content
-            for (const category in questionsByCategory) {
-                doc.font('Helvetica-Bold').fontSize(14).text(category, { underline: true });
-                doc.moveDown(0.5);
-
-                questionsByCategory[category].forEach(q => {
-                    doc.font('Helvetica-Bold').fontSize(11).text(`Q${q.id}: ${q.question}`);
-                    doc.font('Helvetica').fontSize(10).text(q.answer || "No answer provided.", { indent: 20 });
-                    doc.moveDown();
-                });
-                doc.moveDown();
-            }
-
-            // Acknowledgments
-            if (acknowledgments.length > 0) {
-                doc.addPage();
-                doc.fontSize(18).text('Acknowledgments', { align: 'center' });
-                doc.moveDown(2);
-
-                acknowledgments.forEach(ack => {
-                    doc.font('Helvetica-Bold').fontSize(12).text(`${ack.name} (${ack.role})`);
-                    doc.font('Helvetica-Oblique').fontSize(10).text(`"${ack.comment}"`, { indent: 20 });
-                    doc.moveDown();
-                });
+            for (const section of template.structure) {
+                const content = replacePlaceholders(section.content, placeholderValues);
+                switch (section.type) {
+                    case 'title':
+                        doc.fontSize(24).text(content, { align: 'center' });
+                        doc.moveDown(2);
+                        break;
+                    case 'header':
+                         content.split('\n').forEach(line => 
+                            doc.fontSize(16).text(line, { align: 'left' })
+                        );
+                        doc.moveDown(2);
+                        break;
+                    case 'custom_text':
+                        doc.font('Helvetica').fontSize(10).text(content);
+                        doc.moveDown();
+                        break;
+                    case 'qa_by_category':
+                         for (const category in questionsByCategory) {
+                            renderQACategory(category, questionsByCategory[category], doc);
+                        }
+                        break;
+                    case 'acknowledgments':
+                        renderAcknowledgments(acknowledgments, doc);
+                        break;
+                    case 'page_break':
+                        doc.addPage();
+                        break;
+                }
             }
 
             const pdfBuffer = await generatePdfBuffer(doc);
@@ -773,7 +783,7 @@ export async function createTemplateAction(tenantId: string, data: { name: strin
     }
 }
 
-export async function updateTemplateAction(tenantId: string, templateId: string, data: { name?: string; description?: string }, currentUser: CurrentUser): Promise<{ template?: Template, error?: string }> {
+export async function updateTemplateAction(tenantId: string, templateId: string, data: { name?: string; description?: string; structure?: TemplateSection[] }, currentUser: CurrentUser): Promise<{ template?: Template, error?: string }> {
     const permCheck = checkPermission(tenantId, currentUser, 'editWorkspace');
     if (permCheck.error) return { error: permCheck.error };
 
@@ -811,3 +821,5 @@ export async function deleteTemplateAction(tenantId: string, templateId: string,
         return { error: 'Failed to delete template.' };
     }
 }
+
+    

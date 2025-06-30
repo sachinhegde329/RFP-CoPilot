@@ -2,8 +2,14 @@
 import type { Tenant } from './tenants';
 
 export type TemplateType = 'System' | 'Custom';
-
 export type TemplateIcon = 'FileText' | 'FileJson' | 'Blocks';
+export type TemplateSectionType = 'title' | 'header' | 'qa_by_category' | 'acknowledgments' | 'custom_text' | 'page_break';
+
+export interface TemplateSection {
+  id: string; // unique ID for react keys
+  type: TemplateSectionType;
+  content: string; // For custom text, titles, etc. Can contain placeholders like {{version}}.
+}
 
 export interface Template {
   id: string;
@@ -12,6 +18,7 @@ export interface Template {
   description: string;
   type: TemplateType;
   icon: TemplateIcon;
+  structure: TemplateSection[];
 }
 
 interface TenantTemplateData {
@@ -30,6 +37,11 @@ class TemplateService {
                 description: "A standard template that groups questions by their assigned category (e.g., Security, Legal).",
                 type: "System",
                 icon: 'FileText',
+                structure: [
+                    { id: 's1', type: 'title', content: 'RFP Response - Version {{version}}' },
+                    { id: 's2', type: 'qa_by_category', content: 'This section will be replaced by the categorized questions and answers.' },
+                    { id: 's3', type: 'acknowledgments', content: 'This section will be replaced by team acknowledgments.' },
+                ]
             },
             {
                 id: 'system-formal-proposal',
@@ -38,6 +50,15 @@ class TemplateService {
                 description: "A professional template suitable for formal submissions, including a cover page and table of contents.",
                 type: "System",
                 icon: 'FileJson',
+                structure: [
+                     { id: 'f1', type: 'title', content: 'Request for Proposal Response' },
+                     { id: 'f2', type: 'custom_text', content: ' ' },
+                     { id: 'f3', type: 'header', content: 'Prepared by: {{tenantName}}' },
+                     { id: 'f4', type: 'header', content: 'Date: {{currentDate}}' },
+                     { id: 'f5', type: 'page_break', content: '' },
+                     { id: 'f6', type: 'qa_by_category', content: 'This section will be replaced by the categorized questions and answers.' },
+                     { id: 'f7', type: 'acknowledgments', content: 'This section will be replaced by team acknowledgments.' },
+                ]
             }
         ];
     }
@@ -60,7 +81,7 @@ class TemplateService {
         return this.tenantData[tenantId].templates.find(t => t.id === templateId);
     }
 
-    public updateTemplate(tenantId: string, templateId: string, data: Partial<Pick<Template, 'name' | 'description'>>): Template | null {
+    public updateTemplate(tenantId: string, templateId: string, data: Partial<Pick<Template, 'name' | 'description' | 'structure'>>): Template | null {
         this._ensureTenantData(tenantId);
         const templates = this.tenantData[tenantId].templates;
         const templateIndex = templates.findIndex(t => t.id === templateId);
@@ -84,6 +105,10 @@ class TemplateService {
             tenantId,
             type: 'Custom',
             icon: 'Blocks',
+            structure: [ // Default structure for new custom templates
+                { id: `c1-${Date.now()}`, type: 'title', content: 'RFP Response' },
+                { id: `c2-${Date.now()}`, type: 'qa_by_category', content: 'This section will be replaced by the categorized questions and answers.' },
+            ],
         };
         this.tenantData[tenantId].templates.push(newTemplate);
         return newTemplate;
@@ -100,6 +125,8 @@ class TemplateService {
             name: `${sourceTemplate.name} (Copy)`,
             type: 'Custom',
             icon: 'Blocks',
+            // Ensure deep copy of structure with new IDs
+            structure: sourceTemplate.structure.map(section => ({...section, id: `section-${Date.now()}-${Math.random()}`}))
         };
         this.tenantData[tenantId].templates.push(newTemplate);
         return newTemplate;
@@ -116,3 +143,5 @@ class TemplateService {
 }
 
 export const templateService = new TemplateService();
+
+    
