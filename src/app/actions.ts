@@ -551,15 +551,15 @@ export async function exportRfpAction(payload: {
         } else if (format === 'pdf') {
             const doc = new PDFDocument({ margin: 50, bufferPages: true });
 
-            // Add content
             doc.fontSize(18).text(`RFP Response - Version ${exportVersion}`, { align: 'center' });
             doc.moveDown(2);
-
+            
             doc.fontSize(12);
 
             questions.forEach(q => {
-                doc.font('Helvetica-Bold').text(`Q${q.id}: ${q.question}`, { paragraphGap: 5 });
-                doc.font('Helvetica').text(q.answer || "No answer provided.", { indent: 20, paragraphGap: 10 });
+                doc.font('Helvetica-Bold').text(`Q${q.id}: ${q.question}`);
+                doc.font('Helvetica').text(q.answer || "No answer provided.", { indent: 20 });
+                doc.moveDown();
             });
 
             if (acknowledgments.length > 0) {
@@ -569,8 +569,9 @@ export async function exportRfpAction(payload: {
                 doc.fontSize(12);
 
                 acknowledgments.forEach(ack => {
-                    doc.font('Helvetica-Bold').text(`${ack.name} (${ack.role})`, { paragraphGap: 5 });
-                    doc.font('Helvetica-Oblique').text(`"${ack.comment}"`, { indent: 20, paragraphGap: 10 });
+                    doc.font('Helvetica-Bold').text(`${ack.name} (${ack.role})`);
+                    doc.font('Helvetica-Oblique').text(`"${ack.comment}"`, { indent: 20 });
+                    doc.moveDown();
                 });
             }
 
@@ -618,3 +619,4 @@ export async function getExportHistoryAction(tenantId: string, rfpId: string) {
         return { error: `Failed to retrieve export history: ${errorMessage}` };
     }
 }
+
