@@ -1,6 +1,4 @@
 
-'use server';
-
 import type { Role } from './tenants';
 
 export interface ExportRecord {
