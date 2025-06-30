@@ -332,7 +332,7 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
               <Alert>
                 <Bot className="h-4 w-4" />
                 <AlertTitle>AI Expert Review</AlertTitle>
-                <AlertDescription className="prose prose-sm max-w-none">
+                <AlertDescription className="text-sm font-mono whitespace-pre-wrap">
                   {review}
                 </AlertDescription>
               </Alert>
@@ -342,7 +342,7 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
                 <BookOpenCheck className="h-4 w-4" />
                 <AlertTitle>Sources Used</AlertTitle>
                 <AlertDescription>
-                  <ul className="list-disc list-inside text-xs">
+                  <ul className="list-disc list-inside text-xs font-mono">
                     {sources.map((source, index) => (
                         <li key={index}>{source}</li>
                     ))}
