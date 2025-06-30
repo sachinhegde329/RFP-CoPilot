@@ -442,5 +442,3 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
     </>
   )
 }
-
-    
