@@ -25,19 +25,32 @@ const planFeatureMatrix: Record<Tenant['plan'], Feature[]> = {
     enterprise: ['aiExpertReview', 'analytics', 'customTemplates', 'complianceValidation'],
 };
 
-// Permission matrix based on the provided image, mapping roles as discussed
-// The matrix has Viewer, Contributor, Editor, Reviewer, Admin.
-// We map these to our roles: Viewer, Editor, Approver, Admin, Owner.
+/**
+ * Permission matrix based on the provided user persona matrix.
+ * This maps our application roles (Owner, Admin, Approver, Editor, Viewer)
+ * to the granular actions a user can perform.
+ *
+ * The mapping from the user-provided personas to our roles is as follows:
+ * - Owner: Super-admin with all permissions.
+ * - Admin: Maps to "Team Admin" and "IT Admin".
+ * - Approver: Maps to "Reviewer/Legal" and "Security/Compliance".
+ * - Editor: Maps to "Sales Executive", "Pre-sales/SA", and "Product Manager".
+ * - Viewer: A read-only role.
+ */
 const rolePermissions: Record<Role, Action[]> = {
-    // Owner is a super-admin, has all permissions
+    // Owner is a super-admin, has all permissions.
     Owner: ['viewContent', 'editContent', 'assignQuestions', 'uploadRfps', 'finalizeExport', 'manageTeam', 'editWorkspace', 'manageIntegrations', 'manageSecurity'],
-    // Admin has all permissions as per the matrix
+    
+    // Admin (Team Admin, IT Admin) has broad permissions across the application.
     Admin: ['viewContent', 'editContent', 'assignQuestions', 'uploadRfps', 'finalizeExport', 'manageTeam', 'editWorkspace', 'manageIntegrations', 'manageSecurity'],
-    // Approver maps to Reviewer: can view and finalize
-    Approver: ['viewContent', 'finalizeExport'],
-    // Editor maps to a combination of Contributor and Editor from the matrix
-    Editor: ['viewContent', 'editContent', 'assignQuestions', 'uploadRfps', 'finalizeExport'],
-    // Viewer can only view
+    
+    // Approver (Reviewer/Legal, Security/Compliance) can view, comment, and make final approvals.
+    Approver: ['viewContent', 'editContent', 'finalizeExport'],
+    
+    // Editor (Sales Exec, Pre-Sales, Product Manager) handles the primary RFP and knowledge base work.
+    Editor: ['viewContent', 'editContent', 'assignQuestions', 'uploadRfps', 'manageIntegrations'],
+    
+    // Viewer has read-only access to content.
     Viewer: ['viewContent'],
 };
 
