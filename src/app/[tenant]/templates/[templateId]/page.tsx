@@ -22,7 +22,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
-import { ChevronLeft, Save, FileText, FileJson, Blocks, AlertCircle, PlusCircle, Trash2, ArrowUp, ArrowDown, Type, FileType, Pilcrow, Indent, UnfoldVertical, MessageSquare, PageBreak } from "lucide-react"
+import { ChevronLeft, Save, FileText, FileJson, Blocks, AlertCircle, PlusCircle, Trash2, ArrowUp, ArrowDown, Type, FileType, Pilcrow, UnfoldVertical, MessageSquare, FileDiff } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { cn } from "@/lib/utils"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
@@ -47,7 +47,7 @@ const sectionIconMap: Record<TemplateSectionType, React.ElementType> = {
     qa_by_category: MessageSquare,
     acknowledgments: UnfoldVertical,
     custom_text: Pilcrow,
-    page_break: PageBreak,
+    page_break: FileDiff,
 };
 
 function TemplateStructureEditor({ structure, setStructure, disabled }: { structure: TemplateSection[], setStructure: React.Dispatch<React.SetStateAction<TemplateSection[]>>, disabled: boolean }) {
@@ -131,7 +131,7 @@ function TemplateStructureEditor({ structure, setStructure, disabled }: { struct
                         <DropdownMenuItem onSelect={() => handleAddSection('title')}><Type className="mr-2"/>Title</DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => handleAddSection('header')}><FileType className="mr-2"/>Header</DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => handleAddSection('custom_text')}><Pilcrow className="mr-2"/>Custom Text Block</DropdownMenuItem>
-                        <DropdownMenuItem onSelect={() => handleAddSection('page_break')}><PageBreak className="mr-2"/>Page Break</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleAddSection('page_break')}><FileDiff className="mr-2"/>Page Break</DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>
             </CardContent>
@@ -304,5 +304,3 @@ export default function ConfigureTemplatePage({ params }: { params: { tenant: st
     </SidebarInset>
   )
 }
-
-    
