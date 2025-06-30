@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react"
@@ -27,13 +28,13 @@ const plans = [
     name: "Free",
     id: "free",
     price: "$0",
-    description: "For individuals and small teams trying out RFP CoPilot.",
+    description: "For individuals and small teams trying out the platform.",
     features: [
-      "2 users",
-      "3 RFPs/month",
-      "Up to 25 questions/month",
-      "Export with watermark",
-      "Community support",
+      "1 User",
+      "1 RFP/month",
+      "Up to 10 Questions/RFP",
+      "Basic AI Generation",
+      "Community Support",
     ],
     buttonText: "Get Started for Free",
     buttonLink: "/login",
@@ -41,47 +42,59 @@ const plans = [
   {
     name: "Starter",
     id: "starter",
-    price: "$500",
+    price: "$29",
     pricePeriod: "/ month",
-    description: "For growing teams that need more power and collaboration.",
+    description: "For individual sales reps and freelancers.",
     features: [
-      "5 users",
-      "25 RFPs/month",
-      "Team collaboration",
-      "Answer reuse library",
-      "Standard export templates",
+      "1 User",
+      "5 RFPs/month",
+      "Up to 100 Questions/month",
+      "Standard AI Generation",
+      "Email Support",
     ],
     buttonText: "Choose Starter",
-    buttonLink: "/login",
+  },
+  {
+    name: "Team",
+    id: "team",
+    price: "$149",
+    pricePeriod: "/ month",
+    description: "For small teams that need to collaborate effectively.",
+    features: [
+      "Up to 5 Users",
+      "25 RFPs/month",
+      "Team Collaboration Tools",
+      "Answer Reuse Library",
+      "Standard Export Templates",
+    ],
+    buttonText: "Choose Team",
     popular: true,
   },
   {
-    name: "Growth",
-    id: "growth",
-    price: "$1,250",
+    name: "Business",
+    id: "business",
+    price: "$749",
     pricePeriod: "/ month",
-    description: "For established teams requiring analytics and integrations.",
+    description: "For growing teams needing advanced features and support.",
     features: [
-      "25 users",
-      "100 RFPs/month",
-      "Advanced analytics",
-      "API access",
-      "Salesforce & SharePoint integrations",
+      "Up to 25 Users",
+      "Unlimited RFPs",
+      "Advanced Analytics & Reporting",
+      "AI Expert Review",
+      "Priority Support",
     ],
-    buttonText: "Choose Growth",
-    buttonLink: "/login",
+    buttonText: "Choose Business",
   },
   {
     name: "Enterprise",
     id: "enterprise",
     price: "Custom",
-    description: "For large organizations needing enterprise-grade security and support.",
+    description: "For large organizations needing full control and integrations.",
     features: [
-      "50+ users",
-      "Unlimited RFPs",
+      "50+ Users",
       "Single Sign-On (SSO)",
-      "Custom domains & branding",
-      "Dedicated support & SLA",
+      "Custom Integrations",
+      "Dedicated Support & SLA",
     ],
     buttonText: "Contact Sales",
     buttonLink: "#",
@@ -95,7 +108,7 @@ export default function PricingPage() {
 
   const tenantId = searchParams.get('tenant')
 
-  const handleCheckout = async (planId: 'starter' | 'growth', planName: string) => {
+  const handleCheckout = async (planId: 'starter' | 'team' | 'business', planName: string) => {
     if (!tenantId) {
       toast({
         title: "Please log in",
@@ -181,7 +194,7 @@ export default function PricingPage() {
 
         <section className="pb-20 md:pb-28">
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 items-start">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 items-start">
               {plans.map((plan) => (
                 <Card
                   key={plan.name}
@@ -216,8 +229,8 @@ export default function PricingPage() {
                   <CardFooter className="flex-shrink-0">
                     {(() => {
                         const isLoading = loadingPlan === plan.name;
-                        const isPaidPlan = plan.id === 'starter' || plan.id === 'growth';
-                        const planId = plan.id as 'starter' | 'growth';
+                        const isPaidPlan = plan.id === 'starter' || plan.id === 'team' || plan.id === 'business';
+                        const planId = plan.id as 'starter' | 'team' | 'business';
 
                         if (isPaidPlan) {
                             return (
@@ -235,7 +248,7 @@ export default function PricingPage() {
 
                         return (
                            <Button asChild className="w-full" variant={plan.popular ? "default" : "outline"}>
-                             <Link href={plan.buttonLink}>{plan.buttonText}</Link>
+                             <Link href={plan.buttonLink || '#'}>{plan.buttonText}</Link>
                            </Button>
                         );
                     })()}

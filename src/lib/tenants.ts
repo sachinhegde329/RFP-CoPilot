@@ -1,5 +1,6 @@
 
 
+
 export type AddOn = 'analytics' | 'customTemplates' | 'complianceValidation';
 export type Role = 'Owner' | 'Admin' | 'Approver' | 'Editor' | 'Viewer';
 export type MemberStatus = 'Active' | 'Pending';
@@ -19,7 +20,7 @@ export interface Tenant {
   name: string;
   subdomain: string;
   domains: string[];
-  plan: 'free' | 'starter' | 'growth' | 'enterprise';
+  plan: 'free' | 'starter' | 'team' | 'business' | 'enterprise';
   ssoProvider?: 'microsoft' | 'okta' | 'google' | null;
   addOns?: AddOn[];
   stripeCustomerId?: string;
@@ -55,9 +56,10 @@ export const addOnsConfig = {
 
 
 export const plansConfig = {
-  free: { seats: 2, fileSizeMb: 2 },
-  starter: { seats: 5, fileSizeMb: 5 },
-  growth: { seats: 25, fileSizeMb: 10 },
+  free: { seats: 1, fileSizeMb: 2 },
+  starter: { seats: 1, fileSizeMb: 5 },
+  team: { seats: 5, fileSizeMb: 10 },
+  business: { seats: 25, fileSizeMb: 25 },
   enterprise: { seats: 50, fileSizeMb: 50 },
 };
 
@@ -270,4 +272,3 @@ export function getAllTenants(): Tenant[] {
       limits: getLimitsForTenant(t)
   }));
 }
-

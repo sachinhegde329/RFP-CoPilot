@@ -350,11 +350,12 @@ export async function checkSourceStatusAction(tenantId: string, sourceId: string
 const STRIPE_PRICE_IDS = {
     // IMPORTANT: Replace these with your actual Price IDs from your Stripe dashboard
     // These prices should be configured in Stripe as "per unit" for per-seat billing.
-    starter: 'price_1Pg_SAMPLE_STARTER', 
-    growth: 'price_1Pg_SAMPLE_GROWTH',   
+    starter: 'price_1Ph_SAMPLE_STARTER', 
+    team: 'price_1Ph_SAMPLE_TEAM',
+    business: 'price_1Ph_SAMPLE_BUSINESS',
 };
 
-export async function createCheckoutSessionAction(plan: 'starter' | 'growth', tenantId: string) {
+export async function createCheckoutSessionAction(plan: 'starter' | 'team' | 'business', tenantId: string) {
     if (!process.env.STRIPE_SECRET_KEY || !process.env.NEXT_PUBLIC_APP_URL) {
         return { error: "Stripe is not configured. Please set STRIPE_SECRET_KEY and NEXT_PUBLIC_APP_URL." };
     }
