@@ -258,11 +258,6 @@ export async function resyncKnowledgeSourceAction(tenantId: string, sourceId: st
         return { error: "Source not found." };
     }
 
-    // Only website re-sync is supported for now.
-    if (source.type !== 'website') {
-        return { error: `Re-syncing for '${source.type}' sources is not yet supported.` };
-    }
-
     knowledgeBaseService.updateDataSource(tenantId, sourceId, {
         status: 'Syncing',
         lastSynced: 'In progress...',

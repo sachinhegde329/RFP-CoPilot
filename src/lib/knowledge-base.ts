@@ -1,6 +1,7 @@
 
 import { embeddingService } from './embedding.service';
 import { websiteCrawlerService } from './connectors/websiteCrawler.service';
+import { getConnectorService } from './connectors';
 
 export type DataSourceType = 'website' | 'document' | 'confluence' | 'sharepoint' | 'gdrive' | 'notion' | 'github' | 'dropbox';
 export type SyncStatus = 'Synced' | 'Syncing' | 'Error' | 'Pending';
@@ -289,20 +290,31 @@ class KnowledgeBaseService {
 
     try {
         let result: { itemsProcessed: number } | undefined;
-        switch(source.type) {
-            case 'website':
-                result = await this._syncWebsiteSource(source);
-                break;
-            // TODO: Add cases for other source types like 'gdrive', 'sharepoint' etc.
-            default:
-                throw new Error(`Syncing for source type "${source.type}" is not yet implemented.`);
-        }
+        let finalMessage = 'Sync completed successfully.';
         
+        // This is a simplified sync process. A real implementation would be more complex.
+        if (source.type === 'document') {
+             // Manual document uploads are processed on upload and don't have a separate "sync" step.
+            finalMessage = 'Manual document uploads do not require syncing.';
+            this.updateDataSource(tenantId, source.id, { status: 'Synced' });
+            result = { itemsProcessed: source.itemCount || 0 };
+        } else {
+            // For all other types, use the connector
+            const connector = getConnectorService(source.type);
+            await connector.sync(source); // In our prototype, these are mocked and resolve quickly.
+            
+            this.updateDataSource(tenantId, source.id, {
+                status: 'Synced',
+                lastSynced: new Date().toLocaleDateString(),
+            });
+            result = { itemsProcessed: source.itemCount || 0 }; // Assume no new items for mocks
+        }
+
         await this._addSyncLog({
             tenantId,
             sourceId,
             status: 'Success',
-            message: 'Sync completed successfully.',
+            message: finalMessage,
             itemsProcessed: result?.itemsProcessed || 0,
         });
 
