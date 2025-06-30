@@ -17,6 +17,7 @@ import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 import { loadStripe } from "@stripe/stripe-js"
 import { createCheckoutSessionAction } from "@/app/actions"
+import { addOnsConfig } from "@/lib/tenants"
 
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 
@@ -259,6 +260,39 @@ export default function PricingPage() {
             <p className="text-center text-muted-foreground mt-8 text-sm">
                 Annual pricing available. <Link href="#" className="underline text-primary">Contact us</Link> for details.
             </p>
+          </div>
+        </section>
+
+        <section className="pb-20 md:pb-28 border-t">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-20">
+            <div className="text-center mb-12">
+              <h2 className="text-3xl md:text-4xl font-bold">Enhance Your Plan with Add-ons</h2>
+              <p className="text-muted-foreground mt-3 max-w-2xl mx-auto">Customize your plan with powerful features to meet your specific needs. Available on Team plans and higher.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+              {Object.values(addOnsConfig).map(addOn => (
+                <Card key={addOn.id} className="flex flex-col">
+                  <CardHeader>
+                    <CardTitle>{addOn.name}</CardTitle>
+                     {addOn.price ? (
+                      <div className="flex items-baseline gap-1 pt-2">
+                          <span className="text-3xl font-bold">${addOn.price}</span>
+                          <span className="text-muted-foreground">/ month</span>
+                      </div>
+                    ) : (
+                      <div className="pt-2">
+                        <span className="text-3xl font-bold">Custom</span>
+                      </div>
+                    )}
+                    <CardDescription className="pt-2">{addOn.description}</CardDescription>
+                  </CardHeader>
+                  <CardContent className="flex-1" />
+                  <CardFooter>
+                    <Button className="w-full" variant="outline" disabled>Contact Sales to Add</Button>
+                  </CardFooter>
+                </Card>
+              ))}
+            </div>
           </div>
         </section>
       </main>

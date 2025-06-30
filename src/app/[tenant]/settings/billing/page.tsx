@@ -9,6 +9,7 @@ import { Loader2, ExternalLink } from 'lucide-react';
 import { createCustomerPortalSessionAction } from '@/app/actions';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { addOnsConfig } from '@/lib/tenants';
 
 export default function BillingSettingsPage() {
     const { tenant } = useTenant();
@@ -56,14 +57,25 @@ export default function BillingSettingsPage() {
                 <p>{tenant.limits.fileSizeMb}MB</p>
             </div>
         </div>
-        <div>
-            {tenant.addOns && tenant.addOns.length > 0 && (
-                <div className="p-4 border rounded-lg space-y-2">
-                    <h3 className="font-medium">Active Add-ons</h3>
-                    {/* Map through addons here */}
-                </div>
-            )}
-        </div>
+        
+        {tenant.addOns && tenant.addOns.length > 0 && (
+            <div className="p-4 border rounded-lg space-y-3">
+                <h3 className="font-medium">Active Add-ons</h3>
+                {tenant.addOns.map(addOnId => {
+                    const addOn = addOnsConfig[addOnId];
+                    if (!addOn) return null;
+                    return (
+                        <div key={addOn.id} className="flex justify-between items-center text-sm pt-2 border-t first:border-t-0 first:pt-0">
+                            <div>
+                                <p className="font-medium">{addOn.name}</p>
+                            </div>
+                            <p className="font-semibold text-muted-foreground">${addOn.price}/mo</p>
+                        </div>
+                    );
+                })}
+            </div>
+        )}
+
       </CardContent>
       <CardFooter>
           {tenant.plan === 'free' ? (

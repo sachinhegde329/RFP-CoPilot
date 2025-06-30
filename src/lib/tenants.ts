@@ -1,6 +1,7 @@
 
 
 
+
 export type AddOn = 'analytics' | 'customTemplates' | 'complianceValidation';
 export type Role = 'Owner' | 'Admin' | 'Approver' | 'Editor' | 'Viewer';
 export type MemberStatus = 'Active' | 'Pending';
@@ -36,21 +37,24 @@ export interface Tenant {
   members: TeamMember[];
 }
 
-export const addOnsConfig = {
+export const addOnsConfig: Record<AddOn, { id: AddOn; name: string; description: string; price?: number }> = {
   analytics: {
     id: 'analytics' as const,
     name: 'Advanced Analytics',
     description: 'Unlock detailed insights into your RFP process and win rates.',
+    price: 49,
   },
   customTemplates: {
     id: 'customTemplates' as const,
     name: 'Custom Export Templates',
     description: 'Create and manage branded templates for polished, professional responses.',
+    price: 29,
   },
   complianceValidation: {
     id: 'complianceValidation' as const,
     name: 'Compliance Validation',
     description: 'Automatically check answers against compliance standards like SOC 2 and ISO 27001.',
+    price: 99,
   }
 };
 
@@ -71,7 +75,7 @@ const tenants: Omit<Tenant, 'limits'>[] = [
     domains: ['acme.com', 'acmeinc.com'],
     plan: 'enterprise',
     ssoProvider: 'microsoft',
-    addOns: [],
+    addOns: ['analytics'],
     stripeCustomerId: 'cus_Pabx3EMG9pDRgI', // Replace with actual Stripe Customer ID
     defaultTone: 'Formal',
     branding: {
