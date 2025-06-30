@@ -1,6 +1,4 @@
 
-'use server';
-
 import type { Tenant } from './tenants';
 
 export type TemplateType = 'System' | 'Custom';
