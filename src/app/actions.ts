@@ -560,12 +560,12 @@ export async function exportRfpAction(payload: {
             doc.fontSize(18).text(`RFP Response - Version ${exportVersion}`, { align: 'center' });
             doc.moveDown(2);
 
-            doc.fontSize(12); // Set default font size for the body
+            doc.fontSize(12);
 
             questions.forEach(q => {
-                doc.font('Helvetica-Bold').text(`Q${q.id}: ${q.question}`);
-                doc.font('Helvetica').text(q.answer || "No answer provided.", { indent: 20 });
-                doc.moveDown(1);
+                // Use .text() for simplicity and to avoid font issues
+                doc.text(`Q${q.id}: ${q.question}`, { paragraphGap: 5 });
+                doc.text(q.answer || "No answer provided.", { indent: 20, paragraphGap: 10 });
             });
 
             if (acknowledgments.length > 0) {
@@ -575,9 +575,8 @@ export async function exportRfpAction(payload: {
                 doc.fontSize(12);
 
                 acknowledgments.forEach(ack => {
-                    doc.font('Helvetica-Bold').text(`${ack.name} (${ack.role})`);
-                    doc.font('Helvetica').text(`"${ack.comment}"`, { indent: 20 });
-                    doc.moveDown(1);
+                    doc.text(`${ack.name} (${ack.role})`, { paragraphGap: 5 });
+                    doc.text(`"${ack.comment}"`, { indent: 20, paragraphGap: 10 });
                 });
             }
 
