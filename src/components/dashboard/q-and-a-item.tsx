@@ -197,7 +197,7 @@ export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQ
                 <TooltipProvider delayDuration={100}>
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <button className={cn("flex h-6 w-6 items-center justify-center rounded-full", isEditingDisabled ? "cursor-not-allowed" : "hover:bg-accent/50")} disabled={isEditingDisabled}>
+                            <button onClick={(e) => e.stopPropagation()} className={cn("flex h-6 w-6 items-center justify-center rounded-full", isEditingDisabled ? "cursor-not-allowed" : "hover:bg-accent/50")} disabled={isEditingDisabled}>
                                 <StatusIcon status={status} />
                             </button>
                         </TooltipTrigger>
@@ -205,7 +205,7 @@ export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQ
                     </Tooltip>
                 </TooltipProvider>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                 <DropdownMenuLabel>Set Status</DropdownMenuLabel>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onSelect={() => handleStatusChange('Unassigned')}>
@@ -228,7 +228,7 @@ export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQ
                 <TooltipTrigger asChild>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <button className={cn("flex h-6 w-6 items-center justify-center rounded-full", isEditingDisabled ? "cursor-not-allowed" : "hover:bg-accent/50")} disabled={isEditingDisabled}>
+                      <button onClick={(e) => e.stopPropagation()} className={cn("flex h-6 w-6 items-center justify-center rounded-full", isEditingDisabled ? "cursor-not-allowed" : "hover:bg-accent/50")} disabled={isEditingDisabled}>
                         {assignee ? (
                           <Avatar className="h-full w-full">
                             {assignee.avatar && <AvatarImage src={assignee.avatar} alt={assignee.name} />}
@@ -241,7 +241,7 @@ export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQ
                         )}
                       </button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenuLabel>Assign to</DropdownMenuLabel>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem onSelect={() => handleAssigneeChange('unassigned')}>
@@ -260,9 +260,7 @@ export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQ
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TooltipTrigger>
-                <TooltipContent>
-                  <p>{assignee ? `Assigned to ${assignee.name}` : 'Unassigned'}</p>
-                </TooltipContent>
+                <TooltipContent><p>{assignee ? `Assigned to ${assignee.name}` : 'Unassigned'}</p></TooltipContent>
               </Tooltip>
             </TooltipProvider>
             
@@ -300,7 +298,7 @@ export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQ
               </div>
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button onClick={handleGenerateAnswer} disabled={isGenerating || isEditingDisabled}>
                   {isGenerating ? (
                     <Loader2 className="animate-spin" />
@@ -316,6 +314,14 @@ export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQ
                 >
                   {isReviewing ? <Loader2 className="animate-spin" /> : <Bot />}
                   AI Expert Review
+                </Button>
+                 <Button
+                    variant="outline"
+                    onClick={() => handleStatusChange('Completed')}
+                    disabled={status === 'Completed' || isEditingDisabled}
+                >
+                    <CheckCircle />
+                    Mark as Complete
                 </Button>
               </div>
             </div>
