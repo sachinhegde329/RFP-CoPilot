@@ -549,18 +549,17 @@ function replacePlaceholders(text: string, placeholders: Record<string, string>)
     return text.replace(/\{\{(\w+)\}\}/g, (match, key) => placeholders[key] || match);
 }
 
-const renderQACategory = (category: string, questions: Question[], doc: InstanceType<typeof PDFDocument>) => {
-    doc.font('Helvetica-Bold').fontSize(14).text(category, { underline: true });
-    doc.moveDown(0.5);
+const renderQACategoryPDF = (category: string, questions: Question[], doc: InstanceType<typeof PDFDocument>) => {
+    doc.font('Helvetica-Bold').fontSize(16).text(category, { underline: false });
+    doc.moveDown(0.75);
     questions.forEach(q => {
         doc.font('Helvetica-Bold').fontSize(11).text(`Q${q.id}: ${q.question}`);
-        doc.font('Helvetica').fontSize(10).text(q.answer || "No answer provided.", { indent: 20 });
+        doc.font('Helvetica').fontSize(10).text(q.answer || "[No answer provided]", { indent: 20 });
         doc.moveDown();
     });
-    doc.moveDown();
 };
 
-const renderAcknowledgments = (acknowledgments: any[], doc: InstanceType<typeof PDFDocument>) => {
+const renderAcknowledgmentsPDF = (acknowledgments: any[], doc: InstanceType<typeof PDFDocument>) => {
     if (acknowledgments.length === 0) return;
     doc.addPage();
     doc.fontSize(18).text('Acknowledgments', { align: 'center' });
@@ -571,6 +570,28 @@ const renderAcknowledgments = (acknowledgments: any[], doc: InstanceType<typeof 
         doc.moveDown();
     });
 };
+
+const renderQACategoryDOCX = (category: string, questions: Question[]): Paragraph[] => {
+    const children: Paragraph[] = [];
+    children.push(new Paragraph({ text: category, heading: HeadingLevel.HEADING_1, spacing: { before: 480, after: 240 } }));
+    questions.forEach(q => {
+        children.push(new Paragraph({ children: [new TextRun({ text: `Q${q.id}: ${q.question}`, bold: true })], spacing: { before: 240, after: 120 } }));
+        children.push(new Paragraph({ text: q.answer || "[No answer provided]" }));
+    });
+    return children;
+};
+
+const renderAcknowledgmentsDOCX = (acknowledgments: any[]): Paragraph[] => {
+    if (acknowledgments.length === 0) return [];
+    const children: Paragraph[] = [];
+    children.push(new Paragraph({ text: 'Acknowledgments', heading: HeadingLevel.HEADING_1, spacing: { before: 480, after: 240 } }));
+    acknowledgments.forEach(ack => {
+        children.push(new Paragraph({ children: [new TextRun({ text: `${ack.name} (${ack.role})`, bold: true })], spacing: { before: 240, after: 60 } }));
+        children.push(new Paragraph({ children: [new TextRun({ text: `"${ack.comment}"`, italics: true })], indent: { left: 720 } }));
+    });
+    return children;
+};
+
 
 export async function exportRfpAction(payload: {
     tenantId: string;
@@ -616,6 +637,7 @@ export async function exportRfpAction(payload: {
             currentDate: new Date().toLocaleDateString(),
         };
 
+        const renderedQuestionIds = new Set<number>();
         let fileData;
         let mimeType;
 
@@ -636,22 +658,25 @@ export async function exportRfpAction(payload: {
                     case 'custom_text':
                         docChildren.push(new Paragraph({ text: content, spacing: { before: 240, after: 240 } }));
                         break;
-                    case 'qa_by_category':
-                        for (const category in questionsByCategory) {
-                            docChildren.push(new Paragraph({ text: category, heading: HeadingLevel.HEADING_1, spacing: { before: 480, after: 240 } }));
-                            questionsByCategory[category].forEach(q => {
-                                docChildren.push(new Paragraph({ children: [new TextRun({ text: `Q${q.id}: ${q.question}`, bold: true })], spacing: { before: 240, after: 120 } }));
-                                docChildren.push(new Paragraph({ text: q.answer || "No answer provided." }));
-                            });
+                    case 'qa_list_by_category':
+                        const category = content;
+                        let questionsToRender: Question[] = [];
+
+                        if (category === '*') {
+                            // Render all questions not yet rendered
+                             questionsToRender = questions.filter(q => !renderedQuestionIds.has(q.id));
+                        } else {
+                            questionsToRender = (questionsByCategory[category] || []).filter(q => !renderedQuestionIds.has(q.id));
+                        }
+
+                        if (questionsToRender.length > 0) {
+                             docChildren.push(...renderQACategoryDOCX(category === '*' ? 'Other Questions' : category, questionsToRender));
+                             questionsToRender.forEach(q => renderedQuestionIds.add(q.id));
                         }
                         break;
                     case 'acknowledgments':
                          if (acknowledgments.length > 0) {
-                            docChildren.push(new Paragraph({ text: 'Acknowledgments', heading: HeadingLevel.HEADING_1, spacing: { before: 480, after: 240 } }));
-                            acknowledgments.forEach(ack => {
-                                docChildren.push(new Paragraph({ children: [new TextRun({ text: `${ack.name} (${ack.role})`, bold: true })], spacing: { before: 240, after: 60 } }));
-                                docChildren.push(new Paragraph({ children: [new TextRun({ text: `"${ack.comment}"`, italics: true })], indent: { left: 720 } }));
-                            });
+                            docChildren.push(...renderAcknowledgmentsDOCX(acknowledgments));
                         }
                         break;
                     case 'page_break':
@@ -684,13 +709,23 @@ export async function exportRfpAction(payload: {
                         doc.font('Helvetica').fontSize(10).text(content);
                         doc.moveDown();
                         break;
-                    case 'qa_by_category':
-                         for (const category in questionsByCategory) {
-                            renderQACategory(category, questionsByCategory[category], doc);
-                        }
+                    case 'qa_list_by_category':
+                         const category = content;
+                         let questionsToRender: Question[] = [];
+
+                         if (category === '*') {
+                            questionsToRender = questions.filter(q => !renderedQuestionIds.has(q.id));
+                         } else {
+                            questionsToRender = (questionsByCategory[category] || []).filter(q => !renderedQuestionIds.has(q.id));
+                         }
+
+                         if (questionsToRender.length > 0) {
+                            renderQACategoryPDF(category === '*' ? 'Other Questions' : category, questionsToRender, doc);
+                            questionsToRender.forEach(q => renderedQuestionIds.add(q.id));
+                         }
                         break;
                     case 'acknowledgments':
-                        renderAcknowledgments(acknowledgments, doc);
+                        renderAcknowledgmentsPDF(acknowledgments, doc);
                         break;
                     case 'page_break':
                         doc.addPage();
@@ -821,5 +856,3 @@ export async function deleteTemplateAction(tenantId: string, templateId: string,
         return { error: 'Failed to delete template.' };
     }
 }
-
-    

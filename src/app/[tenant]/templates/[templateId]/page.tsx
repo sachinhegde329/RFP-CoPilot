@@ -44,7 +44,7 @@ const iconMap: Record<TemplateIcon, React.ElementType> = {
 const sectionIconMap: Record<TemplateSectionType, React.ElementType> = {
     title: Type,
     header: FileType,
-    qa_by_category: MessageSquare,
+    qa_list_by_category: MessageSquare,
     acknowledgments: UnfoldVertical,
     custom_text: Pilcrow,
     page_break: FileDiff,
@@ -57,6 +57,7 @@ function TemplateStructureEditor({ structure, setStructure, disabled }: { struct
         if (type === 'title') content = 'New Title';
         if (type === 'header') content = 'New Header';
         if (type === 'custom_text') content = 'Your custom text here. You can use placeholders like {{version}}, {{tenantName}}, and {{currentDate}}.';
+        if (type === 'qa_list_by_category') content = 'Product'; // Default category
         
         const newSection: TemplateSection = {
             id: `section-${Date.now()}`,
@@ -82,6 +83,48 @@ function TemplateStructureEditor({ structure, setStructure, disabled }: { struct
         [newStructure[index], newStructure[newIndex]] = [newStructure[newIndex], newStructure[index]];
         setStructure(newStructure);
     };
+    
+    const renderSectionInput = (section: TemplateSection) => {
+        switch(section.type) {
+            case 'qa_list_by_category':
+                return (
+                    <div className="flex flex-col gap-1.5">
+                         <Input
+                            value={section.content}
+                            onChange={(e) => handleUpdateContent(section.id, e.target.value)}
+                            className="text-sm bg-background font-mono h-8"
+                            disabled={disabled}
+                            placeholder="e.g., Security"
+                        />
+                        <p className="text-xs text-muted-foreground pl-1">
+                            Enter a question category name, or use '*' to include all remaining questions.
+                        </p>
+                    </div>
+                );
+            case 'custom_text':
+                 return (
+                    <Textarea
+                        value={section.content}
+                        onChange={(e) => handleUpdateContent(section.id, e.target.value)}
+                        className="text-sm bg-background"
+                        disabled={disabled}
+                    />
+                );
+             case 'title':
+             case 'header':
+                return (
+                    <Input
+                        value={section.content}
+                        onChange={(e) => handleUpdateContent(section.id, e.target.value)}
+                        className="text-sm bg-background h-8"
+                        disabled={disabled}
+                    />
+                )
+            default:
+                return <p className="text-sm text-muted-foreground pl-1">{section.content}</p>;
+        }
+    }
+
 
     return (
         <Card>
@@ -103,16 +146,7 @@ function TemplateStructureEditor({ structure, setStructure, disabled }: { struct
                                         <Icon className="h-4 w-4 text-muted-foreground" />
                                         <span className="font-semibold text-sm capitalize">{section.type.replace(/_/g, ' ')}</span>
                                     </div>
-                                    {section.type !== 'qa_by_category' && section.type !== 'acknowledgments' && section.type !== 'page_break' ? (
-                                        <Textarea
-                                            value={section.content}
-                                            onChange={(e) => handleUpdateContent(section.id, e.target.value)}
-                                            className="text-sm bg-background"
-                                            disabled={disabled}
-                                        />
-                                    ) : (
-                                        <p className="text-sm text-muted-foreground pl-1">{section.content}</p>
-                                    )}
+                                    {renderSectionInput(section)}
                                </div>
                                <div className="flex flex-col gap-1">
                                     <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleMoveSection(index, 'up')} disabled={!isMovableUp || disabled}><ArrowUp className="h-4 w-4" /></Button>
@@ -131,6 +165,9 @@ function TemplateStructureEditor({ structure, setStructure, disabled }: { struct
                         <DropdownMenuItem onSelect={() => handleAddSection('title')}><Type className="mr-2"/>Title</DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => handleAddSection('header')}><FileType className="mr-2"/>Header</DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => handleAddSection('custom_text')}><Pilcrow className="mr-2"/>Custom Text Block</DropdownMenuItem>
+                        <DropdownMenuItem onSelect={() => handleAddSection('qa_list_by_category')}><MessageSquare className="mr-2"/>Q&A List (by Category)</DropdownMenuItem>
+                        <Separator />
+                        <DropdownMenuItem onSelect={() => handleAddSection('acknowledgments')}><UnfoldVertical className="mr-2"/>Acknowledgments</DropdownMenuItem>
                         <DropdownMenuItem onSelect={() => handleAddSection('page_break')}><FileDiff className="mr-2"/>Page Break</DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>

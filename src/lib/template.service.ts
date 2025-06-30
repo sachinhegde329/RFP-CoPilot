@@ -3,12 +3,12 @@ import type { Tenant } from './tenants';
 
 export type TemplateType = 'System' | 'Custom';
 export type TemplateIcon = 'FileText' | 'FileJson' | 'Blocks';
-export type TemplateSectionType = 'title' | 'header' | 'qa_by_category' | 'acknowledgments' | 'custom_text' | 'page_break';
+export type TemplateSectionType = 'title' | 'header' | 'qa_list_by_category' | 'acknowledgments' | 'custom_text' | 'page_break';
 
 export interface TemplateSection {
   id: string; // unique ID for react keys
   type: TemplateSectionType;
-  content: string; // For custom text, titles, etc. Can contain placeholders like {{version}}.
+  content: string; // For text, titles, or category names. Can contain placeholders like {{version}}.
 }
 
 export interface Template {
@@ -34,30 +34,38 @@ class TemplateService {
                 id: 'system-default-categorized',
                 tenantId: tenantId,
                 name: "Default Categorized",
-                description: "A standard template that groups questions by their assigned category (e.g., Security, Legal).",
+                description: "A standard template that groups questions by their assigned category.",
                 type: "System",
                 icon: 'FileText',
                 structure: [
                     { id: 's1', type: 'title', content: 'RFP Response - Version {{version}}' },
-                    { id: 's2', type: 'qa_by_category', content: 'This section will be replaced by the categorized questions and answers.' },
-                    { id: 's3', type: 'acknowledgments', content: 'This section will be replaced by team acknowledgments.' },
+                    { id: 's2', type: 'custom_text', content: 'This document was prepared by {{tenantName}} on {{currentDate}}.' },
+                    { id: 's3', type: 'qa_list_by_category', content: 'Security' },
+                    { id: 's4', type: 'qa_list_by_category', content: 'Legal' },
+                    { id: 's5', type: 'qa_list_by_category', content: 'Product' },
+                    { id: 's6', type: 'qa_list_by_category', content: 'Pricing' },
+                    { id: 's7', type: 'qa_list_by_category', content: 'Company' },
+                    { id: 's8', type: 'qa_list_by_category', content: '*' }, // Catch-all for remaining questions
+                    { id: 's9', type: 'acknowledgments', content: '' },
                 ]
             },
             {
                 id: 'system-formal-proposal',
                 tenantId: tenantId,
                 name: "Formal Proposal",
-                description: "A professional template suitable for formal submissions, including a cover page and table of contents.",
+                description: "A professional template suitable for formal submissions, including a cover page.",
                 type: "System",
                 icon: 'FileJson',
                 structure: [
                      { id: 'f1', type: 'title', content: 'Request for Proposal Response' },
-                     { id: 'f2', type: 'custom_text', content: ' ' },
+                     { id: 'f2', type: 'custom_text', content: '' },
                      { id: 'f3', type: 'header', content: 'Prepared by: {{tenantName}}' },
                      { id: 'f4', type: 'header', content: 'Date: {{currentDate}}' },
                      { id: 'f5', type: 'page_break', content: '' },
-                     { id: 'f6', type: 'qa_by_category', content: 'This section will be replaced by the categorized questions and answers.' },
-                     { id: 'f7', type: 'acknowledgments', content: 'This section will be replaced by team acknowledgments.' },
+                     { id: 'f6', type: 'qa_list_by_category', content: 'Product' },
+                     { id: 'f7', type: 'qa_list_by_category', content: 'Security' },
+                     { id: 'f8', type: 'qa_list_by_category', content: '*' },
+                     { id: 'f9', type: 'acknowledgments', content: '' },
                 ]
             }
         ];
@@ -107,7 +115,7 @@ class TemplateService {
             icon: 'Blocks',
             structure: [ // Default structure for new custom templates
                 { id: `c1-${Date.now()}`, type: 'title', content: 'RFP Response' },
-                { id: `c2-${Date.now()}`, type: 'qa_by_category', content: 'This section will be replaced by the categorized questions and answers.' },
+                { id: `c2-${Date.now()}`, type: 'qa_list_by_category', content: '*' },
             ],
         };
         this.tenantData[tenantId].templates.push(newTemplate);
@@ -143,5 +151,3 @@ class TemplateService {
 }
 
 export const templateService = new TemplateService();
-
-    
