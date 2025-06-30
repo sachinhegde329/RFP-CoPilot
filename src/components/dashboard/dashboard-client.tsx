@@ -2,6 +2,7 @@
 'use client'
 
 import { useState, useEffect } from "react"
+import { useRouter, usePathname } from "next/navigation"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { RfpSummaryCard } from "@/components/dashboard/rfp-summary-card"
 import { QAndAList } from "@/components/dashboard/q-and-a-list"
@@ -11,8 +12,9 @@ import { useToast } from "@/hooks/use-toast"
 import { Card, CardContent } from "@/components/ui/card"
 import { FileText, Bot } from "lucide-react"
 import type { TeamMember } from "@/lib/tenants"
-import type { Question } from "@/lib/rfp.service"
+import type { Question, RFP } from "@/lib/rfp.service"
 import { AttachmentsCard } from "./attachments-card"
+import { RfpSelector } from "./rfp-selector"
 
 type Attachment = {
   id: number;
@@ -23,18 +25,27 @@ type Attachment = {
 };
 
 type DashboardClientProps = {
-  initialQuestions: Question[];
+  rfps: RFP[];
+  selectedRfp: RFP;
 }
 
-export function DashboardClient({ initialQuestions }: DashboardClientProps) {
+export function DashboardClient({ rfps, selectedRfp }: DashboardClientProps) {
   const { tenant } = useTenant();
+  const router = useRouter();
+  const pathname = usePathname();
 
-  const [questions, setQuestions] = useState<Question[]>(initialQuestions)
+  const [questions, setQuestions] = useState<Question[]>(selectedRfp?.questions || [])
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
 
   const currentUser = tenant.members[0];
+  
+  // This effect ensures the questions displayed are always in sync with the selected RFP
+  // when the user navigates using the browser's back/forward buttons.
+  useEffect(() => {
+    setQuestions(selectedRfp?.questions || []);
+  }, [selectedRfp]);
 
   // Clean up Object URLs when the component unmounts to prevent memory leaks
   useEffect(() => {
@@ -45,6 +56,8 @@ export function DashboardClient({ initialQuestions }: DashboardClientProps) {
 
 
   const handleUpdateQuestion = async (questionId: number, updates: Partial<Question>) => {
+    if (!selectedRfp) return;
+    
     // Optimistic update
     const originalQuestions = questions;
     setQuestions(prevQuestions =>
@@ -53,7 +66,7 @@ export function DashboardClient({ initialQuestions }: DashboardClientProps) {
       )
     );
 
-    const result = await updateQuestionAction(tenant.id, questionId, updates, currentUser);
+    const result = await updateQuestionAction(tenant.id, selectedRfp.id, questionId, updates, currentUser);
     if (result.error) {
         toast({
             variant: "destructive",
@@ -66,7 +79,9 @@ export function DashboardClient({ initialQuestions }: DashboardClientProps) {
   }
 
   const handleAddQuestion = async (questionData: Omit<Question, 'id'>) => {
-    const result = await addQuestionAction(tenant.id, questionData, currentUser);
+    if (!selectedRfp) return false;
+
+    const result = await addQuestionAction(tenant.id, selectedRfp.id, questionData, currentUser);
     if (result.error || !result.question) {
         toast({ variant: "destructive", title: "Error", description: result.error });
         return false;
@@ -89,6 +104,8 @@ export function DashboardClient({ initialQuestions }: DashboardClientProps) {
     setIsLoading(true)
     setQuestions([])
 
+    const rfpName = file ? file.name : `Pasted RFP - ${new Date().toLocaleDateString()}`;
+
     if (file) {
       const newAttachment: Attachment = {
         id: Date.now(),
@@ -106,16 +123,18 @@ export function DashboardClient({ initialQuestions }: DashboardClientProps) {
 
 
     try {
-      const questionsResult = await extractQuestionsAction(rfpText, tenant.id, currentUser)
+      const result = await extractQuestionsAction(rfpText, rfpName, tenant.id, currentUser)
 
-      if (questionsResult.error) {
+      if (result.error || !result.rfp) {
         toast({
           variant: "destructive",
-          title: "Question Extraction Error",
-          description: questionsResult.error,
+          title: "Extraction Error",
+          description: result.error || "Could not process RFP",
         })
       } else {
-        setQuestions(questionsResult.questions || [])
+        toast({ title: "RFP Processed", description: `Created new RFP: ${result.rfp.name}` });
+        // Navigate to the newly created RFP
+        router.push(`${pathname}?rfpId=${result.rfp.id}`);
       }
     } catch (e) {
       toast({
@@ -140,50 +159,54 @@ export function DashboardClient({ initialQuestions }: DashboardClientProps) {
 
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-3">
-        <RfpSummaryCard
-          isLoading={isLoading}
-          onProcessRfp={handleProcessRfp}
-        />
-      </div>
-      <div className="lg:col-span-2">
-        {isLoading && questions.length === 0 ? (
-           <Card>
-             <CardContent className="pt-6">
-                <div className="flex flex-col items-center justify-center gap-4 text-center p-8">
-                   <Bot className="size-12 animate-pulse text-primary" />
-                   <p className="font-medium">AI is extracting questions...</p>
-                   <p className="text-sm text-muted-foreground">This may take a moment. The questions will appear here once ready.</p>
-                </div>
-             </CardContent>
-           </Card>
-        ) : questions.length > 0 ? (
-          <QAndAList 
-            questions={questions} 
-            tenantId={tenant.id} 
-            members={tenant.members} 
-            onUpdateQuestion={handleUpdateQuestion}
-            onAddQuestion={handleAddQuestion}
+    <div className="space-y-6">
+      <RfpSelector rfps={rfps} selectedRfpId={selectedRfp.id} />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-3">
+          <RfpSummaryCard
+            isLoading={isLoading}
+            onProcessRfp={handleProcessRfp}
           />
-        ) : !isLoading ? (
-           <Card>
-             <CardContent className="pt-6">
-                <div className="flex flex-col items-center justify-center gap-4 text-center p-8">
-                   <FileText className="size-12 text-muted-foreground" />
-                   <h3 className="font-semibold">Your Questions Will Appear Here</h3>
-                   <p className="text-sm text-muted-foreground">Once you provide an RFP in the card above, we'll use AI to extract and list all the questions for you to answer.</p>
-                </div>
-             </CardContent>
-           </Card>
-        ) : null}
-      </div>
-      <div className="lg:col-span-1 space-y-6">
-        <AttachmentsCard 
-            attachments={attachments}
-            onUpdateAttachments={handleUpdateAttachments}
-        />
-        <ComplianceCard />
+        </div>
+        <div className="lg:col-span-2">
+          {isLoading && questions.length === 0 ? (
+            <Card>
+              <CardContent className="pt-6">
+                  <div className="flex flex-col items-center justify-center gap-4 text-center p-8">
+                    <Bot className="size-12 animate-pulse text-primary" />
+                    <p className="font-medium">AI is extracting questions...</p>
+                    <p className="text-sm text-muted-foreground">This may take a moment. The questions will appear here once ready.</p>
+                  </div>
+              </CardContent>
+            </Card>
+          ) : questions.length > 0 ? (
+            <QAndAList 
+              questions={questions} 
+              tenantId={tenant.id}
+              rfpId={selectedRfp.id}
+              members={tenant.members} 
+              onUpdateQuestion={handleUpdateQuestion}
+              onAddQuestion={handleAddQuestion}
+            />
+          ) : !isLoading ? (
+            <Card>
+              <CardContent className="pt-6">
+                  <div className="flex flex-col items-center justify-center gap-4 text-center p-8">
+                    <FileText className="size-12 text-muted-foreground" />
+                    <h3 className="font-semibold">Your Questions Will Appear Here</h3>
+                    <p className="text-sm text-muted-foreground">Once you provide an RFP in the card above, we'll use AI to extract and list all the questions for you to answer.</p>
+                  </div>
+              </CardContent>
+            </Card>
+          ) : null}
+        </div>
+        <div className="lg:col-span-1 space-y-6">
+          <AttachmentsCard 
+              attachments={attachments}
+              onUpdateAttachments={handleUpdateAttachments}
+          />
+          <ComplianceCard />
+        </div>
       </div>
     </div>
   )

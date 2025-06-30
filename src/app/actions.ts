@@ -6,7 +6,7 @@ import { aiExpertReview } from "@/ai/flows/ai-expert-review"
 import { extractRfpQuestions } from "@/ai/flows/extract-rfp-questions"
 import { parseDocument } from "@/ai/flows/parse-document"
 import { knowledgeBaseService } from "@/lib/knowledge-base"
-import { rfpService, type Question } from "@/lib/rfp.service"
+import { rfpService, type Question, type RFP } from "@/lib/rfp.service"
 import {
     getTenantBySubdomain,
     plansConfig,
@@ -138,7 +138,7 @@ export async function reviewAnswerAction(question: string, answer: string, tenan
   }
 }
 
-export async function extractQuestionsAction(rfpText: string, tenantId: string, currentUser: CurrentUser) {
+export async function extractQuestionsAction(rfpText: string, rfpName: string, tenantId: string, currentUser: CurrentUser): Promise<{ rfp?: RFP, error?: string }> {
   const permCheck = checkPermission(tenantId, currentUser, 'uploadRfps');
   if (permCheck.error) return { error: permCheck.error };
 
@@ -155,16 +155,17 @@ export async function extractQuestionsAction(rfpText: string, tenantId: string, 
       assignee: null,
       status: "Unassigned" as const,
     }))
-    // Persist the extracted questions
-    const savedQuestions = rfpService.setQuestions(tenantId, questionsWithStatus);
-    return { questions: savedQuestions }
+    
+    // Create a new RFP with the extracted questions
+    const newRfp = rfpService.addRfp(tenantId, rfpName, questionsWithStatus);
+    return { rfp: newRfp }
   } catch (e) {
     console.error(e)
     return { error: "Failed to extract questions from RFP." }
   }
 }
 
-export async function updateQuestionAction(tenantId: string, questionId: number, updates: Partial<Question>, currentUser: CurrentUser) {
+export async function updateQuestionAction(tenantId: string, rfpId: string, questionId: number, updates: Partial<Question>, currentUser: CurrentUser) {
     const permCheck = checkPermission(tenantId, currentUser, 'editContent');
     if (permCheck.error) return { error: permCheck.error };
     
@@ -180,7 +181,7 @@ export async function updateQuestionAction(tenantId: string, questionId: number,
     }
 
     try {
-        const updatedQuestion = rfpService.updateQuestion(tenantId, questionId, updates);
+        const updatedQuestion = rfpService.updateQuestion(tenantId, rfpId, questionId, updates);
         if (!updatedQuestion) {
             return { error: "Question not found or could not be updated." };
         }
@@ -192,7 +193,7 @@ export async function updateQuestionAction(tenantId: string, questionId: number,
     }
 }
 
-export async function addQuestionAction(tenantId: string, questionData: Omit<Question, 'id'>, currentUser: CurrentUser) {
+export async function addQuestionAction(tenantId: string, rfpId: string, questionData: Omit<Question, 'id'>, currentUser: CurrentUser) {
     const permCheck = checkPermission(tenantId, currentUser, 'editContent');
     if (permCheck.error) return { error: permCheck.error };
 
@@ -200,7 +201,7 @@ export async function addQuestionAction(tenantId: string, questionData: Omit<Que
         return { error: "Missing required parameters." };
     }
     try {
-        const newQuestion = rfpService.addQuestion(tenantId, questionData);
+        const newQuestion = rfpService.addQuestion(tenantId, rfpId, questionData);
         return { success: true, question: newQuestion };
     } catch (e) {
         console.error(e);
@@ -597,13 +598,12 @@ export async function exportRfpAction(payload: {
     tenantId: string;
     rfpId: string;
     templateId: string;
-    questions: Question[],
     currentUser: CurrentUser,
     exportVersion: string,
     format: 'pdf' | 'docx',
     acknowledgments: { name: string, role: string, comment: string }[]
 }) {
-    const { tenantId, rfpId, templateId, questions, currentUser, exportVersion, format, acknowledgments } = payload;
+    const { tenantId, rfpId, templateId, currentUser, exportVersion, format, acknowledgments } = payload;
     
     const permCheck = checkPermission(tenantId, currentUser, 'finalizeExport');
     if (permCheck.error) return { error: permCheck.error };
@@ -613,6 +613,13 @@ export async function exportRfpAction(payload: {
     if (!template) {
         return { error: "Template not found." };
     }
+    
+    const rfp = rfpService.getRfp(tenantId, rfpId);
+    if (!rfp) {
+        return { error: "RFP not found." };
+    }
+    const { questions } = rfp;
+
 
     const isAdminOrOwner = user.role === 'Admin' || user.role === 'Owner';
     const allQuestionsCompleted = questions.every(q => q.status === 'Completed');

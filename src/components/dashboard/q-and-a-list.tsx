@@ -44,7 +44,7 @@ import { canPerformAction } from "@/lib/access-control"
 
 type Acknowledgments = Record<number, { acknowledged: boolean; comment: string }>;
 
-function ExportDialog({ questions, members }: { questions: Question[], members: TeamMember[] }) {
+function ExportDialog({ rfpId, questions, members }: { rfpId: string, questions: Question[], members: TeamMember[] }) {
     const { tenant } = useTenant()
     const { toast } = useToast()
     const [exportVersion, setExportVersion] = useState("v1.0")
@@ -125,9 +125,8 @@ function ExportDialog({ questions, members }: { questions: Question[], members: 
 
         const result = await exportRfpAction({
             tenantId: tenant.id,
-            rfpId: 'main_rfp',
+            rfpId,
             templateId: selectedTemplate,
-            questions,
             currentUser: { name: currentUser.name, role: currentUser.role, id: currentUser.id },
             exportVersion,
             format,
@@ -291,6 +290,7 @@ function ExportDialog({ questions, members }: { questions: Question[], members: 
 type QAndAListProps = {
   questions: Question[]
   tenantId: string
+  rfpId: string
   members: TeamMember[]
   onUpdateQuestion: (questionId: number, updates: Partial<Question>) => void;
   onAddQuestion: (questionData: Omit<Question, 'id'>) => Promise<boolean>;
@@ -298,7 +298,7 @@ type QAndAListProps = {
 
 type FilterType = "all" | "assignedToMe" | "unassigned" | "inProgress" | "completed"
 
-export function QAndAList({ questions, tenantId, members, onUpdateQuestion, onAddQuestion }: QAndAListProps) {
+export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestion, onAddQuestion }: QAndAListProps) {
   const [activeFilter, setActiveFilter] = useState<FilterType>("inProgress")
   const { tenant } = useTenant(); 
   const { toast } = useToast();
@@ -381,7 +381,7 @@ export function QAndAList({ questions, tenantId, members, onUpdateQuestion, onAd
           <div>
             <CardTitle>Extracted Questions</CardTitle>
             <CardDescription>
-              Filter, assign, and answer the questions extracted from the RFP.
+              Filter, assign, and answer the questions for this RFP.
             </CardDescription>
           </div>
           <div className="flex gap-2">
@@ -438,7 +438,7 @@ export function QAndAList({ questions, tenantId, members, onUpdateQuestion, onAd
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-            <ExportDialog questions={questions} members={members} />
+            <ExportDialog rfpId={rfpId} questions={questions} members={members} />
           </div>
         </div>
 

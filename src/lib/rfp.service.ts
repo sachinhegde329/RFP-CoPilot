@@ -3,6 +3,7 @@ import type { TeamMember } from './tenants';
 
 export type QuestionStatus = 'Unassigned' | 'In Progress' | 'Completed';
 export type ComplianceStatus = "passed" | "failed" | "pending";
+export type RfpStatus = 'Open' | 'Completed' | 'Draft';
 
 export interface Question {
   id: number;
@@ -14,8 +15,15 @@ export interface Question {
   status: QuestionStatus;
 }
 
-interface RfpData {
+export interface RFP {
+    id: string;
+    name: string;
+    status: RfpStatus;
     questions: Question[];
+}
+
+interface RfpData {
+    rfps: RFP[];
 }
 
 const getSampleQuestions = (members: TeamMember[]): Question[] => [
@@ -71,23 +79,39 @@ class RfpService {
 
     private _ensureTenantData(tenantId: string, members: TeamMember[] = []) {
         if (!this.tenantData[tenantId]) {
+             const sampleQuestions = getSampleQuestions(members);
             this.tenantData[tenantId] = {
-                questions: getSampleQuestions(members),
+                rfps: [
+                    { id: 'rfp-1', name: 'Q3 Enterprise Security RFP', status: 'Open', questions: sampleQuestions },
+                    { id: 'rfp-2', name: 'Project Titan Proposal', status: 'Draft', questions: [sampleQuestions[3], sampleQuestions[2]] },
+                    { id: 'rfp-3', name: '2023 Compliance Audit', status: 'Completed', questions: [sampleQuestions[0], sampleQuestions[1]] },
+                ]
             };
         }
     }
-
-    public getQuestions(tenantId: string): Question[] {
-        // In a real app, this might come from a DB
-        const { getTenantBySubdomain } = require('./tenants');
-        const tenant = getTenantBySubdomain(tenantId);
-        this._ensureTenantData(tenantId, tenant?.members);
-        return this.tenantData[tenantId].questions;
+    
+    public getRfps(tenantId: string): RFP[] {
+        this._ensureTenantData(tenantId);
+        return this.tenantData[tenantId].rfps;
+    }
+    
+    public getRfp(tenantId: string, rfpId: string): RFP | undefined {
+        this._ensureTenantData(tenantId);
+        return this.tenantData[tenantId].rfps.find(r => r.id === rfpId);
     }
 
-    public updateQuestion(tenantId: string, questionId: number, updates: Partial<Question>): Question | null {
+    public getQuestions(tenantId: string, rfpId: string): Question[] {
         this._ensureTenantData(tenantId);
-        const questions = this.tenantData[tenantId].questions;
+        const rfp = this.getRfp(tenantId, rfpId);
+        return rfp ? rfp.questions : [];
+    }
+
+    public updateQuestion(tenantId: string, rfpId: string, questionId: number, updates: Partial<Question>): Question | null {
+        this._ensureTenantData(tenantId);
+        const rfp = this.getRfp(tenantId, rfpId);
+        if (!rfp) return null;
+        
+        const questions = rfp.questions;
         const questionIndex = questions.findIndex(q => q.id === questionId);
         if (questionIndex > -1) {
             questions[questionIndex] = { ...questions[questionIndex], ...updates };
@@ -96,15 +120,34 @@ class RfpService {
         return null;
     }
 
-    public setQuestions(tenantId: string, questions: Question[]): Question[] {
+    public setQuestions(tenantId: string, rfpId: string, questions: Question[]): Question[] {
         this._ensureTenantData(tenantId);
-        this.tenantData[tenantId].questions = questions;
-        return this.tenantData[tenantId].questions;
+        const rfp = this.getRfp(tenantId, rfpId);
+        if (rfp) {
+            rfp.questions = questions;
+            return rfp.questions;
+        }
+        return [];
     }
     
-    public addQuestion(tenantId: string, questionData: Omit<Question, 'id'>): Question {
+    public addRfp(tenantId: string, name: string, questions: Question[]): RFP {
         this._ensureTenantData(tenantId);
-        const questions = this.tenantData[tenantId].questions;
+        const newRfp: RFP = {
+            id: `rfp-${Date.now()}`,
+            name,
+            questions,
+            status: 'Draft',
+        };
+        this.tenantData[tenantId].rfps.unshift(newRfp);
+        return newRfp;
+    }
+
+    public addQuestion(tenantId: string, rfpId: string, questionData: Omit<Question, 'id'>): Question {
+        this._ensureTenantData(tenantId);
+        const rfp = this.getRfp(tenantId, rfpId);
+        if (!rfp) throw new Error("RFP not found");
+
+        const questions = rfp.questions;
         const newId = questions.length > 0 ? Math.max(...questions.map(q => q.id)) + 1 : 1;
         const newQuestion: Question = {
             ...questionData,

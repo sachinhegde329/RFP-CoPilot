@@ -1,26 +1,30 @@
-import { getTenantBySubdomain } from "@/lib/tenants"
-import { notFound } from "next/navigation"
-import { rfpService } from "@/lib/rfp.service"
+
+'use client';
+import { useSearchParams } from "next/navigation"
+import { rfpService, type RFP } from "@/lib/rfp.service"
 
 import { SidebarInset } from "@/components/ui/sidebar"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
 import { DashboardClient } from "@/components/dashboard/dashboard-client"
+import { useTenant } from "@/components/providers/tenant-provider"
 
-export default function DashboardPage({ params }: { params: { tenant: string }}) {
-  const tenant = getTenantBySubdomain(params.tenant);
-  if (!tenant) {
-      notFound();
-  }
+export default function DashboardPage() {
+  const { tenant } = useTenant();
+  const searchParams = useSearchParams();
   
-  // Get questions from the new persistence service
-  const initialQuestions = rfpService.getQuestions(tenant.id);
+  // In a real app with a DB, this would be a single async call.
+  // For our service, we get all RFPs then find the selected one.
+  const rfps = rfpService.getRfps(tenant.id);
+  const selectedRfpId = searchParams.get('rfpId') || rfps[0]?.id;
+  const selectedRfp = rfpService.getRfp(tenant.id, selectedRfpId as string) || rfps[0];
 
   return (
     <SidebarInset className="flex-1">
-      <DashboardHeader />
+      <DashboardHeader rfpName={selectedRfp?.name} />
       <main className="p-4 sm:p-6 lg:p-8">
         <DashboardClient 
-          initialQuestions={initialQuestions}
+          rfps={rfps}
+          selectedRfp={selectedRfp}
         />
       </main>
     </SidebarInset>
