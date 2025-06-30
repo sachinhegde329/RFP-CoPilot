@@ -12,7 +12,6 @@ import { Download, MessageSquare, History } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Separator } from "@/components/ui/separator"
 
 type ExportHistoryClientProps = {
     initialHistory: ExportRecord[];
@@ -25,7 +24,7 @@ export function ExportHistoryClient({ initialHistory }: ExportHistoryClientProps
         <>
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold">RFP Management</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">RFP Management</h1>
                     <p className="text-muted-foreground">Manage your RFPs and view their version history.</p>
                 </div>
             </div>
