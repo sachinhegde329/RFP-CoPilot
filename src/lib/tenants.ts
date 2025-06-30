@@ -1,7 +1,4 @@
 
-
-
-
 export type AddOn = 'analytics' | 'customTemplates' | 'complianceValidation';
 export type Role = 'Owner' | 'Admin' | 'Approver' | 'Editor' | 'Viewer';
 export type MemberStatus = 'Active' | 'Pending';
@@ -92,7 +89,7 @@ const tenants: Omit<Tenant, 'limits'>[] = [
     name: 'MegaCorp',
     subdomain: 'megacorp',
     domains: ['megacorp.com'],
-    plan: 'free',
+    plan: 'team', // Updated from free to show seat limits
     ssoProvider: null,
     addOns: [],
     stripeCustomerId: 'cus_Paby6e5S6f6Kj3', // Replace with actual Stripe Customer ID
@@ -119,6 +116,7 @@ const customEnterpriseLimits: Record<string, { seats: number; fileSizeMb: number
 
 
 const freeEmailProviders = new Set([
+  'gmail.com',
   'yahoo.com',
   'hotmail.com',
   'outlook.com',

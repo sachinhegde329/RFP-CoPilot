@@ -3,7 +3,7 @@ import type { Tenant, Role } from "./tenants";
 import type { addOnsConfig } from "./tenants";
 
 // Features controlled by plans and add-ons
-export type Feature = keyof typeof addOnsConfig | 'aiExpertReview';
+export type Feature = keyof typeof addOnsConfig | 'aiExpertReview' | 'complianceValidation' | 'sso';
 
 // Granular actions based on user roles, mapped from the provided matrix
 export type Action =
@@ -21,8 +21,9 @@ export type Action =
 const planFeatureMatrix: Record<Tenant['plan'], Feature[]> = {
     free: [],
     starter: ['aiExpertReview'],
-    growth: ['aiExpertReview', 'analytics', 'customTemplates'],
-    enterprise: ['aiExpertReview', 'analytics', 'customTemplates', 'complianceValidation'],
+    team: ['aiExpertReview'], // Team plan from pricing page
+    business: ['aiExpertReview', 'analytics'], // Business plan from pricing page
+    enterprise: ['aiExpertReview', 'analytics', 'customTemplates', 'complianceValidation', 'sso'],
 };
 
 /**

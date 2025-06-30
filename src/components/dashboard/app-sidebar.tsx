@@ -19,7 +19,6 @@ import {
   BarChartHorizontalBig,
   Settings,
   CircleUserRound,
-  History,
 } from "lucide-react"
 import { useTenant } from "@/components/providers/tenant-provider"
 import Image from "next/image"
@@ -36,6 +35,7 @@ export function AppSidebar() {
   const isSettingsActive = pathname.startsWith(settingsPath);
 
   const navItems = [
+    { href: `/${tenant.subdomain}`, label: "Dashboard", icon: LayoutDashboard, exact: true },
     { href: `/${tenant.subdomain}/rfps`, label: "RFPs", icon: FileText },
     { href: `/${tenant.subdomain}/knowledge-base`, label: "Knowledge Base", icon: Database },
     { href: `/${tenant.subdomain}/templates`, label: "Templates", icon: Blocks },
@@ -56,17 +56,9 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent className="p-4">
         <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton asChild isActive={isDashboardActive}>
-              <Link href={dashboardPath}>
-                <LayoutDashboard />
-                Dashboard
-              </Link>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
           {navItems.map((item) => (
             <SidebarMenuItem key={item.label}>
-              <SidebarMenuButton asChild isActive={pathname.startsWith(item.href)}>
+              <SidebarMenuButton asChild isActive={item.exact ? pathname === item.href : pathname.startsWith(item.href)}>
                 <Link href={item.href}>
                   <item.icon />
                   {item.label}
@@ -88,7 +80,7 @@ export function AppSidebar() {
           </SidebarMenuItem>
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
-              <Link href="#">
+              <Link href={`/${tenant.subdomain}/settings/profile`}>
                 <Avatar className="size-6">
                   <AvatarImage src="https://placehold.co/100x100" />
                   <AvatarFallback>
