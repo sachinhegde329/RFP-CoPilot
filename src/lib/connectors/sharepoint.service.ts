@@ -5,6 +5,8 @@
  */
 
 import type { DataSource } from '@/lib/knowledge-base';
+import { knowledgeBaseService } from '@/lib/knowledge-base';
+import { parseDocument } from '@/ai/flows/parse-document';
 // To use the Microsoft Graph client, you would initialize it like this:
 // import { Client } from '@microsoft/microsoft-graph-client';
 // import { TokenCredentialAuthenticationProvider } from '@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials';
@@ -30,8 +32,8 @@ class SharePointService {
         // API: /sites, /sites/{site-id}/drives, /drives/{drive-id}/root/children
         console.log("Listing resources from SharePoint for source:", source.id);
         return Promise.resolve([
-            { id: 'drive-123', name: 'Documents' },
-            { id: 'drive-456', name: 'Sales & Marketing Assets' },
+            { id: 'item-123', name: 'Compliance Overview.docx', webUrl: 'https://tenant.sharepoint.com/sites/compliance/...' },
+            { id: 'item-456', name: 'Sales & Marketing Assets', folder: {} },
         ]);
     }
 
@@ -41,11 +43,21 @@ class SharePointService {
      * @param resourceId The ID of the file (drive item).
      * @returns The raw content of the resource.
      */
-    async fetchResource(source: DataSource, resourceId: string): Promise<any> {
+    async fetchResource(source: DataSource, resourceId: string): Promise<{ content: Buffer, mimeType: string }> {
         // TODO: Use the Microsoft Graph API to download a file.
         // API: /drives/{drive-id}/items/{item-id}/content
         console.log(`Fetching SharePoint file ${resourceId} for source:`, source.id);
-        return Promise.resolve(Buffer.from("Mock file content from SharePoint."));
+        const mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        return Promise.resolve({ content: Buffer.from("Mock file content from SharePoint."), mimeType });
+    }
+    
+    /**
+     * Parses the raw file content into clean text and chunks.
+     */
+    async parseContent(content: Buffer, mimeType: string): Promise<{ text: string, chunks: string[] }> {
+        const dataUri = `data:${mimeType};base64,${content.toString('base64')}`;
+        const result = await parseDocument({ documentDataUri: dataUri });
+        return result;
     }
 
     /**
@@ -53,12 +65,21 @@ class SharePointService {
      */
     async sync(source: DataSource) {
         console.log(`Starting sync for SharePoint source: ${source.name}`);
-        // 1. Refresh auth token if needed.
-        // 2. List files from configured document libraries.
-        // 3. For each new/updated file, download it.
-        // 4. Parse the content.
-        // 5. Chunk and store in the knowledge base.
-        // 6. Update source status.
+        knowledgeBaseService.deleteChunksBySourceId(source.tenantId, source.id);
+
+        const resources = await this.listResources(source);
+        const files = resources.filter(r => !r.folder);
+        let totalItems = 0;
+
+        for (const file of files) {
+            const { content, mimeType } = await this.fetchResource(source, file.id);
+            const { chunks } = await this.parseContent(content, mimeType);
+            await knowledgeBaseService.addChunks(source.tenantId, source.id, 'sharepoint', file.name, chunks, file.webUrl);
+            totalItems += chunks.length;
+        }
+
+        knowledgeBaseService.updateDataSource(source.tenantId, source.id, { itemCount: totalItems });
+        
         return source;
     }
 }

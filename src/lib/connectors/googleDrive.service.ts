@@ -6,6 +6,7 @@
 
 import { google } from 'googleapis';
 import type { DataSource } from '@/lib/knowledge-base';
+import { knowledgeBaseService } from '@/lib/knowledge-base';
 import { parseDocument } from '@/ai/flows/parse-document';
 
 
@@ -47,7 +48,8 @@ class GoogleDriveService {
         // TODO: Implement actual API call with folder selection.
         console.log("Listing resources from Google Drive for source:", source.id);
         return Promise.resolve([
-            { id: '123xyz', name: 'Q1_RFP_Responses.gdoc', mimeType: 'application/vnd.google-apps.document' },
+            { id: '123xyz', name: 'Q1_RFP_Responses.gdoc', mimeType: 'application/vnd.google-apps.document', webViewLink: 'https://docs.google.com/document/d/123xyz' },
+            { id: '789def', name: 'Pricing.gsheet', mimeType: 'application/vnd.google-apps.spreadsheet', webViewLink: 'https://docs.google.com/spreadsheets/d/789def' },
             { id: '456abc', name: 'Security Folder', mimeType: 'application/vnd.google-apps.folder' },
         ]);
     }
@@ -55,16 +57,35 @@ class GoogleDriveService {
     /**
      * Fetches the content of a specific file from Google Drive.
      * @param source The DataSource containing auth tokens.
-     * @param resourceId The ID of the file.
+     * @param file The file object from listResources.
      * @returns The raw content of the resource (e.g., exported as text or docx).
      */
-    async fetchResource(source: DataSource, resourceId: string): Promise<any> {
+    async fetchResource(source: DataSource, file: { id: string, mimeType: string }): Promise<{ content: Buffer, mimeType: string }> {
         // const oAuth2Client = this.getOAuth2Client(source);
         // const drive = google.drive({ version: 'v3', auth: oAuth2Client });
         // For Google Docs, you would export them. For other files, you get the content directly.
         // const res = await drive.files.export({ fileId: resourceId, mimeType: 'text/plain' });
-        console.log(`Fetching GDrive file ${resourceId} for source:`, source.id);
-        return Promise.resolve("Mock content from Google Drive document.");
+        console.log(`Fetching GDrive file ${file.id} for source:`, source.id);
+        
+        let exportMimeType;
+        if (file.mimeType === 'application/vnd.google-apps.document') {
+            exportMimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        } else if (file.mimeType === 'application/vnd.google-apps.spreadsheet') {
+            exportMimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        } else {
+             exportMimeType = 'application/pdf'; // Default fallback
+        }
+
+        return Promise.resolve({ content: Buffer.from("Mock file content from Google Drive."), mimeType: exportMimeType });
+    }
+
+    /**
+     * Parses the raw file content into clean text and chunks.
+     */
+    async parseContent(content: Buffer, mimeType: string): Promise<{ text: string, chunks: string[] }> {
+        const dataUri = `data:${mimeType};base64,${content.toString('base64')}`;
+        const result = await parseDocument({ documentDataUri: dataUri });
+        return result;
     }
     
     /**
@@ -72,12 +93,21 @@ class GoogleDriveService {
      */
     async sync(source: DataSource) {
         console.log(`Starting sync for Google Drive source: ${source.name}`);
-        // 1. Refresh auth token if necessary.
-        // 2. List files from the configured folder.
-        // 3. For each new/updated file, fetch/export it.
-        // 4. Parse the content.
-        // 5. Chunk and store in the knowledge base.
-        // 6. Update source status.
+        knowledgeBaseService.deleteChunksBySourceId(source.tenantId, source.id);
+
+        const resources = await this.listResources(source);
+        const files = resources.filter(r => r.mimeType !== 'application/vnd.google-apps.folder');
+        let totalItems = 0;
+
+        for (const file of files) {
+            const { content, mimeType } = await this.fetchResource(source, file);
+            const { chunks } = await this.parseContent(content, mimeType);
+            await knowledgeBaseService.addChunks(source.tenantId, source.id, 'gdrive', file.name, chunks, file.webViewLink);
+            totalItems += chunks.length;
+        }
+
+        knowledgeBaseService.updateDataSource(source.tenantId, source.id, { itemCount: totalItems });
+
         return source;
     }
 }

@@ -3,8 +3,9 @@
  * This service will handle authentication, listing spaces/pages,
  * and ingesting content from Confluence.
  */
-
+import * as cheerio from 'cheerio';
 import type { DataSource } from '@/lib/knowledge-base';
+import { knowledgeBaseService } from '@/lib/knowledge-base';
 
 class ConfluenceService {
     /**
@@ -43,35 +44,63 @@ class ConfluenceService {
         // API: /wiki/rest/api/content/{id}?expand=body.storage
         console.log(`Fetching Confluence page ${resourceId} for source:`, source.id);
         return Promise.resolve({
-            title: 'Sample Page',
-            body: '<h1>Sample Page</h1><p>This is content from a Confluence page.</p>',
+            title: 'Sample Confluence Page',
+            body: {
+                storage: {
+                    value: '<h1>Sample Page</h1><p>This is content from a Confluence page. It discusses our <strong>security protocols</strong> and <em>compliance certifications</em>.</p>'
+                }
+            },
+            _links: { webui: '/display/SPACE/Sample+Confluence+Page' }
         });
     }
 
      /**
-     * Parses the raw HTML content from a Confluence page into clean text.
+     * Simple chunking function to split text into smaller pieces.
+     */
+    private chunkText(text: string, chunkSize = 500, overlap = 50): string[] {
+        const chunks: string[] = [];
+        if (!text) return chunks;
+
+        for (let i = 0; i < text.length; i += (chunkSize - overlap)) {
+            chunks.push(text.substring(i, i + chunkSize));
+        }
+        return chunks;
+    }
+
+     /**
+     * Parses the raw HTML content from a Confluence page into clean text and chunks.
      * @param rawContent The raw content object from fetchResource.
      * @returns The cleaned text content.
      */
-    parseContent(rawContent: { title: string, body: string }): { title: string, text: string } {
-        // TODO: Convert Confluence's storage format (HTML) to clean text or Markdown.
-        // A library like 'cheerio' could be useful here.
-        const text = rawContent.body.replace(/<[^>]*>?/gm, ''); // Basic stripping
-        return { title: rawContent.title, text };
+    parseContent(rawContent: any): { title: string, text: string, chunks: string[], url?: string } {
+        const storageValue = rawContent.body?.storage?.value || '';
+        const $ = cheerio.load(storageValue);
+        $('br, p, h1, h2, h3, h4, h5, h6, li, blockquote, pre').after('\n');
+        const text = $('body').text().replace(/\s\s+/g, ' ').trim();
+        const chunks = this.chunkText(text);
+        const url = rawContent._links?.webui ? `https://<your-confluence-domain>.atlassian.net/wiki${rawContent._links.webui}` : undefined;
+        return { title: rawContent.title, text, chunks, url };
     }
 
     /**
      * A full sync operation for a Confluence data source.
-     * This would orchestrate fetching, parsing, and storing chunks.
      */
     async sync(source: DataSource) {
         console.log(`Starting sync for Confluence source: ${source.name}`);
-        // 1. List all pages in the configured space.
-        // 2. For each page, fetch its content.
-        // 3. Parse the content.
-        // 4. Chunk the content.
-        // 5. Store chunks in the knowledge base.
-        // 6. Update the source status.
+        knowledgeBaseService.deleteChunksBySourceId(source.tenantId, source.id);
+
+        const resources = await this.listResources(source);
+        let totalItems = 0;
+
+        for (const resource of resources) {
+            const rawContent = await this.fetchResource(source, resource.id);
+            const { title, chunks, url } = this.parseContent(rawContent);
+            await knowledgeBaseService.addChunks(source.tenantId, source.id, 'confluence', title, chunks, url);
+            totalItems += chunks.length;
+        }
+
+        knowledgeBaseService.updateDataSource(source.tenantId, source.id, { itemCount: totalItems });
+        
         return source;
     }
 }

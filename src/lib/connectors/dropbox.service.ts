@@ -4,6 +4,7 @@
  */
 
 import type { DataSource } from '@/lib/knowledge-base';
+import { knowledgeBaseService } from '@/lib/knowledge-base';
 import { parseDocument } from '@/ai/flows/parse-document';
 
 class DropboxService {
@@ -26,7 +27,7 @@ class DropboxService {
         // API: /files/list_folder
         console.log("Listing resources from Dropbox for source:", source.id);
         return Promise.resolve([
-            { id: 'id:123', name: 'Security Whitepaper.pdf', '.tag': 'file' },
+            { id: 'id:123', name: 'Security_Whitepaper.docx', '.tag': 'file', path_display: '/Security/Security_Whitepaper.docx' },
             { id: 'id:456', name: 'Product Docs', '.tag': 'folder' },
         ]);
     }
@@ -37,24 +38,26 @@ class DropboxService {
      * @param resourceId The ID of the file.
      * @returns The raw content of the resource (e.g., as a Buffer).
      */
-    async fetchResource(source: DataSource, resourceId: string): Promise<any> {
+    async fetchResource(source: DataSource, resourceId: string): Promise<{ fileBinary: Buffer, mimeType: string }> {
         // TODO: Use the Dropbox SDK/API to download a file.
         // API: /files/download
+        // For this mock, we determine MIME type from extension.
         console.log(`Fetching Dropbox file ${resourceId} for source:`, source.id);
-        return Promise.resolve(Buffer.from("Mock file content"));
+        const mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        return Promise.resolve({ fileBinary: Buffer.from("Mock DOCX file content"), mimeType });
     }
 
     /**
      * Parses the raw file content into clean text using the generic parseDocument flow.
      * @param rawContent The raw Buffer from fetchResource.
      * @param mimeType The MIME type of the file.
-     * @returns The parsed text content.
+     * @returns The parsed text content and chunks.
      */
-    async parseContent(rawContent: Buffer, mimeType: string): Promise<string> {
-        const base64Data = rawContent.toString('base64');
+    async parseContent(fileBinary: Buffer, mimeType: string): Promise<{ text: string, chunks: string[] }> {
+        const base64Data = fileBinary.toString('base64');
         const dataUri = `data:${mimeType};base64,${base64Data}`;
         const result = await parseDocument({ documentDataUri: dataUri });
-        return result.text;
+        return { text: result.text, chunks: result.chunks };
     }
 
     /**
@@ -62,11 +65,22 @@ class DropboxService {
      */
     async sync(source: DataSource) {
         console.log(`Starting sync for Dropbox source: ${source.name}`);
-        // 1. List files in configured folders.
-        // 2. For each new/updated file, download it.
-        // 3. Parse the content using its MIME type.
-        // 4. Chunk and store in the knowledge base.
-        // 5. Update source status.
+        knowledgeBaseService.deleteChunksBySourceId(source.tenantId, source.id);
+
+        const resources = await this.listResources(source);
+        const files = resources.filter(r => r['.tag'] === 'file');
+        let totalItems = 0;
+
+        for (const file of files) {
+            const { fileBinary, mimeType } = await this.fetchResource(source, file.id);
+            const { chunks } = await this.parseContent(fileBinary, mimeType);
+            const url = `https://www.dropbox.com/home${file.path_display}`;
+            await knowledgeBaseService.addChunks(source.tenantId, source.id, 'dropbox', file.name, chunks, url);
+            totalItems += chunks.length;
+        }
+
+        knowledgeBaseService.updateDataSource(source.tenantId, source.id, { itemCount: totalItems });
+
         return source;
     }
 }
