@@ -6,22 +6,13 @@ import { RfpSummaryCard } from "@/components/dashboard/rfp-summary-card"
 import { QAndAList } from "@/components/dashboard/q-and-a-list"
 import { ComplianceCard } from "@/components/dashboard/compliance-card"
 import { TemplateCard } from "@/components/dashboard/template-card"
-import { extractQuestionsAction } from "@/app/actions"
+import { extractQuestionsAction, updateQuestionAction, addQuestionAction } from "@/app/actions"
 import { useToast } from "@/hooks/use-toast"
 import { Card, CardContent } from "@/components/ui/card"
 import { FileText, Bot } from "lucide-react"
 import type { TeamMember } from "@/lib/tenants"
+import type { Question } from "@/lib/rfp.service"
 import { AttachmentsCard } from "./attachments-card"
-
-type Question = {
-  id: number
-  question: string
-  category: string
-  answer: string
-  compliance: "passed" | "failed" | "pending"
-  assignee?: TeamMember | null
-  status: 'Unassigned' | 'In Progress' | 'Completed'
-}
 
 type Attachment = {
   id: number;
@@ -52,13 +43,38 @@ export function DashboardClient({ initialQuestions }: DashboardClientProps) {
   }, [attachments]);
 
 
-  const handleUpdateQuestion = (questionId: number, updates: Partial<Question>) => {
+  const handleUpdateQuestion = async (questionId: number, updates: Partial<Question>) => {
+    // Optimistic update
+    const originalQuestions = questions;
     setQuestions(prevQuestions =>
       prevQuestions.map(q =>
         q.id === questionId ? { ...q, ...updates } : q
       )
-    )
+    );
+
+    const result = await updateQuestionAction(tenant.id, questionId, updates);
+    if (result.error) {
+        toast({
+            variant: "destructive",
+            title: "Update Failed",
+            description: result.error,
+        });
+        // Revert on error
+        setQuestions(originalQuestions);
+    }
   }
+
+  const handleAddQuestion = async (questionData: Omit<Question, 'id'>) => {
+    const result = await addQuestionAction(tenant.id, questionData);
+    if (result.error || !result.question) {
+        toast({ variant: "destructive", title: "Error", description: result.error });
+        return false;
+    } else {
+        setQuestions(prev => [...prev, result.question!]);
+        toast({ title: 'Question Added' });
+        return true;
+    }
+  };
 
   const handleProcessRfp = async (rfpText: string, file?: File) => {
     if (!rfpText.trim()) {
@@ -90,7 +106,7 @@ export function DashboardClient({ initialQuestions }: DashboardClientProps) {
 
 
     try {
-      const questionsResult = await extractQuestionsAction(rfpText)
+      const questionsResult = await extractQuestionsAction(rfpText, tenant.id)
 
       if (questionsResult.error) {
         toast({
@@ -144,11 +160,12 @@ export function DashboardClient({ initialQuestions }: DashboardClientProps) {
            </Card>
         ) : questions.length > 0 ? (
           <QAndAList 
-            initialQuestions={questions} 
+            questions={questions} 
             tenantId={tenant.id} 
             members={tenant.members} 
             isLocked={isLocked}
             onUpdateQuestion={handleUpdateQuestion}
+            onAddQuestion={handleAddQuestion}
           />
         ) : !isLoading ? (
            <Card>

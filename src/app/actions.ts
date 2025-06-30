@@ -6,6 +6,7 @@ import { aiExpertReview } from "@/ai/flows/ai-expert-review"
 import { extractRfpQuestions } from "@/ai/flows/extract-rfp-questions"
 import { parseDocument } from "@/ai/flows/parse-document"
 import { knowledgeBaseService } from "@/lib/knowledge-base"
+import { rfpService, type Question } from "@/lib/rfp.service"
 import {
     getTenantBySubdomain,
     plansConfig,
@@ -117,9 +118,12 @@ export async function reviewAnswerAction(question: string, answer: string, tenan
   }
 }
 
-export async function extractQuestionsAction(rfpText: string) {
+export async function extractQuestionsAction(rfpText: string, tenantId: string) {
   if (!rfpText) {
     return { error: "RFP text cannot be empty." }
+  }
+  if (!tenantId) {
+    return { error: "Tenant ID is missing." }
   }
   try {
     const result = await extractRfpQuestions({ documentText: rfpText })
@@ -130,12 +134,46 @@ export async function extractQuestionsAction(rfpText: string) {
       assignee: null,
       status: "Unassigned" as const,
     }))
-    return { questions: questionsWithStatus }
+    // Persist the extracted questions
+    const savedQuestions = rfpService.setQuestions(tenantId, questionsWithStatus);
+    return { questions: savedQuestions }
   } catch (e) {
     console.error(e)
     return { error: "Failed to extract questions from RFP." }
   }
 }
+
+export async function updateQuestionAction(tenantId: string, questionId: number, updates: Partial<Question>) {
+    if (!tenantId || !questionId) {
+        return { error: "Missing required parameters." };
+    }
+    try {
+        const updatedQuestion = rfpService.updateQuestion(tenantId, questionId, updates);
+        if (!updatedQuestion) {
+            return { error: "Question not found or could not be updated." };
+        }
+        return { success: true, question: updatedQuestion };
+    } catch (e) {
+        console.error(e);
+        const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
+        return { error: `Failed to update question: ${errorMessage}` };
+    }
+}
+
+export async function addQuestionAction(tenantId: string, questionData: Omit<Question, 'id'>) {
+    if (!tenantId || !questionData) {
+        return { error: "Missing required parameters." };
+    }
+    try {
+        const newQuestion = rfpService.addQuestion(tenantId, questionData);
+        return { success: true, question: newQuestion };
+    } catch (e) {
+        console.error(e);
+        const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
+        return { error: `Failed to add question: ${errorMessage}` };
+    }
+}
+
 
 // == KNOWLEDGE BASE ACTIONS ==
 
