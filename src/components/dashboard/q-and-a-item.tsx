@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Sparkles, ShieldCheck, CheckCircle2, XCircle, History, Loader2, Bot, Clipboard, ClipboardCheck, Tag, BookOpenCheck, UserPlus, Circle, CheckCircle, CircleDotDashed } from "lucide-react"
+import { Sparkles, ShieldCheck, CheckCircle2, XCircle, History, Loader2, Bot, Clipboard, ClipboardCheck, Tag, BookOpenCheck, UserPlus, Circle, CheckCircle, CircleDotDashed, Bold, Italic, Underline, List, MessageSquare, Send } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { generateAnswerAction, reviewAnswerAction } from "@/app/actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -16,6 +16,8 @@ import { hasFeatureAccess } from "@/lib/access-control"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import type { TeamMember } from "@/lib/tenants"
+import { Separator } from "../ui/separator"
+import { Input } from "../ui/input"
 
 type Question = {
   id: number
@@ -35,15 +37,24 @@ type QAndAItemProps = {
 
 export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }: QAndAItemProps) {
   const { id, question, category, compliance, assignee, status } = questionData;
+  const { tenant } = useTenant();
+  const { toast } = useToast();
+  
   const [answer, setAnswer] = useState("")
   const [sources, setSources] = useState<string[]>([])
   const [review, setReview] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
   const [isReviewing, setIsReviewing] = useState(false)
   const [isCopied, setIsCopied] = useState(false)
-  const { toast } = useToast()
-  const { tenant } = useTenant();
   const canUseAiReview = hasFeatureAccess(tenant, 'aiExpertReview');
+  const currentUser = tenant.members[0];
+
+  const mockComments = [
+    { id: 1, author: members[1] || members[0], timestamp: '2 hours ago', content: 'Good start, but can we clarify the part about data residency?' },
+    { id: 2, author: members[0], timestamp: '1 hour ago', content: 'Good point. I\'ve updated the answer to specify that data is stored in the US.' },
+  ];
+  const [comments, setComments] = useState(mockComments);
+  const [newComment, setNewComment] = useState("");
 
   const handleGenerateAnswer = async () => {
     setIsGenerating(true)
@@ -101,6 +112,18 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
     onUpdateQuestion(id, { status: newStatus });
   };
 
+  const handleAddComment = () => {
+    if (!newComment.trim()) return;
+    const commentToAdd = {
+        id: comments.length + 1,
+        author: currentUser,
+        timestamp: 'Just now',
+        content: newComment,
+    };
+    setComments([...comments, commentToAdd]);
+    setNewComment("");
+  };
+
   const StatusIcon = ({ status }: { status: Question['status'] }) => {
     switch (status) {
       case 'Completed': return <CheckCircle className="h-4 w-4 text-green-600" />;
@@ -150,6 +173,12 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="p-2 border rounded-md flex items-center gap-1">
+            <Button variant="ghost" size="icon" disabled><Bold /></Button>
+            <Button variant="ghost" size="icon" disabled><Italic /></Button>
+            <Button variant="ghost" size="icon" disabled><Underline /></Button>
+            <Button variant="ghost" size="icon" disabled><List /></Button>
+        </div>
         <div className="relative">
           <Textarea
             placeholder="Draft your answer here..."
@@ -219,6 +248,40 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
             </AlertDescription>
           </Alert>
         )}
+        <Separator />
+        <div className="space-y-4">
+            <h4 className="flex items-center gap-2 font-medium text-sm"><MessageSquare className="h-4 w-4" /> Comments ({comments.length})</h4>
+            <div className="space-y-4 max-h-48 overflow-y-auto pr-2">
+                {comments.map(comment => (
+                    <div key={comment.id} className="flex items-start gap-3">
+                        <Avatar className="h-8 w-8">
+                            {comment.author.avatar && <AvatarImage src={comment.author.avatar} alt={comment.author.name} />}
+                            <AvatarFallback>{comment.author.name.charAt(0)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                            <div className="flex items-center gap-2 text-sm">
+                                <span className="font-semibold">{comment.author.name}</span>
+                                <span className="text-xs text-muted-foreground">{comment.timestamp}</span>
+                            </div>
+                            <p className="text-sm text-muted-foreground">{comment.content}</p>
+                        </div>
+                    </div>
+                ))}
+            </div>
+            <div className="flex items-center gap-2">
+                 <Avatar className="h-8 w-8">
+                    {currentUser.avatar && <AvatarImage src={currentUser.avatar} alt={currentUser.name} />}
+                    <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
+                </Avatar>
+                <Input 
+                    placeholder="Add a comment..." 
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddComment(); } }}
+                />
+                <Button onClick={handleAddComment} size="icon"><Send /></Button>
+            </div>
+        </div>
       </CardContent>
        <CardFooter className="flex flex-wrap gap-4 justify-between items-center bg-muted/50 p-3 border-t">
         <div className="flex items-center gap-2">
