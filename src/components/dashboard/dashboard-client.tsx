@@ -172,6 +172,7 @@ export function DashboardClient({ initialQuestions }: DashboardClientProps) {
           questions={questions}
           isLocked={isLocked}
           onLockChange={setIsLocked}
+          members={tenant.members}
         />
       </div>
     </div>

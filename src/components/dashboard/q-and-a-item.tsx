@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -67,6 +67,18 @@ export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQ
   ];
   const [comments, setComments] = useState(mockComments);
   const [newComment, setNewComment] = useState("");
+
+  const contributors = useMemo(() => {
+    const contributorIds = new Set<number>();
+    if (assignee) {
+        contributorIds.add(assignee.id);
+    }
+    comments.forEach(comment => contributorIds.add(comment.author.id));
+    
+    return Array.from(contributorIds)
+        .map(id => members.find(m => m.id === id))
+        .filter((m): m is TeamMember => !!m);
+  }, [assignee, comments, members]);
 
   const handleGenerateAnswer = async () => {
     setIsGenerating(true)
@@ -311,13 +323,35 @@ export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQ
             )}
           </div>
           <div className="mt-4 pt-4 border-t flex justify-between items-center">
-             <Button variant="ghost" size="sm" onClick={() => setIsCommentSheetOpen(true)} className="text-muted-foreground hover:text-foreground relative">
-                <MessageSquare className="h-4 w-4 mr-2" />
-                Comments
-                {comments.length > 0 && (
-                    <Badge variant="secondary" className="ml-2">{comments.length}</Badge>
-                )}
-            </Button>
+            <div className="flex items-center gap-4">
+                 <Button variant="ghost" size="sm" onClick={() => setIsCommentSheetOpen(true)} className="text-muted-foreground hover:text-foreground relative">
+                    <MessageSquare className="h-4 w-4 mr-2" />
+                    Comments
+                    {comments.length > 0 && (
+                        <Badge variant="secondary" className="ml-2">{comments.length}</Badge>
+                    )}
+                </Button>
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-muted-foreground">Contributors:</span>
+                    <div className="flex items-center -space-x-2">
+                        {contributors.map(c => (
+                            <TooltipProvider key={c.id} delayDuration={100}>
+                                <Tooltip>
+                                    <TooltipTrigger asChild>
+                                        <button className="focus:outline-none">
+                                            <Avatar className="h-6 w-6 border-2 border-background">
+                                                {c.avatar && <AvatarImage src={c.avatar} alt={c.name} />}
+                                                <AvatarFallback className="text-xs">{c.name.charAt(0)}</AvatarFallback>
+                                            </Avatar>
+                                        </button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>{c.name}</TooltipContent>
+                                </Tooltip>
+                            </TooltipProvider>
+                        ))}
+                    </div>
+                </div>
+            </div>
             <div className="flex items-center gap-2">
                 <History className="h-4 w-4 text-muted-foreground" />
                 <Select defaultValue="v3" disabled={isEditingDisabled}>

@@ -446,10 +446,11 @@ export async function exportRfpAction(payload: {
     questions: { id: number, question: string, status: string, answer: string }[],
     isLocked: boolean,
     currentUserRole: Role,
-    exportVersion: string
-    format: 'pdf' | 'docx'
+    exportVersion: string,
+    format: 'pdf' | 'docx',
+    acknowledgments: { name: string, role: string, comment: string }[]
 }) {
-    const { questions, isLocked, currentUserRole, exportVersion, format } = payload;
+    const { questions, isLocked, currentUserRole, exportVersion, format, acknowledgments } = payload;
 
     if (!isLocked) {
         return { error: "Export failed: The RFP must be locked before exporting." };
@@ -466,23 +467,36 @@ export async function exportRfpAction(payload: {
 
     try {
         if (format === 'docx') {
-            const doc = new Document({
-                sections: [{
-                    properties: {},
-                    children: [
-                        new Paragraph({ text: `RFP Response - Version ${exportVersion}`, heading: HeadingLevel.TITLE }),
-                        ...questions.flatMap(q => [
-                            new Paragraph({
-                                children: [new TextRun({ text: `Q${q.id}: ${q.question}`, bold: true })],
-                                spacing: { before: 240, after: 120 }
-                            }),
-                            new Paragraph({
-                                text: q.answer || "No answer provided.",
-                            })
-                        ])
-                    ],
-                }],
-            });
+            const docChildren: Paragraph[] = [
+                new Paragraph({ text: `RFP Response - Version ${exportVersion}`, heading: HeadingLevel.TITLE }),
+                ...questions.flatMap(q => [
+                    new Paragraph({
+                        children: [new TextRun({ text: `Q${q.id}: ${q.question}`, bold: true })],
+                        spacing: { before: 240, after: 120 }
+                    }),
+                    new Paragraph({
+                        text: q.answer || "No answer provided.",
+                    })
+                ])
+            ];
+
+            if (acknowledgments.length > 0) {
+                docChildren.push(new Paragraph({ text: 'Acknowledgments', heading: HeadingLevel.TITLE, pageBreakBefore: true }));
+                acknowledgments.forEach(ack => {
+                    docChildren.push(
+                        new Paragraph({
+                            children: [new TextRun({ text: `${ack.name} (${ack.role})`, bold: true })],
+                            spacing: { before: 240, after: 60 }
+                        }),
+                        new Paragraph({
+                            children: [new TextRun({ text: `"${ack.comment}"`, italics: true })],
+                            indent: { left: 720 },
+                        })
+                    );
+                });
+            }
+
+            const doc = new Document({ sections: [{ properties: {}, children: docChildren }] });
 
             const base64 = await Packer.toBase64String(doc);
             return {
@@ -520,6 +534,20 @@ export async function exportRfpAction(payload: {
                     });
                     doc.moveDown(1.5);
                 });
+
+                if (acknowledgments.length > 0) {
+                    doc.addPage();
+                    doc.fontSize(25).text('Acknowledgments', { align: 'center' });
+                    doc.moveDown(2);
+                    acknowledgments.forEach(ack => {
+                        doc.fontSize(14).font('Helvetica-Bold').text(`${ack.name} (${ack.role})`);
+                        doc.moveDown(0.5);
+                        doc.fontSize(12).font('Helvetica-Oblique').text(`"${ack.comment}"`, {
+                            align: 'justify'
+                        });
+                        doc.moveDown(1.5);
+                    });
+                }
 
                 doc.end();
             });
