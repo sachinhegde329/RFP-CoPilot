@@ -21,6 +21,9 @@ export default function LandingPage() {
               <Link href="/pricing">Pricing</Link>
             </Button>
             <Button variant="ghost" asChild>
+              <Link href="/docs">Docs</Link>
+            </Button>
+            <Button variant="ghost" asChild>
               <Link href="#">Contact</Link>
             </Button>
           </nav>
