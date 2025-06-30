@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState, useRef, ChangeEvent, useEffect, useMemo } from "react"
@@ -17,6 +18,7 @@ import { useTenant } from "@/components/providers/tenant-provider"
 import { addDocumentSourceAction, addWebsiteSourceAction, getKnowledgeSourcesAction, deleteKnowledgeSourceAction, checkSourceStatusAction, resyncKnowledgeSourceAction } from "@/app/actions"
 import type { DataSource, SyncStatus } from "@/lib/knowledge-base"
 import { Skeleton } from "@/components/ui/skeleton"
+import { canPerformAction } from "@/lib/access-control"
 
 // Mock data for the components
 const knowledgeBaseStats = {
@@ -99,6 +101,10 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
   const [configStep, setConfigStep] = useState<'select' | 'configure'>('select');
   const [sourceToConfigure, setSourceToConfigure] = useState<string | null>(null);
   const [websiteUrl, setWebsiteUrl] = useState('');
+
+  const currentUser = tenant.members[0];
+  const canManageIntegrations = canPerformAction(currentUser.role, 'manageIntegrations');
+  const canEditContent = canPerformAction(currentUser.role, 'editContent');
   
   const fetchSources = async () => {
     setIsLoadingSources(true);
@@ -155,7 +161,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
     
     setIsDialogOpen(false);
     
-    const result = await addWebsiteSourceAction(websiteUrl, tenant.id);
+    const result = await addWebsiteSourceAction(websiteUrl, tenant.id, currentUser);
 
     if(result.error || !result.source) {
         toast({ variant: "destructive", title: "Sync Failed", description: result.error });
@@ -168,7 +174,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
   const handleResync = async (source: DataSource) => {
     setSources(prev => prev.map(s => s.id === source.id ? { ...s, status: 'Syncing' } : s));
     toast({ title: "Re-sync Started", description: `Re-syncing content from ${source.name}` });
-    const result = await resyncKnowledgeSourceAction(tenant.id, source.id);
+    const result = await resyncKnowledgeSourceAction(tenant.id, source.id, currentUser);
     if (result.error) {
         toast({ variant: "destructive", title: "Sync Failed", description: result.error });
         fetchSources();
@@ -183,7 +189,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
     reader.readAsDataURL(file);
     reader.onload = async () => {
         const dataUri = reader.result as string;
-        const result = await addDocumentSourceAction(dataUri, tenant.id, file.name);
+        const result = await addDocumentSourceAction(dataUri, tenant.id, file.name, currentUser);
         if (result.error || !result.source) {
             toast({ variant: "destructive", title: "Upload Failed", description: result.error });
         } else {
@@ -204,7 +210,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
   const handleDeleteSource = async (sourceId: string) => {
     const originalSources = sources;
     setSources(prev => prev.filter(s => s.id !== sourceId));
-    const result = await deleteKnowledgeSourceAction(tenant.id, sourceId);
+    const result = await deleteKnowledgeSourceAction(tenant.id, sourceId, currentUser);
     if (result.error) {
         setSources(originalSources);
         toast({ variant: "destructive", title: "Delete Failed", description: result.error });
@@ -233,7 +239,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
                 <h1 className="text-3xl font-bold">Knowledge Base</h1>
                 <p className="text-muted-foreground">Your central repository of approved answers and company information.</p>
             </div>
-            <Button>
+            <Button disabled={!canEditContent}>
                 <PlusCircle className="mr-2" />
                 Add New Answer
             </Button>
@@ -321,7 +327,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
                                         <TableCell>{getStatusBadge(item.status)}</TableCell>
                                         <TableCell className="text-right">
                                             <DropdownMenu>
-                                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger>
+                                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={!canEditContent}><MoreHorizontal /></Button></DropdownMenuTrigger>
                                                 <DropdownMenuContent><DropdownMenuItem>Edit</DropdownMenuItem><DropdownMenuItem>View History</DropdownMenuItem><DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem></DropdownMenuContent>
                                             </DropdownMenu>
                                         </TableCell>
@@ -342,12 +348,12 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
                         </div>
                         <div className="flex gap-2">
                              <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".pdf,.docx,.xlsx,.md,.txt,.html" disabled={isUploading}/>
-                            <Button variant="outline" onClick={handleUploadClick} disabled={isUploading}>
+                            <Button variant="outline" onClick={handleUploadClick} disabled={isUploading || !canManageIntegrations}>
                                 {isUploading ? <Loader2 className="mr-2 animate-spin" /> : <Upload className="mr-2" />}
                                 {isUploading ? 'Uploading...' : 'Upload Files'}
                             </Button>
                              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                                <DialogTrigger asChild><Button><LinkIcon className="mr-2"/>Connect Source</Button></DialogTrigger>
+                                <DialogTrigger asChild><Button disabled={!canManageIntegrations}><LinkIcon className="mr-2"/>Connect Source</Button></DialogTrigger>
                                 <DialogContent className="sm:max-w-2xl">
                                     <DialogHeader>
                                         {configStep === 'configure' && sourceToConfigure && (<Button variant="ghost" size="sm" className="absolute left-4 top-4 h-auto p-1 text-sm" onClick={() => { setConfigStep('select'); setSourceToConfigure(null); }}><ChevronLeft className="h-4 w-4 mr-1" />Back</Button>)}
@@ -395,7 +401,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
                                     <TableBody>
                                         {isLoadingSources && initialSources.length === 0 ? (Array.from({length: 2}).map((_, i) => (<TableRow key={`skel-conn-${i}`}><TableCell><Skeleton className="h-5 w-40" /></TableCell><TableCell><Skeleton className="h-5 w-20" /></TableCell><TableCell><Skeleton className="h-5 w-12" /></TableCell><TableCell><Skeleton className="h-5 w-24" /></TableCell><TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell></TableRow>))) 
                                         : connectedSources.length === 0 ? (<TableRow><TableCell colSpan={5} className="h-24 text-center">No integrations connected yet.</TableCell></TableRow>) 
-                                        : (connectedSources.map(source => (<TableRow key={source.id}><TableCell className="flex items-center gap-3">{getSourceIcon(source.type)}<span className="font-medium truncate">{source.name}</span></TableCell><TableCell>{getStatusBadge(source.status)}</TableCell><TableCell>{source.itemCount?.toLocaleString()}</TableCell><TableCell>{source.lastSynced}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem onSelect={() => handleResync(source)} disabled={source.status === 'Syncing'}><RefreshCw className="mr-2"/> Sync Now</DropdownMenuItem><DropdownMenuItem><Settings className="mr-2" /> Settings</DropdownMenuItem><DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteSource(source.id)}><Trash2 className="mr-2"/> Remove</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>)))}
+                                        : (connectedSources.map(source => (<TableRow key={source.id}><TableCell className="flex items-center gap-3">{getSourceIcon(source.type)}<span className="font-medium truncate">{source.name}</span></TableCell><TableCell>{getStatusBadge(source.status)}</TableCell><TableCell>{source.itemCount?.toLocaleString()}</TableCell><TableCell>{source.lastSynced}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={!canManageIntegrations}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem onSelect={() => handleResync(source)} disabled={source.status === 'Syncing'}><RefreshCw className="mr-2"/> Sync Now</DropdownMenuItem><DropdownMenuItem><Settings className="mr-2" /> Settings</DropdownMenuItem><DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteSource(source.id)}><Trash2 className="mr-2"/> Remove</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>)))}
                                     </TableBody>
                                 </Table>
                             </TabsContent>
@@ -405,7 +411,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
                                     <TableBody>
                                         {isLoadingSources && initialSources.length === 0 ? (Array.from({length: 3}).map((_, i) => (<TableRow key={`skel-up-${i}`}><TableCell><Skeleton className="h-5 w-48" /></TableCell><TableCell><Skeleton className="h-5 w-24" /></TableCell><TableCell><Skeleton className="h-5 w-20" /></TableCell><TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell></TableRow>))) 
                                         : uploadedFiles.length === 0 ? (<TableRow><TableCell colSpan={4} className="h-24 text-center">No documents uploaded yet.</TableCell></TableRow>) 
-                                        : (uploadedFiles.map(file => (<TableRow key={file.id}><TableCell className="font-medium flex items-center gap-2">{getSourceIcon(file.type)}{file.name}</TableCell><TableCell>{file.uploader}</TableCell><TableCell>{getStatusBadge(file.status)}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon"><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem>View Content</DropdownMenuItem><DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteSource(file.id)}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>)))}
+                                        : (uploadedFiles.map(file => (<TableRow key={file.id}><TableCell className="font-medium flex items-center gap-2">{getSourceIcon(file.type)}{file.name}</TableCell><TableCell>{file.uploader}</TableCell><TableCell>{getStatusBadge(file.status)}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={!canManageIntegrations}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem>View Content</DropdownMenuItem><DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteSource(file.id)}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>)))}
                                     </TableBody>
                                 </Table>
                             </TabsContent>

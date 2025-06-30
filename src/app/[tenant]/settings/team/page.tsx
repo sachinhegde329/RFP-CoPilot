@@ -29,6 +29,7 @@ import Link from "next/link";
 import { type Role, type TeamMember } from '@/lib/tenants';
 import { useToast } from '@/hooks/use-toast';
 import { inviteMemberAction, removeMemberAction, updateMemberRoleAction } from '@/app/actions';
+import { canPerformAction } from '@/lib/access-control';
 
 
 export default function TeamSettingsPage() {
@@ -44,6 +45,11 @@ export default function TeamSettingsPage() {
     const usedSeats = teamMembers.length;
     const availableSeats = totalSeats - usedSeats;
 
+    // For demo purposes, we'll assume the current user is the first member of the tenant.
+    // In a real application, this would come from an authentication context.
+    const currentUser = tenant.members[0];
+    const canManageTeam = canPerformAction(currentUser.role, 'manageTeam');
+
     const handleInviteMember = async () => {
         if (!inviteEmail || !inviteRole) {
             toast({ variant: 'destructive', title: 'Missing information', description: 'Please provide an email and a role.' });
@@ -51,7 +57,7 @@ export default function TeamSettingsPage() {
         }
         setIsLoading(true);
 
-        const result = await inviteMemberAction(tenant.id, inviteEmail, inviteRole);
+        const result = await inviteMemberAction(tenant.id, inviteEmail, inviteRole, currentUser);
         if (result.error || !result.member) {
             toast({ variant: 'destructive', title: 'Invitation Failed', description: result.error });
         } else {
@@ -65,7 +71,7 @@ export default function TeamSettingsPage() {
     };
 
     const handleRemoveMember = async (member: TeamMember) => {
-        const result = await removeMemberAction(tenant.id, member.id);
+        const result = await removeMemberAction(tenant.id, member.id, currentUser);
         if (result.error) {
             toast({ variant: 'destructive', title: 'Error', description: result.error });
         } else {
@@ -75,7 +81,7 @@ export default function TeamSettingsPage() {
     }
 
     const handleRoleChange = async (memberId: number, newRole: Role) => {
-        const result = await updateMemberRoleAction(tenant.id, memberId, newRole);
+        const result = await updateMemberRoleAction(tenant.id, memberId, newRole, currentUser);
          if (result.error || !result.member) {
             toast({ variant: 'destructive', title: 'Error', description: result.error });
         } else {
@@ -94,7 +100,7 @@ export default function TeamSettingsPage() {
                 </div>
                 <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
                     <DialogTrigger asChild>
-                         <Button disabled={availableSeats <= 0}>
+                         <Button disabled={availableSeats <= 0 || !canManageTeam}>
                             <PlusCircle className="mr-2" />
                             Invite Member
                         </Button>
@@ -202,7 +208,7 @@ export default function TeamSettingsPage() {
                                 <TableCell className="text-right">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" disabled={member.role === 'Owner'}>
+                                            <Button variant="ghost" size="icon" disabled={member.role === 'Owner' || !canManageTeam}>
                                                 <MoreHorizontal className="h-4 w-4" />
                                                 <span className="sr-only">Member actions</span>
                                             </Button>
@@ -216,7 +222,7 @@ export default function TeamSettingsPage() {
                                                 <DropdownMenuPortal>
                                                     <DropdownMenuSubContent>
                                                         <DropdownMenuRadioGroup 
-                                                            value={member.role.toLowerCase()}
+                                                            value={member.role}
                                                             onValueChange={(value) => handleRoleChange(member.id, value as Role)}
                                                         >
                                                             <DropdownMenuRadioItem value="Viewer">Viewer</DropdownMenuRadioItem>

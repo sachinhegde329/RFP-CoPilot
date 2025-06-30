@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useEffect } from 'react';
@@ -13,12 +14,16 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { LockKeyhole, FileText, ExternalLink, CheckCircle } from "lucide-react"
+import { canPerformAction } from '@/lib/access-control';
 
 export default function SecuritySettingsPage() {
   const { tenant } = useTenant();
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const router = useRouter();
+
+  const currentUser = tenant.members[0];
+  const canManageSecurity = canPerformAction(currentUser.role, 'manageSecurity');
 
   useEffect(() => {
     const ssoSuccess = searchParams.get('sso_success');
@@ -54,15 +59,17 @@ export default function SecuritySettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center justify-between p-4 border rounded-lg">
-            <div>
-              <Label htmlFor="2fa-switch" className="font-medium">Enable 2FA</Label>
-              <p className="text-sm text-muted-foreground">
-                Once enabled, you'll be prompted to set up 2FA using an authenticator app.
-              </p>
-            </div>
-            <Switch id="2fa-switch" />
-          </div>
+            <fieldset disabled={!canManageSecurity}>
+                <div className="flex items-center justify-between p-4 border rounded-lg">
+                    <div>
+                    <Label htmlFor="2fa-switch" className="font-medium">Enable 2FA</Label>
+                    <p className="text-sm text-muted-foreground">
+                        Once enabled, you'll be prompted to set up 2FA using an authenticator app.
+                    </p>
+                    </div>
+                    <Switch id="2fa-switch" />
+                </div>
+            </fieldset>
         </CardContent>
       </Card>
 
@@ -77,38 +84,40 @@ export default function SecuritySettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-4">
-                {isOktaSsoConfigured ? (
+            <fieldset disabled={!canManageSecurity}>
+                <div className="flex flex-col sm:flex-row gap-4">
+                    {isOktaSsoConfigured ? (
+                        <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" disabled>
+                            <CheckCircle className="text-green-600" />
+                            Configured with Okta
+                        </Button>
+                    ) : (
+                        <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" asChild>
+                            <Link href={`/api/auth/sso/okta/initiate?tenantId=${tenant.id}`}>
+                                <Image src="https://placehold.co/20x20.png" alt="Okta logo" width={20} height={20} data-ai-hint="okta logo" />
+                                Configure with Okta
+                            </Link>
+                        </Button>
+                    )}
+                    {isMicrosoftSsoConfigured ? (
+                        <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" disabled>
+                            <CheckCircle className="text-green-600" />
+                            Configured with Azure AD
+                        </Button>
+                    ) : (
+                        <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" asChild>
+                            <Link href={`/api/auth/sso/microsoft/initiate?tenantId=${tenant.id}`}>
+                            <Image src="https://placehold.co/20x20.png" alt="Azure AD logo" width={20} height={20} data-ai-hint="azure logo"/>
+                            Configure with Azure AD
+                            </Link>
+                        </Button>
+                    )}
                     <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" disabled>
-                        <CheckCircle className="text-green-600" />
-                        Configured with Okta
+                        <Image src="https://placehold.co/20x20.png" alt="Google logo" width={20} height={20} data-ai-hint="google logo"/>
+                        Configure with Google
                     </Button>
-                ) : (
-                    <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" asChild>
-                         <Link href={`/api/auth/sso/okta/initiate?tenantId=${tenant.id}`}>
-                            <Image src="https://placehold.co/20x20.png" alt="Okta logo" width={20} height={20} data-ai-hint="okta logo" />
-                            Configure with Okta
-                         </Link>
-                    </Button>
-                )}
-                {isMicrosoftSsoConfigured ? (
-                    <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" disabled>
-                        <CheckCircle className="text-green-600" />
-                        Configured with Azure AD
-                    </Button>
-                ) : (
-                    <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" asChild>
-                        <Link href={`/api/auth/sso/microsoft/initiate?tenantId=${tenant.id}`}>
-                        <Image src="https://placehold.co/20x20.png" alt="Azure AD logo" width={20} height={20} data-ai-hint="azure logo"/>
-                        Configure with Azure AD
-                        </Link>
-                    </Button>
-                )}
-                 <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" disabled>
-                    <Image src="https://placehold.co/20x20.png" alt="Google logo" width={20} height={20} data-ai-hint="google logo"/>
-                    Configure with Google
-                </Button>
-            </div>
+                </div>
+            </fieldset>
             <p className="text-sm text-muted-foreground">
                 Need a different provider? <a href="#" className="text-primary underline">Contact us</a>.
             </p>
@@ -123,16 +132,18 @@ export default function SecuritySettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-            <div className="flex gap-2">
-                <Input placeholder="example.com" />
-                <Button>Add Domain</Button>
-            </div>
-            <div className="mt-4 space-y-2">
-                <div className="flex items-center justify-between p-2 bg-muted rounded-md">
-                    <span className="text-sm font-mono">megacorp.com</span>
-                    <Button variant="ghost" size="sm">Remove</Button>
+            <fieldset disabled={!canManageSecurity}>
+                <div className="flex gap-2">
+                    <Input placeholder="example.com" />
+                    <Button>Add Domain</Button>
                 </div>
-            </div>
+                <div className="mt-4 space-y-2">
+                    <div className="flex items-center justify-between p-2 bg-muted rounded-md">
+                        <span className="text-sm font-mono">megacorp.com</span>
+                        <Button variant="ghost" size="sm">Remove</Button>
+                    </div>
+                </div>
+            </fieldset>
         </CardContent>
       </Card>
 
@@ -147,7 +158,7 @@ export default function SecuritySettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardFooter>
-            <Button variant="outline">
+            <Button variant="outline" disabled={!canManageSecurity}>
                 View Audit Logs
                 <ExternalLink className="ml-2" />
             </Button>

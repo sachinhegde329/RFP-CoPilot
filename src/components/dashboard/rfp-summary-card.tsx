@@ -15,6 +15,7 @@ import { UploadCloud, Sparkles, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { parseDocumentAction } from "@/app/actions"
 import { useTenant } from "@/components/providers/tenant-provider"
+import { canPerformAction } from "@/lib/access-control"
 
 type RfpSummaryCardProps = {
   isLoading: boolean;
@@ -27,6 +28,9 @@ export function RfpSummaryCard({ isLoading, onProcessRfp }: RfpSummaryCardProps)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   const { tenant } = useTenant()
+
+  const currentUser = tenant.members[0];
+  const canUpload = canPerformAction(currentUser.role, 'uploadRfps');
 
   const handleProcess = () => {
     onProcessRfp(rfpText);
@@ -59,7 +63,7 @@ export function RfpSummaryCard({ isLoading, onProcessRfp }: RfpSummaryCardProps)
     reader.readAsDataURL(file)
     reader.onload = async () => {
         const dataUri = reader.result as string;
-        const result = await parseDocumentAction(dataUri, tenant.id)
+        const result = await parseDocumentAction(dataUri, tenant.id, currentUser)
 
         if (result.error || !result.text) {
             toast({
@@ -105,17 +109,17 @@ export function RfpSummaryCard({ isLoading, onProcessRfp }: RfpSummaryCardProps)
             onChange={handleFileUpload}
             className="hidden"
             accept=".pdf,.docx,.xlsx,.md,.txt,.html"
-            disabled={isLoading || isUploading}
+            disabled={isLoading || isUploading || !canUpload}
         />
         <Textarea
           placeholder="Paste the content of your RFP here to get started..."
           className="min-h-[150px] text-sm"
           value={rfpText}
           onChange={(e) => setRfpText(e.target.value)}
-          disabled={isLoading || isUploading}
+          disabled={isLoading || isUploading || !canUpload}
         />
         <div className="flex gap-2">
-          <Button onClick={handleProcess} disabled={isLoading || isUploading || !rfpText}>
+          <Button onClick={handleProcess} disabled={isLoading || isUploading || !rfpText || !canUpload}>
             {isLoading && !isUploading ? (
               <Loader2 className="animate-spin" />
             ) : (
@@ -123,7 +127,7 @@ export function RfpSummaryCard({ isLoading, onProcessRfp }: RfpSummaryCardProps)
             )}
             Process RFP
           </Button>
-          <Button variant="outline" disabled={isLoading || isUploading} onClick={handleUploadClick}>
+          <Button variant="outline" disabled={isLoading || isUploading || !canUpload} onClick={handleUploadClick}>
             {isUploading ? <Loader2 className="animate-spin" /> : <UploadCloud />}
             {isUploading ? 'Uploading...' : 'Upload Document'}
           </Button>

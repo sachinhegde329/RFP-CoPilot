@@ -24,6 +24,7 @@ import { useTenant } from "@/components/providers/tenant-provider"
 import { Label } from "@/components/ui/label"
 import { type BrandTone } from "@/lib/tenants"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { canPerformAction } from "@/lib/access-control"
 
 
 const workspaceFormSchema = z.object({
@@ -40,6 +41,9 @@ export default function WorkspaceSettingsPage() {
     const { toast } = useToast()
     const { tenant, setTenant } = useTenant();
 
+    const currentUser = tenant.members[0];
+    const canEditWorkspace = canPerformAction(currentUser.role, 'editWorkspace');
+
     const form = useForm<WorkspaceFormValues>({
         resolver: zodResolver(workspaceFormSchema),
         defaultValues: {
@@ -53,7 +57,7 @@ export default function WorkspaceSettingsPage() {
         console.log(data)
 
         // Optimistically update the tenant context
-        setTenant(prev => ({ ...prev, name: data.name, defaultTone: data.defaultTone }))
+        setTenant(prev => ({ ...prev, name: data.name, defaultTone: data.defaultTone as BrandTone }))
         
         toast({
             title: "Workspace Updated",
@@ -72,63 +76,65 @@ export default function WorkspaceSettingsPage() {
             <Form {...form}>
                 <form onSubmit={form.handleSubmit(onSubmit)}>
                     <CardContent className="space-y-6">
-                        <div className="flex items-center gap-4">
-                            <Image 
-                                src={tenant.branding.logoUrl} 
-                                alt={`${tenant.name} Logo`}
-                                width={128}
-                                height={32}
-                                className="h-10 w-auto p-1 bg-muted rounded-md"
-                                data-ai-hint={tenant.branding.logoDataAiHint}
-                            />
-                            <Button type="button" variant="outline">
-                                <Upload className="mr-2 h-4 w-4" />
-                                Change Logo
-                            </Button>
-                        </div>
+                        <fieldset className="space-y-6" disabled={!canEditWorkspace}>
+                            <div className="flex items-center gap-4">
+                                <Image 
+                                    src={tenant.branding.logoUrl} 
+                                    alt={`${tenant.name} Logo`}
+                                    width={128}
+                                    height={32}
+                                    className="h-10 w-auto p-1 bg-muted rounded-md"
+                                    data-ai-hint={tenant.branding.logoDataAiHint}
+                                />
+                                <Button type="button" variant="outline">
+                                    <Upload className="mr-2 h-4 w-4" />
+                                    Change Logo
+                                </Button>
+                            </div>
 
-                        <FormField
-                            control={form.control}
-                            name="name"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Workspace Name</FormLabel>
-                                    <FormControl>
-                                        <Input placeholder="Your workspace name" {...field} />
-                                    </FormControl>
-                                    <FormDescription>
-                                        This is the name of your workspace that will be displayed to all team members.
-                                    </FormDescription>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-
-                        <FormField
-                            control={form.control}
-                            name="defaultTone"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Default AI Tone</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <FormField
+                                control={form.control}
+                                name="name"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Workspace Name</FormLabel>
                                         <FormControl>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder="Select a default tone for AI answers" />
-                                            </SelectTrigger>
+                                            <Input placeholder="Your workspace name" {...field} />
                                         </FormControl>
-                                        <SelectContent>
-                                            <SelectItem value="Formal">Formal</SelectItem>
-                                            <SelectItem value="Consultative">Consultative</SelectItem>
-                                            <SelectItem value="Technical">Technical</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                    <FormDescription>
-                                        This tone will be used by default when generating draft answers.
-                                    </FormDescription>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+                                        <FormDescription>
+                                            This is the name of your workspace that will be displayed to all team members.
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+
+                            <FormField
+                                control={form.control}
+                                name="defaultTone"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Default AI Tone</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl>
+                                                <SelectTrigger>
+                                                    <SelectValue placeholder="Select a default tone for AI answers" />
+                                                </SelectTrigger>
+                                            </FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="Formal">Formal</SelectItem>
+                                                <SelectItem value="Consultative">Consultative</SelectItem>
+                                                <SelectItem value="Technical">Technical</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormDescription>
+                                            This tone will be used by default when generating draft answers.
+                                        </FormDescription>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </fieldset>
                         
                          <div className="space-y-2">
                              <Label htmlFor="subdomain">Workspace URL</Label>
@@ -145,11 +151,10 @@ export default function WorkspaceSettingsPage() {
 
                     </CardContent>
                     <CardFooter>
-                        <Button type="submit">Save Changes</Button>
+                        <Button type="submit" disabled={!canEditWorkspace}>Save Changes</Button>
                     </CardFooter>
                 </form>
             </Form>
         </Card>
     )
 }
-

@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast"
 import { generateAnswerAction, reviewAnswerAction } from "@/app/actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useTenant } from "@/components/providers/tenant-provider"
-import { hasFeatureAccess } from "@/lib/access-control"
+import { hasFeatureAccess, canPerformAction } from "@/lib/access-control"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -55,8 +55,12 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
   const [isReviewing, setIsReviewing] = useState(false)
   const [isCopied, setIsCopied] = useState(false)
   const [isCommentSheetOpen, setIsCommentSheetOpen] = useState(false)
-  const canUseAiReview = hasFeatureAccess(tenant, 'aiExpertReview');
+  
   const currentUser = tenant.members[0];
+  const canUseAiReview = hasFeatureAccess(tenant, 'aiExpertReview');
+  const canEdit = canPerformAction(currentUser.role, 'editContent');
+  const canAssign = canPerformAction(currentUser.role, 'assignQuestions');
+
 
   const mockComments = [
     { id: 1, author: members[1] || members[0], timestamp: '2 hours ago', content: 'Good start, but can we clarify the part about data residency?' },
@@ -83,7 +87,7 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
     setSources([])
     setConfidence(null);
     
-    const result = await generateAnswerAction(question, tenantId)
+    const result = await generateAnswerAction(question, tenantId, currentUser)
     if (result.error) {
       toast({
         variant: "destructive",
@@ -108,7 +112,7 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
       return
     }
     setIsReviewing(true)
-    const result = await reviewAnswerAction(question, answer, tenant.id)
+    const result = await reviewAnswerAction(question, answer, tenant.id, currentUser)
     if (result.error) {
       toast({
         variant: "destructive",
@@ -225,7 +229,7 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
                 <TooltipTrigger asChild>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <div role="button" onClick={(e) => e.stopPropagation()} className={cn("flex h-6 w-6 items-center justify-center rounded-full", "hover:bg-accent/50")}>
+                      <div role="button" onClick={(e) => e.stopPropagation()} className={cn("flex h-6 w-6 items-center justify-center rounded-full", canAssign ? "hover:bg-accent/50" : "cursor-not-allowed")}>
                         {assignee ? (
                           <Avatar className="h-full w-full">
                             {assignee.avatar && <AvatarImage src={assignee.avatar} alt={assignee.name} />}
@@ -238,23 +242,25 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
                         )}
                       </div>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                      <DropdownMenuLabel>Assign to</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onSelect={() => handleAssigneeChange('unassigned')}>
-                        <UserPlus className="mr-2 h-4 w-4"/>
-                        Unassigned
-                      </DropdownMenuItem>
-                      {members.map(member => (
-                        <DropdownMenuItem key={member.id} onSelect={() => handleAssigneeChange(member.id.toString())}>
-                          <Avatar className="h-5 w-5 mr-2">
-                            {member.avatar && <AvatarImage src={member.avatar} alt={member.name} />}
-                            <AvatarFallback className="text-xs">{member.name.charAt(0)}</AvatarFallback>
-                          </Avatar>
-                          {member.name}
+                     {canAssign && (
+                        <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenuLabel>Assign to</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={() => handleAssigneeChange('unassigned')}>
+                            <UserPlus className="mr-2 h-4 w-4"/>
+                            Unassigned
                         </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
+                        {members.map(member => (
+                            <DropdownMenuItem key={member.id} onSelect={() => handleAssigneeChange(member.id.toString())}>
+                            <Avatar className="h-5 w-5 mr-2">
+                                {member.avatar && <AvatarImage src={member.avatar} alt={member.name} />}
+                                <AvatarFallback className="text-xs">{member.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            {member.name}
+                            </DropdownMenuItem>
+                        ))}
+                        </DropdownMenuContent>
+                     )}
                   </DropdownMenu>
                 </TooltipTrigger>
                 <TooltipContent><p>{assignee ? `Assigned to ${assignee.name}` : 'Unassigned'}</p></TooltipContent>
@@ -275,10 +281,10 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
           <div className="space-y-4">
             <div className="rounded-md border">
               <div className="p-2 border-b flex items-center gap-1">
-                <Button variant="ghost" size="icon"><Bold /></Button>
-                <Button variant="ghost" size="icon"><Italic /></Button>
-                <Button variant="ghost" size="icon"><Underline /></Button>
-                <Button variant="ghost" size="icon"><List /></Button>
+                <Button variant="ghost" size="icon" disabled={!canEdit}><Bold /></Button>
+                <Button variant="ghost" size="icon" disabled={!canEdit}><Italic /></Button>
+                <Button variant="ghost" size="icon" disabled={!canEdit}><Underline /></Button>
+                <Button variant="ghost" size="icon" disabled={!canEdit}><List /></Button>
               </div>
               <div className="relative">
                 <Textarea
@@ -286,6 +292,7 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
                   value={answer}
                   onChange={(e) => onUpdateQuestion(id, { answer: e.target.value })}
                   className="min-h-[120px] w-full resize-y border-0 pr-10 focus-visible:ring-0"
+                  disabled={!canEdit}
                 />
                 <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={handleCopy}>
                   {isCopied ? <ClipboardCheck className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
@@ -295,7 +302,7 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
             </div>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex flex-wrap items-center gap-2">
-                <Button onClick={handleGenerateAnswer} disabled={isGenerating}>
+                <Button onClick={handleGenerateAnswer} disabled={isGenerating || !canEdit}>
                   {isGenerating ? (
                     <Loader2 className="animate-spin" />
                   ) : (
@@ -306,7 +313,7 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
                 <Button
                   variant="outline"
                   onClick={handleReviewAnswer}
-                  disabled={isReviewing || !answer || !canUseAiReview}
+                  disabled={isReviewing || !answer || !canUseAiReview || !canEdit}
                 >
                   {isReviewing ? <Loader2 className="animate-spin" /> : <Bot />}
                   AI Expert Review
@@ -314,7 +321,7 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
                  <Button
                     variant="outline"
                     onClick={() => handleStatusChange('Completed')}
-                    disabled={status === 'Completed'}
+                    disabled={status === 'Completed' || !canEdit}
                 >
                     <CheckCircle />
                     Mark as Complete

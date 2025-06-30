@@ -13,29 +13,44 @@ import {
     inviteMember as inviteMemberToTenant,
     removeMember as removeMemberFromTenant,
     updateMemberRole as updateMemberRoleInTenant,
-    type Role
+    type Role,
+    type TeamMember,
+    type Tenant
 } from "@/lib/tenants"
 import { stripe } from "@/lib/stripe"
-import { hasFeatureAccess } from "@/lib/access-control"
+import { hasFeatureAccess, canPerformAction, type Action } from "@/lib/access-control"
 import { notificationService } from "@/lib/notifications.service";
 import { exportService } from "@/lib/export.service";
 
 import { Document, Packer, Paragraph, HeadingLevel, TextRun } from 'docx';
 import PDFDocument from 'pdfkit';
 
+type CurrentUser = { id: number; role: Role; name: string; }
+
+// Helper function to check permissions before executing an action
+function checkPermission(tenantId: string, currentUser: CurrentUser, action: Action): { tenant: Tenant, user: TeamMember, error?: undefined } | { error: string } {
+    const tenant = getTenantBySubdomain(tenantId);
+    if (!tenant) return { error: "Tenant not found." };
+    
+    // In a real app, the user would be loaded from a secure session, not found in the tenant members list.
+    const user = tenant.members.find(m => m.id === currentUser.id); 
+    if (!user) return { error: "User not found." };
+    
+    if (!canPerformAction(user.role, action)) {
+        return { error: "You do not have permission to perform this action." };
+    }
+    
+    return { tenant, user };
+}
 
 // This action is used by the main dashboard's RfpSummaryCard
-export async function parseDocumentAction(documentDataUri: string, tenantId: string) {
+export async function parseDocumentAction(documentDataUri: string, tenantId: string, currentUser: CurrentUser) {
+    const permCheck = checkPermission(tenantId, currentUser, 'uploadRfps');
+    if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
+
     if (!documentDataUri) {
         return { error: "Document data cannot be empty." };
-    }
-     if (!tenantId) {
-        return { error: "Tenant ID is missing." };
-    }
-
-    const tenant = getTenantBySubdomain(tenantId);
-    if (!tenant) {
-        return { error: "Invalid tenant." };
     }
 
     const base64Data = documentDataUri.split(',')[1];
@@ -59,17 +74,13 @@ export async function parseDocumentAction(documentDataUri: string, tenantId: str
     }
 }
 
-export async function generateAnswerAction(question: string, tenantId: string) {
+export async function generateAnswerAction(question: string, tenantId: string, currentUser: CurrentUser) {
+  const permCheck = checkPermission(tenantId, currentUser, 'editContent');
+  if (permCheck.error) return { error: permCheck.error };
+  const { tenant } = permCheck;
+
   if (!question) {
     return { error: "Question cannot be empty." }
-  }
-   if (!tenantId) {
-    return { error: "Tenant ID is missing." }
-  }
-
-  const tenant = getTenantBySubdomain(tenantId);
-  if (!tenant) {
-    return { error: "Tenant not found." }
   }
 
   try {
@@ -100,16 +111,15 @@ export async function generateAnswerAction(question: string, tenantId: string) {
   }
 }
 
-export async function reviewAnswerAction(question: string, answer: string, tenantId: string) {
+export async function reviewAnswerAction(question: string, answer: string, tenantId: string, currentUser: CurrentUser) {
+  const permCheck = checkPermission(tenantId, currentUser, 'editContent');
+  if (permCheck.error) return { error: permCheck.error };
+  const { tenant } = permCheck;
+  
   if (!question || !answer) {
     return { error: "Question and answer cannot be empty." }
   }
   
-  const tenant = getTenantBySubdomain(tenantId);
-  if (!tenant) {
-    return { error: "Tenant not found." };
-  }
-
   const canAccess = hasFeatureAccess(tenant, 'aiExpertReview');
   if (!canAccess) {
     return { error: "AI Expert Review is a premium feature. Please upgrade your plan to use it." };
@@ -127,13 +137,14 @@ export async function reviewAnswerAction(question: string, answer: string, tenan
   }
 }
 
-export async function extractQuestionsAction(rfpText: string, tenantId: string) {
+export async function extractQuestionsAction(rfpText: string, tenantId: string, currentUser: CurrentUser) {
+  const permCheck = checkPermission(tenantId, currentUser, 'uploadRfps');
+  if (permCheck.error) return { error: permCheck.error };
+
   if (!rfpText) {
     return { error: "RFP text cannot be empty." }
   }
-  if (!tenantId) {
-    return { error: "Tenant ID is missing." }
-  }
+
   try {
     const result = await extractRfpQuestions({ documentText: rfpText })
     const questionsWithStatus = result.questions.map(q => ({
@@ -152,10 +163,21 @@ export async function extractQuestionsAction(rfpText: string, tenantId: string) 
   }
 }
 
-export async function updateQuestionAction(tenantId: string, questionId: number, updates: Partial<Question>) {
-    if (!tenantId || !questionId) {
-        return { error: "Missing required parameters." };
+export async function updateQuestionAction(tenantId: string, questionId: number, updates: Partial<Question>, currentUser: CurrentUser) {
+    const permCheck = checkPermission(tenantId, currentUser, 'editContent');
+    if (permCheck.error) return { error: permCheck.error };
+    
+    if (!questionId) {
+        return { error: "Missing question ID." };
     }
+    
+    // If the update includes assigning a user, check for assign permission
+    if (updates.assignee !== undefined) {
+        if (!canPerformAction(currentUser.role, 'assignQuestions')) {
+            return { error: "You do not have permission to assign questions." };
+        }
+    }
+
     try {
         const updatedQuestion = rfpService.updateQuestion(tenantId, questionId, updates);
         if (!updatedQuestion) {
@@ -169,8 +191,11 @@ export async function updateQuestionAction(tenantId: string, questionId: number,
     }
 }
 
-export async function addQuestionAction(tenantId: string, questionData: Omit<Question, 'id'>) {
-    if (!tenantId || !questionData) {
+export async function addQuestionAction(tenantId: string, questionData: Omit<Question, 'id'>, currentUser: CurrentUser) {
+    const permCheck = checkPermission(tenantId, currentUser, 'editContent');
+    if (permCheck.error) return { error: permCheck.error };
+
+    if (!questionData) {
         return { error: "Missing required parameters." };
     }
     try {
@@ -199,8 +224,11 @@ export async function getKnowledgeSourcesAction(tenantId: string) {
     }
 }
 
-export async function addDocumentSourceAction(documentDataUri: string, tenantId: string, fileName: string) {
-    if (!documentDataUri || !tenantId || !fileName) {
+export async function addDocumentSourceAction(documentDataUri: string, tenantId: string, fileName: string, currentUser: CurrentUser) {
+    const permCheck = checkPermission(tenantId, currentUser, 'manageIntegrations');
+    if (permCheck.error) return { error: permCheck.error };
+
+    if (!documentDataUri || !fileName) {
         return { error: "Missing required parameters for adding document." };
     }
 
@@ -210,7 +238,7 @@ export async function addDocumentSourceAction(documentDataUri: string, tenantId:
         name: fileName,
         status: 'Syncing',
         lastSynced: 'In progress...',
-        uploader: 'Current User',
+        uploader: currentUser.name,
         itemCount: 0
     });
     
@@ -236,8 +264,11 @@ export async function addDocumentSourceAction(documentDataUri: string, tenantId:
     return { source: newSource };
 }
 
-export async function addWebsiteSourceAction(url: string, tenantId: string) {
-    if (!url || !tenantId) {
+export async function addWebsiteSourceAction(url: string, tenantId: string, currentUser: CurrentUser) {
+    const permCheck = checkPermission(tenantId, currentUser, 'manageIntegrations');
+    if (permCheck.error) return { error: permCheck.error };
+
+    if (!url) {
         return { error: "Missing required parameters for adding website." };
     }
 
@@ -257,8 +288,11 @@ export async function addWebsiteSourceAction(url: string, tenantId: string) {
 }
 
 
-export async function resyncKnowledgeSourceAction(tenantId: string, sourceId: string) {
-    if (!tenantId || !sourceId) {
+export async function resyncKnowledgeSourceAction(tenantId: string, sourceId: string, currentUser: CurrentUser) {
+    const permCheck = checkPermission(tenantId, currentUser, 'manageIntegrations');
+    if (permCheck.error) return { error: permCheck.error };
+    
+    if (!sourceId) {
         return { error: "Missing required parameters." };
     }
     
@@ -278,8 +312,11 @@ export async function resyncKnowledgeSourceAction(tenantId: string, sourceId: st
     return { success: true };
 }
 
-export async function deleteKnowledgeSourceAction(tenantId: string, sourceId: string) {
-    if (!tenantId || !sourceId) {
+export async function deleteKnowledgeSourceAction(tenantId: string, sourceId: string, currentUser: CurrentUser) {
+    const permCheck = checkPermission(tenantId, currentUser, 'manageIntegrations');
+    if (permCheck.error) return { error: permCheck.error };
+
+    if (!sourceId) {
         return { error: "Missing required parameters for deleting source." };
     }
     try {
@@ -402,8 +439,11 @@ export async function createCustomerPortalSessionAction(tenantId: string) {
 
 // == TEAM MANAGEMENT ACTIONS ==
 
-export async function inviteMemberAction(tenantId: string, email: string, role: Role) {
-  if (!tenantId || !email || !role) {
+export async function inviteMemberAction(tenantId: string, email: string, role: Role, currentUser: CurrentUser) {
+    const permCheck = checkPermission(tenantId, currentUser, 'manageTeam');
+    if (permCheck.error) return { error: permCheck.error };
+
+  if (!email || !role) {
     return { error: "Missing required parameters." };
   }
   try {
@@ -420,8 +460,11 @@ export async function inviteMemberAction(tenantId: string, email: string, role: 
   }
 }
 
-export async function removeMemberAction(tenantId: string, memberId: number) {
-  if (!tenantId || !memberId) {
+export async function removeMemberAction(tenantId: string, memberId: number, currentUser: CurrentUser) {
+    const permCheck = checkPermission(tenantId, currentUser, 'manageTeam');
+    if (permCheck.error) return { error: permCheck.error };
+
+  if (!memberId) {
     return { error: "Missing required parameters." };
   }
   try {
@@ -437,8 +480,11 @@ export async function removeMemberAction(tenantId: string, memberId: number) {
   }
 }
 
-export async function updateMemberRoleAction(tenantId: string, memberId: number, newRole: Role) {
-  if (!tenantId || !memberId || !newRole) {
+export async function updateMemberRoleAction(tenantId: string, memberId: number, newRole: Role, currentUser: CurrentUser) {
+    const permCheck = checkPermission(tenantId, currentUser, 'manageTeam');
+    if (permCheck.error) return { error: permCheck.error };
+
+  if (!memberId || !newRole) {
     return { error: "Missing required parameters." };
   }
   try {
@@ -502,17 +548,21 @@ export async function exportRfpAction(payload: {
     tenantId: string;
     rfpId: string;
     questions: { id: number, question: string, status: string, answer: string }[],
-    currentUser: { name: string, role: Role },
+    currentUser: CurrentUser,
     exportVersion: string,
     format: 'pdf' | 'docx',
     acknowledgments: { name: string, role: string, comment: string }[]
 }) {
     const { tenantId, rfpId, questions, currentUser, exportVersion, format, acknowledgments } = payload;
+    
+    const permCheck = checkPermission(tenantId, currentUser, 'finalizeExport');
+    if (permCheck.error) return { error: permCheck.error };
+    const { user } = permCheck;
 
-    const isAdmin = currentUser.role === 'Admin' || currentUser.role === 'Owner';
+    const isAdminOrOwner = user.role === 'Admin' || user.role === 'Owner';
     const allQuestionsCompleted = questions.every(q => q.status === 'Completed');
 
-    if (!allQuestionsCompleted && !isAdmin) {
+    if (!allQuestionsCompleted && !isAdminOrOwner) {
         return { error: "Export failed: All questions must be marked as 'Completed' before a non-admin can export." };
     }
     
@@ -624,7 +674,3 @@ export async function getExportHistoryAction(tenantId: string, rfpId: string) {
         return { error: `Failed to retrieve export history: ${errorMessage}` };
     }
 }
-
-
-
-    

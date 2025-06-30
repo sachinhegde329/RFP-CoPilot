@@ -39,6 +39,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { canPerformAction } from "@/lib/access-control"
 
 type Acknowledgments = Record<number, { acknowledged: boolean; comment: string }>;
 
@@ -55,12 +56,15 @@ function ExportDialog({ questions, members }: { questions: Question[], members: 
     const [isDialogOpen, setIsDialogOpen] = useState(false);
 
     const currentUser = tenant.members[0]; // For demo
-    const isAdmin = currentUser.role === 'Admin' || currentUser.role === 'Owner';
-    
+    const canFinalize = canPerformAction(currentUser.role, 'finalizeExport');
+    const isAdminOrOwner = currentUser.role === 'Admin' || currentUser.role === 'Owner';
     const allQuestionsCompleted = questions.every(q => q.status === 'Completed');
-    const canExport = allQuestionsCompleted || isAdmin;
     
-    const exportButtonTooltipContent = !canExport
+    const canExport = canFinalize && (allQuestionsCompleted || isAdminOrOwner);
+    
+    const exportButtonTooltipContent = !canFinalize 
+        ? "You do not have permission to export."
+        : !allQuestionsCompleted && !isAdminOrOwner
         ? "All questions must be 'Completed' before a non-admin can export."
         : "Ready to export.";
 
@@ -98,7 +102,7 @@ function ExportDialog({ questions, members }: { questions: Question[], members: 
             tenantId: tenant.id,
             rfpId: 'main_rfp',
             questions,
-            currentUser: { name: currentUser.name, role: currentUser.role },
+            currentUser: { name: currentUser.name, role: currentUser.role, id: currentUser.id },
             exportVersion,
             format,
             acknowledgments: acknowledgmentsData,
@@ -188,7 +192,7 @@ function ExportDialog({ questions, members }: { questions: Question[], members: 
                               </AlertDescription>
                           </Alert>
                         )}
-                        {!allQuestionsCompleted && isAdmin && (
+                        {!allQuestionsCompleted && isAdminOrOwner && (
                             <Alert variant="default">
                                 <AlertTriangle className="h-4 w-4"/>
                                 <AlertDescription>
@@ -260,6 +264,8 @@ export function QAndAList({ questions, tenantId, members, onUpdateQuestion, onAd
   const [isAddingQuestion, setIsAddingQuestion] = useState(false);
   const [newQuestionText, setNewQuestionText] = useState('');
   const [newQuestionCategory, setNewQuestionCategory] = useState('Product');
+
+  const canEditContent = canPerformAction(currentUser.role, 'editContent');
 
   const filteredQuestions = useMemo(() => {
     switch (activeFilter) {
@@ -337,7 +343,7 @@ export function QAndAList({ questions, tenantId, members, onUpdateQuestion, onAd
           <div className="flex gap-2">
             <Dialog open={isAddQuestionDialogOpen} onOpenChange={setIsAddQuestionDialogOpen}>
                 <DialogTrigger asChild>
-                    <Button variant="outline">
+                    <Button variant="outline" disabled={!canEditContent}>
                         <PlusCircle className="mr-2" />
                         Add Question
                     </Button>

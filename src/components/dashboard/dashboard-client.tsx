@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState, useEffect } from "react"
@@ -33,6 +34,8 @@ export function DashboardClient({ initialQuestions }: DashboardClientProps) {
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
 
+  const currentUser = tenant.members[0];
+
   // Clean up Object URLs when the component unmounts to prevent memory leaks
   useEffect(() => {
     return () => {
@@ -50,7 +53,7 @@ export function DashboardClient({ initialQuestions }: DashboardClientProps) {
       )
     );
 
-    const result = await updateQuestionAction(tenant.id, questionId, updates);
+    const result = await updateQuestionAction(tenant.id, questionId, updates, currentUser);
     if (result.error) {
         toast({
             variant: "destructive",
@@ -63,7 +66,7 @@ export function DashboardClient({ initialQuestions }: DashboardClientProps) {
   }
 
   const handleAddQuestion = async (questionData: Omit<Question, 'id'>) => {
-    const result = await addQuestionAction(tenant.id, questionData);
+    const result = await addQuestionAction(tenant.id, questionData, currentUser);
     if (result.error || !result.question) {
         toast({ variant: "destructive", title: "Error", description: result.error });
         return false;
@@ -103,7 +106,7 @@ export function DashboardClient({ initialQuestions }: DashboardClientProps) {
 
 
     try {
-      const questionsResult = await extractQuestionsAction(rfpText, tenant.id)
+      const questionsResult = await extractQuestionsAction(rfpText, tenant.id, currentUser)
 
       if (questionsResult.error) {
         toast({
