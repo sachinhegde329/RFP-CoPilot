@@ -748,6 +748,19 @@ export async function getTemplatesAction(tenantId: string, currentUser: CurrentU
     }
 }
 
+export async function getTemplateAction(tenantId: string, templateId: string, currentUser: CurrentUser): Promise<{ template?: Template, error?: string }> {
+    const permCheck = checkPermission(tenantId, currentUser, 'viewContent');
+    if (permCheck.error) return { error: permCheck.error };
+    
+    try {
+        const template = templateService.getTemplate(tenantId, templateId);
+        if (!template) return { error: 'Template not found.' };
+        return { template };
+    } catch (e) {
+        return { error: 'Failed to retrieve template.' };
+    }
+}
+
 export async function createTemplateAction(tenantId: string, data: { name: string; description: string }, currentUser: CurrentUser): Promise<{ template?: Template, error?: string }> {
     const permCheck = checkPermission(tenantId, currentUser, 'editWorkspace');
     if (permCheck.error) return { error: permCheck.error };
@@ -757,6 +770,19 @@ export async function createTemplateAction(tenantId: string, data: { name: strin
         return { template };
     } catch (e) {
         return { error: 'Failed to create template.' };
+    }
+}
+
+export async function updateTemplateAction(tenantId: string, templateId: string, data: { name?: string; description?: string }, currentUser: CurrentUser): Promise<{ template?: Template, error?: string }> {
+    const permCheck = checkPermission(tenantId, currentUser, 'editWorkspace');
+    if (permCheck.error) return { error: permCheck.error };
+
+    try {
+        const template = templateService.updateTemplate(tenantId, templateId, data);
+        if (!template) return { error: 'Could not update template. System templates are protected or template not found.' };
+        return { template };
+    } catch (e) {
+        return { error: 'Failed to update template.' };
     }
 }
 

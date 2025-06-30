@@ -2,6 +2,7 @@
 'use client'
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { getTemplatesAction, createTemplateAction, duplicateTemplateAction, deleteTemplateAction } from "@/app/actions"
 import type { Template, TemplateIcon } from "@/lib/template.service"
@@ -28,7 +29,7 @@ const iconMap: Record<TemplateIcon, React.ElementType> = {
   Blocks: Blocks,
 };
 
-function TemplateCardComponent({ template, onDuplicate, onDelete, onConfigure }: { template: Template, onDuplicate: (id: string) => void, onDelete: (id: string) => void, onConfigure: () => void }) {
+function TemplateCardComponent({ template, onDuplicate, onDelete, onConfigure }: { template: Template, onDuplicate: (id: string) => void, onDelete: (id: string) => void, onConfigure: (id: string) => void }) {
   const Icon = iconMap[template.icon] || Blocks;
   const isSystem = template.type === 'System';
 
@@ -47,12 +48,12 @@ function TemplateCardComponent({ template, onDuplicate, onDelete, onConfigure }:
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" disabled={isSystem}>
+              <Button variant="ghost" size="icon">
                 <MoreHorizontal className="size-4" />
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
-              <DropdownMenuItem onSelect={onConfigure}>
+              <DropdownMenuItem onSelect={() => onConfigure(template.id)}>
                 <Settings className="mr-2 h-4 w-4" />
                 Configure
               </DropdownMenuItem>
@@ -60,14 +61,18 @@ function TemplateCardComponent({ template, onDuplicate, onDelete, onConfigure }:
                 <Copy className="mr-2 h-4 w-4" />
                 Duplicate
               </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem 
-                className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                onSelect={() => onDelete(template.id)}
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
+              {!isSystem && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                    onSelect={() => onDelete(template.id)}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -76,11 +81,11 @@ function TemplateCardComponent({ template, onDuplicate, onDelete, onConfigure }:
         <CardDescription>{template.description}</CardDescription>
       </CardContent>
       <CardFooter className="gap-2">
-        <Button variant="outline" className="w-full" onClick={() => onDuplicate(template.id)} disabled={isSystem}>
+        <Button variant="outline" className="w-full" onClick={() => onDuplicate(template.id)}>
           <Copy className="mr-2" />
           Duplicate
         </Button>
-        <Button variant="secondary" className="w-full" onClick={onConfigure}>
+        <Button variant="secondary" className="w-full" onClick={() => onConfigure(template.id)}>
           <Settings className="mr-2" />
           Configure
         </Button>
@@ -147,6 +152,7 @@ function CreateTemplateDialog({ open, onOpenChange, onTemplateCreated }: { open:
 }
 
 export default function TemplatesPage() {
+  const router = useRouter();
   const { tenant } = useTenant();
   const { toast } = useToast();
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -199,11 +205,8 @@ export default function TemplatesPage() {
     setIsDeleteAlertOpen(false);
   };
   
-  const handleConfigure = () => {
-      toast({
-          title: "Coming Soon!",
-          description: "The template editor is currently under development."
-      })
+  const handleConfigure = (templateId: string) => {
+      router.push(`/${tenant.subdomain}/templates/${templateId}`);
   }
 
   const handleDeleteClick = (id: string) => {

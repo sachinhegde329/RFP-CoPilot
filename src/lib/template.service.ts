@@ -55,6 +55,27 @@ class TemplateService {
         return this.tenantData[tenantId].templates;
     }
 
+    public getTemplate(tenantId: string, templateId: string): Template | undefined {
+        this._ensureTenantData(tenantId);
+        return this.tenantData[tenantId].templates.find(t => t.id === templateId);
+    }
+
+    public updateTemplate(tenantId: string, templateId: string, data: Partial<Pick<Template, 'name' | 'description'>>): Template | null {
+        this._ensureTenantData(tenantId);
+        const templates = this.tenantData[tenantId].templates;
+        const templateIndex = templates.findIndex(t => t.id === templateId);
+
+        if (templateIndex > -1) {
+            const template = templates[templateIndex];
+            if (template.type === 'System') {
+                return null;
+            }
+            templates[templateIndex] = { ...template, ...data };
+            return templates[templateIndex];
+        }
+        return null;
+    }
+
     public createTemplate(tenantId: string, data: { name: string, description: string }): Template {
         this._ensureTenantData(tenantId);
         const newTemplate: Template = {
