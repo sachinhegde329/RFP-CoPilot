@@ -12,6 +12,7 @@ type Question = {
   id: number
   question: string
   category: string
+  answer: string
   compliance: "passed" | "failed" | "pending"
   assignee?: TeamMember | null
   status: 'Unassigned' | 'In Progress' | 'Completed'
@@ -22,11 +23,12 @@ type QAndAListProps = {
   tenantId: string
   members: TeamMember[]
   isLocked: boolean
+  onUpdateQuestion: (questionId: number, updates: Partial<Question>) => void;
 }
 
 type FilterType = "all" | "assignedToMe" | "unassigned" | "completed"
 
-export function QAndAList({ initialQuestions, tenantId, members, isLocked }: QAndAListProps) {
+export function QAndAList({ initialQuestions, tenantId, members, isLocked, onUpdateQuestion }: QAndAListProps) {
   const [questions, setQuestions] = useState<Question[]>(initialQuestions)
   const [activeFilter, setActiveFilter] = useState<FilterType>("all")
   const { tenant } = useTenant(); 
@@ -35,14 +37,6 @@ export function QAndAList({ initialQuestions, tenantId, members, isLocked }: QAn
   useEffect(() => {
     setQuestions(initialQuestions);
   }, [initialQuestions]);
-
-  const handleUpdateQuestion = (questionId: number, updates: Partial<Question>) => {
-    setQuestions(prevQuestions =>
-      prevQuestions.map(q =>
-        q.id === questionId ? { ...q, ...updates } : q
-      )
-    )
-  }
 
   const filteredQuestions = useMemo(() => {
     switch (activeFilter) {
@@ -79,7 +73,7 @@ export function QAndAList({ initialQuestions, tenantId, members, isLocked }: QAn
             questionData={q}
             tenantId={tenantId}
             members={members}
-            onUpdateQuestion={handleUpdateQuestion}
+            onUpdateQuestion={onUpdateQuestion}
             isLocked={isLocked}
           />
         ))}

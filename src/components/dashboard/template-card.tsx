@@ -23,11 +23,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import type { TeamMember } from "@/lib/tenants"
 import { exportRfpAction } from "@/app/actions"
 import { useToast } from "@/hooks/use-toast"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 
 type Question = {
   id: number
   question: string
   category: string
+  answer: string
   compliance: "passed" | "failed" | "pending"
   assignee?: TeamMember | null
   status: 'Unassigned' | 'In Progress' | 'Completed'
@@ -66,26 +68,33 @@ export function TemplateCard({ questions, isLocked, onLockChange }: TemplateCard
     ? "All questions must be 'Completed' before exporting."
     : "Ready to export.";
     
-  const handleExport = async () => {
+  const handleExport = async (format: 'pdf' | 'docx') => {
     setIsExporting(true);
     const result = await exportRfpAction({
         questions,
         isLocked,
         currentUserRole: currentUser.role,
-        exportVersion
+        exportVersion,
+        format,
     });
 
-    if (result.error) {
+    if (result.error || !result.fileData || !result.fileName || !result.mimeType) {
         toast({
             variant: "destructive",
             title: "Export Failed",
-            description: result.error,
+            description: result.error || "Could not generate file for download.",
         });
     } else {
         toast({
             title: "Export Successful",
-            description: result.success,
+            description: `Started download for ${result.fileName}.`,
         });
+        const link = document.createElement('a');
+        link.href = `data:${result.mimeType};base64,${result.fileData}`;
+        link.download = result.fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     }
 
     setIsExporting(false);
@@ -176,11 +185,23 @@ export function TemplateCard({ questions, isLocked, onLockChange }: TemplateCard
             <Tooltip delayDuration={0}>
                 <TooltipTrigger asChild>
                     {/* The div wrapper is necessary for the tooltip to work on a disabled button */}
-                    <div className="w-full"> 
-                        <Button className="w-full" disabled={isExportDisabled || isExporting} onClick={handleExport}>
-                            {isExporting ? <Loader2 className="mr-2 animate-spin" /> : <Download className="mr-2" />}
-                            {isExporting ? 'Exporting...' : 'Export as PDF'}
-                        </Button>
+                    <div className="w-full">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                           <Button className="w-full" disabled={isExportDisabled || isExporting}>
+                              {isExporting ? <Loader2 className="mr-2 animate-spin" /> : <Download className="mr-2" />}
+                              {isExporting ? 'Exporting...' : 'Export Response'}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-[--radix-dropdown-menu-trigger-width]">
+                          <DropdownMenuItem onSelect={() => handleExport('pdf')}>
+                            Export as PDF
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onSelect={() => handleExport('docx')}>
+                            Export as Word (.docx)
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </div>
                 </TooltipTrigger>
                 {isExportDisabled && <TooltipContent><p>{exportButtonTooltipContent}</p></TooltipContent>}

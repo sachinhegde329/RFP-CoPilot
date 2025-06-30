@@ -19,6 +19,9 @@ import { stripe } from "@/lib/stripe"
 import { hasFeatureAccess } from "@/lib/access-control"
 import { notificationService } from "@/lib/notifications.service";
 
+import { Document, Packer, Paragraph, HeadingLevel, TextRun } from 'docx';
+import PDFDocument from 'pdfkit';
+
 
 // This action is used by the main dashboard's RfpSummaryCard
 export async function parseDocumentAction(documentDataUri: string, tenantId: string) {
@@ -136,6 +139,7 @@ export async function extractQuestionsAction(rfpText: string) {
     const result = await extractRfpQuestions({ documentText: rfpText })
     const questionsWithStatus = result.questions.map(q => ({
       ...q,
+      answer: "",
       compliance: "pending" as const,
       assignee: null,
       status: "Unassigned" as const,
@@ -452,15 +456,14 @@ export async function markNotificationsAsReadAction(tenantId: string, userId: nu
 
 // == EXPORT ACTION ==
 
-export async function exportRfpAction(
-    payload: {
-        questions: { status: string }[],
-        isLocked: boolean,
-        currentUserRole: Role,
-        exportVersion: string
-    }
-) {
-    const { questions, isLocked, currentUserRole, exportVersion } = payload;
+export async function exportRfpAction(payload: {
+    questions: { id: number, question: string, status: string, answer: string }[],
+    isLocked: boolean,
+    currentUserRole: Role,
+    exportVersion: string
+    format: 'pdf' | 'docx'
+}) {
+    const { questions, isLocked, currentUserRole, exportVersion, format } = payload;
 
     if (!isLocked) {
         return { error: "Export failed: The RFP must be locked before exporting." };
@@ -472,10 +475,73 @@ export async function exportRfpAction(
     if (!allQuestionsCompleted && !isAdmin) {
         return { error: "Export failed: All questions must be marked as 'Completed' before a non-admin can export." };
     }
-
-    // In a real app, this is where you would generate the PDF/DOCX file.
-    // For now, we just simulate a successful export.
-    console.log(`Simulating export for version: ${exportVersion}`);
     
-    return { success: `RFP successfully exported as version "${exportVersion}".` };
+    const fileName = `RFP_Response_${exportVersion.replace(/\s+/g, '_')}.${format}`;
+
+    try {
+        if (format === 'docx') {
+            const doc = new Document({
+                sections: [{
+                    properties: {},
+                    children: [
+                        new Paragraph({ text: `RFP Response - Version ${exportVersion}`, heading: HeadingLevel.TITLE }),
+                        ...questions.flatMap(q => [
+                            new Paragraph({
+                                children: [new TextRun({ text: `Q${q.id}: ${q.question}`, bold: true })],
+                                spacing: { before: 240, after: 120 }
+                            }),
+                            new Paragraph({
+                                text: q.answer || "No answer provided.",
+                            })
+                        ])
+                    ],
+                }],
+            });
+
+            const base64 = await Packer.toBase64String(doc);
+            return {
+                success: true,
+                fileData: base64,
+                fileName,
+                mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            };
+
+        } else if (format === 'pdf') {
+            return new Promise((resolve, reject) => {
+                const doc = new PDFDocument({ margin: 50, bufferPages: true });
+                const buffers: Buffer[] = [];
+                doc.on('data', buffers.push.bind(buffers));
+                doc.on('end', () => {
+                    const pdfData = Buffer.concat(buffers).toString('base64');
+                    resolve({
+                        success: true,
+                        fileData: pdfData,
+                        fileName,
+                        mimeType: 'application/pdf',
+                    });
+                });
+                doc.on('error', reject);
+
+                // Add content
+                doc.fontSize(25).text(`RFP Response - Version ${exportVersion}`, { align: 'center' });
+                doc.moveDown(2);
+
+                questions.forEach(q => {
+                    doc.fontSize(14).font('Helvetica-Bold').text(`Q${q.id}: ${q.question}`);
+                    doc.moveDown(0.5);
+                    doc.fontSize(12).font('Helvetica').text(q.answer || "No answer provided.", {
+                        align: 'justify'
+                    });
+                    doc.moveDown(1.5);
+                });
+
+                doc.end();
+            });
+        } else {
+            return { error: "Invalid export format specified." };
+        }
+    } catch (e) {
+        console.error("Export failed:", e);
+        return { error: "An unexpected error occurred during file generation." };
+    }
 }

@@ -25,6 +25,7 @@ type Question = {
   id: number
   question: string
   category: string
+  answer: string
   compliance: "passed" | "failed" | "pending"
   assignee?: TeamMember | null
   status: 'Unassigned' | 'In Progress' | 'Completed'
@@ -39,11 +40,10 @@ type QAndAItemProps = {
 }
 
 export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQuestion }: QAndAItemProps) {
-  const { id, question, category, compliance, assignee, status } = questionData;
+  const { id, question, category, compliance, assignee, status, answer } = questionData;
   const { tenant } = useTenant();
   const { toast } = useToast();
   
-  const [answer, setAnswer] = useState("")
   const [sources, setSources] = useState<string[]>([])
   const [review, setReview] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
@@ -76,7 +76,7 @@ export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQ
         description: result.error,
       })
     } else {
-      setAnswer(result.answer || "")
+      onUpdateQuestion(id, { answer: result.answer || "" });
       setSources(result.sources || [])
     }
     setIsGenerating(false)
@@ -195,7 +195,7 @@ export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQ
               <Textarea
                 placeholder="Draft your answer here..."
                 value={answer}
-                onChange={(e) => setAnswer(e.target.value)}
+                onChange={(e) => onUpdateQuestion(id, { answer: e.target.value })}
                 className="min-h-[120px] w-full resize-y border-0 pr-10 focus-visible:ring-0"
                 disabled={isEditingDisabled}
               />

@@ -19,6 +19,7 @@ type Question = {
   id: number
   question: string
   category: string
+  answer: string
   compliance: "passed" | "failed" | "pending"
   assignee?: TeamMember | null
   status: 'Unassigned' | 'In Progress' | 'Completed'
@@ -35,6 +36,7 @@ export default function DashboardPage() {
     {
       id: 1,
       question: "What is your data retention policy, and how do you ensure customer data is securely deleted upon request?",
+      answer: "Our data retention policy adheres to industry best practices, retaining customer data for the duration of the contract plus an additional 90 days for recovery purposes. Upon a verified request, data is securely deleted from all active and backup systems using a 3-pass overwrite method to ensure it is irrecoverable.",
       category: "Security",
       compliance: "pending",
       assignee: tenant.members.find(m => m.role === 'Admin') || null, // Assign to first Admin
@@ -43,6 +45,7 @@ export default function DashboardPage() {
     {
       id: 2,
       question: "Can you describe your Service Level Agreement (SLA) for production uptime and provide details on support tiers?",
+      answer: "Our standard SLA guarantees 99.9% uptime for our production environment, excluding scheduled maintenance. We offer two support tiers: Standard (9-5 business hours, email support) and Premium (24/7 phone and email support with a 1-hour response time guarantee for critical issues).",
       category: "Legal",
       compliance: "pending",
       assignee: tenant.members.find(m => m.role === 'Owner') || null, // Assign to Owner (current user)
@@ -51,6 +54,7 @@ export default function DashboardPage() {
     {
       id: 3,
       question: "Please outline your pricing structure, including any volume discounts or multi-year contract options.",
+      answer: "",
       category: "Pricing",
       compliance: "pending",
       assignee: null,
@@ -59,6 +63,7 @@ export default function DashboardPage() {
     {
       id: 4,
       question: "How does your solution integrate with third-party CRM platforms like Salesforce?",
+      answer: "Our solution provides a native, bi-directional integration with Salesforce via a managed package available on the AppExchange. This integration syncs custom objects, standard objects, and allows for seamless data flow between the two platforms without the need for middleware.",
       category: "Product",
       compliance: "pending",
       assignee: tenant.members.find(m => m.role === 'Editor') || null,
@@ -71,6 +76,14 @@ export default function DashboardPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [isLocked, setIsLocked] = useState(false)
   const { toast } = useToast()
+
+  const handleUpdateQuestion = (questionId: number, updates: Partial<Question>) => {
+    setQuestions(prevQuestions =>
+      prevQuestions.map(q =>
+        q.id === questionId ? { ...q, ...updates } : q
+      )
+    )
+  }
 
   const handleProcessRfp = async (rfpText: string) => {
     if (!rfpText.trim()) {
@@ -152,6 +165,7 @@ export default function DashboardPage() {
                 tenantId={tenant.id} 
                 members={tenant.members} 
                 isLocked={isLocked}
+                onUpdateQuestion={handleUpdateQuestion}
               />
             ) : !isLoading ? (
                <Card>
