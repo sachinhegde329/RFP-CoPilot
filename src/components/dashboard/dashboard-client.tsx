@@ -6,7 +6,7 @@ import { RfpSummaryCard } from "@/components/dashboard/rfp-summary-card"
 import { QAndAList } from "@/components/dashboard/q-and-a-list"
 import { ComplianceCard } from "@/components/dashboard/compliance-card"
 import { TemplateCard } from "@/components/dashboard/template-card"
-import { summarizeRfpAction, extractQuestionsAction } from "@/app/actions"
+import { extractQuestionsAction } from "@/app/actions"
 import { useToast } from "@/hooks/use-toast"
 import { Card, CardContent } from "@/components/ui/card"
 import { FileText, Bot } from "lucide-react"
@@ -32,14 +32,12 @@ type Attachment = {
 };
 
 type DashboardClientProps = {
-  initialSummary: string;
   initialQuestions: Question[];
 }
 
-export function DashboardClient({ initialSummary, initialQuestions }: DashboardClientProps) {
+export function DashboardClient({ initialQuestions }: DashboardClientProps) {
   const { tenant } = useTenant();
 
-  const [summary, setSummary] = useState(initialSummary)
   const [questions, setQuestions] = useState<Question[]>(initialQuestions)
   const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isLoading, setIsLoading] = useState(false)
@@ -67,12 +65,11 @@ export function DashboardClient({ initialSummary, initialQuestions }: DashboardC
       toast({
         variant: "destructive",
         title: "Input required",
-        description: "Please paste your RFP content to generate a summary and extract questions.",
+        description: "Please paste your RFP content to extract questions.",
       })
       return
     }
     setIsLoading(true)
-    setSummary("")
     setQuestions([])
     setIsLocked(false) // Unlock when new RFP is processed
 
@@ -93,21 +90,7 @@ export function DashboardClient({ initialSummary, initialQuestions }: DashboardC
 
 
     try {
-      // Run actions in parallel
-      const [summaryResult, questionsResult] = await Promise.all([
-        summarizeRfpAction(rfpText),
-        extractQuestionsAction(rfpText),
-      ])
-
-      if (summaryResult.error) {
-        toast({
-          variant: "destructive",
-          title: "Summarization Error",
-          description: summaryResult.error,
-        })
-      } else {
-        setSummary(summaryResult.summary || "")
-      }
+      const questionsResult = await extractQuestionsAction(rfpText)
 
       if (questionsResult.error) {
         toast({
@@ -144,7 +127,6 @@ export function DashboardClient({ initialSummary, initialQuestions }: DashboardC
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-3">
         <RfpSummaryCard
-          summary={summary}
           isLoading={isLoading}
           onProcessRfp={handleProcessRfp}
         />

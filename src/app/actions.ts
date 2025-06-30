@@ -1,7 +1,6 @@
 
 "use server"
 
-import { autoSummarizeRfp } from "@/ai/flows/auto-summarize-rfp"
 import { generateDraftAnswer } from "@/ai/flows/smart-answer-generation"
 import { aiExpertReview } from "@/ai/flows/ai-expert-review"
 import { extractRfpQuestions } from "@/ai/flows/extract-rfp-questions"
@@ -56,19 +55,6 @@ export async function parseDocumentAction(documentDataUri: string, tenantId: str
         const errorMessage = e instanceof Error ? e.message : "Failed to parse document.";
         return { error: errorMessage };
     }
-}
-
-export async function summarizeRfpAction(rfpText: string) {
-  if (!rfpText) {
-    return { error: "RFP text cannot be empty." }
-  }
-  try {
-    const result = await autoSummarizeRfp({ documentText: rfpText })
-    return { summary: result.summary }
-  } catch (e) {
-    console.error(e)
-    return { error: "Failed to summarize RFP." }
-  }
 }
 
 export async function generateAnswerAction(question: string, tenantId: string) {

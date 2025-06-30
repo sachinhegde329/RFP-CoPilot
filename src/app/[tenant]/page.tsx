@@ -17,8 +17,6 @@ type Question = {
 }
 
 // Sample data is now generated on the server
-const sampleSummary = "This is a sample RFP for a comprehensive enterprise software solution. Key areas of focus include data security, service level agreements (SLAs), pricing models, and integration capabilities with existing platforms like Salesforce. The proposal is due by the end of the month."
-
 const getSampleQuestions = (tenant: Tenant): Question[] => [
     {
       id: 1,
@@ -71,7 +69,6 @@ export default function DashboardPage({ params }: { params: { tenant: string }})
       <DashboardHeader />
       <main className="p-4 sm:p-6 lg:p-8">
         <DashboardClient 
-          initialSummary={sampleSummary}
           initialQuestions={sampleQuestions}
         />
       </main>
