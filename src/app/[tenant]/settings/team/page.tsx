@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { MoreHorizontal, PlusCircle, Trash2, Mail, Edit, Loader2 } from 'lucide-react'
+import { MoreHorizontal, PlusCircle, Trash2, Mail, Edit, Loader2, AlertTriangle } from 'lucide-react'
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { 
@@ -30,6 +30,7 @@ import { type Role, type TeamMember } from '@/lib/tenants';
 import { useToast } from '@/hooks/use-toast';
 import { inviteMemberAction, removeMemberAction, updateMemberRoleAction } from '@/app/actions';
 import { canPerformAction } from '@/lib/access-control';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 
 export default function TeamSettingsPage() {
@@ -163,18 +164,31 @@ export default function TeamSettingsPage() {
                 </Dialog>
             </CardHeader>
             <CardContent>
-                <div className="border rounded-lg mb-4 p-4 flex justify-between items-center">
-                    <div>
-                        <p className="font-medium">{usedSeats} of {totalSeats} seats used</p>
-                        <p className="text-sm text-muted-foreground">
-                            {availableSeats > 0 ? `You have ${availableSeats} seats available.` : "You have no available seats."}
-                            <Link href={`/pricing?tenant=${tenant.subdomain}`} className="text-primary underline ml-1">Upgrade plan</Link> for more.
-                        </p>
+                {availableSeats > 0 ? (
+                    <div className="border rounded-lg mb-4 p-4 flex justify-between items-center">
+                        <div>
+                            <p className="font-medium">{usedSeats} of {totalSeats} seats used</p>
+                            <p className="text-sm text-muted-foreground">
+                                You have {availableSeats} {availableSeats === 1 ? 'seat' : 'seats'} available.
+                                <Link href={`/pricing?tenant=${tenant.subdomain}`} className="text-primary underline ml-1">Upgrade plan</Link> for more.
+                            </p>
+                        </div>
+                        <Button variant="outline" asChild>
+                            <Link href={`/pricing?tenant=${tenant.subdomain}`}>Manage Seats</Link>
+                        </Button>
                     </div>
-                    <Button variant="outline" asChild>
-                        <Link href={`/pricing?tenant=${tenant.subdomain}`}>Manage Seats</Link>
-                    </Button>
-                </div>
+                ) : (
+                    <Alert variant="destructive" className="mb-4">
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertTitle>You've reached your seat limit!</AlertTitle>
+                        <AlertDescription>
+                            You have used all {totalSeats} seats available on your plan. To invite more team members, please upgrade your subscription.
+                             <Button asChild size="sm" className="ml-4">
+                                <Link href={`/pricing?tenant=${tenant.subdomain}`}>Upgrade Plan</Link>
+                            </Button>
+                        </AlertDescription>
+                    </Alert>
+                )}
                 <Table>
                     <TableHeader>
                         <TableRow>
