@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState, useMemo, useEffect } from "react"
@@ -6,9 +7,17 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button"
 import type { TeamMember } from "@/lib/tenants"
 import { useTenant } from "@/components/providers/tenant-provider"
-import { PlusCircle } from "lucide-react"
+import { PlusCircle, ChevronDown } from "lucide-react"
 import { Accordion } from "@/components/ui/accordion"
 import { Progress } from "@/components/ui/progress"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+
 
 type Question = {
   id: number
@@ -59,6 +68,14 @@ export function QAndAList({ initialQuestions, tenantId, members, isLocked, onUpd
   const totalCount = questions.length;
   const progressPercentage = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
+  const isAssignmentFilterActive = activeFilter === 'assignedToMe' || activeFilter === 'unassigned';
+  
+  const assignmentFilterLabel = useMemo(() => {
+    if (activeFilter === 'assignedToMe') return 'Assigned to Me';
+    if (activeFilter === 'unassigned') return 'Unassigned';
+    return 'Filter by Assignee';
+  }, [activeFilter]);
+
   return (
     <Card>
       <CardHeader>
@@ -87,8 +104,22 @@ export function QAndAList({ initialQuestions, tenantId, members, isLocked, onUpd
 
         <div className="flex flex-wrap gap-2 pt-4">
             <Button variant={activeFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('all')}>All ({questions.length})</Button>
-            <Button variant={activeFilter === 'assignedToMe' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('assignedToMe')}>Assigned to Me ({questions.filter(q => q.assignee?.id === currentUser.id).length})</Button>
-            <Button variant={activeFilter === 'unassigned' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('unassigned')}>Unassigned ({questions.filter(q => !q.assignee).length})</Button>
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant={isAssignmentFilterActive ? 'default' : 'outline'} size="sm" className="flex items-center">
+                  {assignmentFilterLabel}
+                  <ChevronDown className="ml-2 h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start">
+                  <DropdownMenuRadioGroup value={activeFilter} onValueChange={(value) => setActiveFilter(value as FilterType)}>
+                    <DropdownMenuRadioItem value="assignedToMe">Assigned to Me ({questions.filter(q => q.assignee?.id === currentUser.id).length})</DropdownMenuRadioItem>
+                    <DropdownMenuRadioItem value="unassigned">Unassigned ({questions.filter(q => !q.assignee).length})</DropdownMenuRadioItem>
+                  </DropdownMenuRadioGroup>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
             <Button variant={activeFilter === 'completed' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('completed')}>Completed ({questions.filter(q => q.status === 'Completed').length})</Button>
         </div>
       </CardHeader>
