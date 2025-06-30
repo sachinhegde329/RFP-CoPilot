@@ -59,6 +59,12 @@ export interface SyncLog {
     itemsProcessed: number;
 }
 
+export interface SearchFilters {
+    topK?: number;
+    sourceTypes?: DataSourceType[];
+    // We can add more filters here later, like tags or date ranges
+}
+
 interface TenantData {
     sources: DataSource[];
     chunks: DocumentChunk[];
@@ -224,12 +230,19 @@ class KnowledgeBaseService {
     return this.tenantData[tenantId].chunks.length < initialLength;
   }
 
-  public async searchChunks(tenantId: string, query: string, topK = 5): Promise<DocumentChunk[]> {
-    // Filter for chunks that belong to the tenant and have an embedding.
-    const tenantChunks = this.tenantData[tenantId]?.chunks.filter(chunk => chunk.embedding) || [];
+  public async searchChunks(tenantId: string, query: string, filters: SearchFilters = {}): Promise<DocumentChunk[]> {
+    const { topK = 5, sourceTypes } = filters;
+
+    // Start with all chunks for the tenant that have an embedding.
+    let potentialChunks = this.tenantData[tenantId]?.chunks.filter(chunk => chunk.embedding) || [];
     
-    if (tenantChunks.length === 0 || !query) {
+    if (potentialChunks.length === 0 || !query) {
         return [];
+    }
+
+    // Apply filters before the expensive embedding and similarity calculations
+    if (sourceTypes && sourceTypes.length > 0) {
+        potentialChunks = potentialChunks.filter(chunk => sourceTypes.includes(chunk.metadata.sourceType));
     }
     
     // Generate an embedding for the user's query.
@@ -240,7 +253,7 @@ class KnowledgeBaseService {
     }
     
     // Calculate the similarity score for each chunk.
-    const scoredChunks = tenantChunks.map(chunk => ({
+    const scoredChunks = potentialChunks.map(chunk => ({
         ...chunk,
         score: this.cosineSimilarity(queryEmbedding, chunk.embedding!),
     }));

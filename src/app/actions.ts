@@ -68,7 +68,10 @@ export async function generateAnswerAction(question: string, tenantId: string) {
   }
 
   try {
-    const relevantChunks = await knowledgeBaseService.searchChunks(tenantId, question);
+    const relevantChunks = await knowledgeBaseService.searchChunks(tenantId, question, {
+        topK: 5,
+        sourceTypes: ['document', 'website'],
+    });
     
     if (relevantChunks.length === 0) {
         return {
@@ -551,14 +554,13 @@ export async function exportRfpAction(payload: {
         } else if (format === 'pdf') {
             const doc = new PDFDocument({ margin: 50, bufferPages: true });
 
+            // Add content
             doc.fontSize(18).text(`RFP Response - Version ${exportVersion}`, { align: 'center' });
             doc.moveDown(2);
-            
-            doc.fontSize(12);
 
             questions.forEach(q => {
-                doc.font('Helvetica-Bold').text(`Q${q.id}: ${q.question}`);
-                doc.font('Helvetica').text(q.answer || "No answer provided.", { indent: 20 });
+                doc.fontSize(12).text(`Q${q.id}: ${q.question}`);
+                doc.text(q.answer || "No answer provided.", { indent: 20 });
                 doc.moveDown();
             });
 
@@ -566,11 +568,10 @@ export async function exportRfpAction(payload: {
                 doc.addPage();
                 doc.fontSize(18).text('Acknowledgments', { align: 'center' });
                 doc.moveDown(2);
-                doc.fontSize(12);
 
                 acknowledgments.forEach(ack => {
-                    doc.font('Helvetica-Bold').text(`${ack.name} (${ack.role})`);
-                    doc.font('Helvetica-Oblique').text(`"${ack.comment}"`, { indent: 20 });
+                    doc.fontSize(12).text(`${ack.name} (${ack.role})`);
+                    doc.text(`"${ack.comment}"`, { indent: 20 });
                     doc.moveDown();
                 });
             }
