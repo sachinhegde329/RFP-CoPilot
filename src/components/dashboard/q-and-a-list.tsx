@@ -1,6 +1,7 @@
+
 'use client'
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { QAndAItem } from "./q-and-a-item"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -29,6 +30,10 @@ export function QAndAList({ initialQuestions, tenantId, members }: QAndAListProp
   const [activeFilter, setActiveFilter] = useState<FilterType>("all")
   const { tenant } = useTenant(); 
   const currentUser = tenant.members[0]; // For demo, assume current user is the first member
+
+  useEffect(() => {
+    setQuestions(initialQuestions);
+  }, [initialQuestions]);
 
   const handleUpdateQuestion = (questionId: number, updates: Partial<Question>) => {
     setQuestions(prevQuestions =>

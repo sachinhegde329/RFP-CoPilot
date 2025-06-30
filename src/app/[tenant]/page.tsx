@@ -1,6 +1,7 @@
+
 'use client'
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { SidebarInset } from "@/components/ui/sidebar"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
@@ -23,12 +24,52 @@ type Question = {
   status: 'Unassigned' | 'In Progress' | 'Completed'
 }
 
+// Sample data for summary
+const sampleSummary = "This is a sample RFP for a comprehensive enterprise software solution. Key areas of focus include data security, service level agreements (SLAs), pricing models, and integration capabilities with existing platforms like Salesforce. The proposal is due by the end of the month."
+
 export default function DashboardPage() {
-  const [summary, setSummary] = useState("")
-  const [questions, setQuestions] = useState<Question[]>([])
+  const { tenant } = useTenant();
+
+  // Sample data for questions, using tenant members for assignment
+  const sampleQuestions = useMemo((): Question[] => [
+    {
+      id: 1,
+      question: "What is your data retention policy, and how do you ensure customer data is securely deleted upon request?",
+      category: "Security",
+      compliance: "pending",
+      assignee: tenant.members.find(m => m.role === 'Admin') || null, // Assign to first Admin
+      status: 'In Progress'
+    },
+    {
+      id: 2,
+      question: "Can you describe your Service Level Agreement (SLA) for production uptime and provide details on support tiers?",
+      category: "Legal",
+      compliance: "pending",
+      assignee: tenant.members.find(m => m.role === 'Owner') || null, // Assign to Owner (current user)
+      status: 'In Progress'
+    },
+    {
+      id: 3,
+      question: "Please outline your pricing structure, including any volume discounts or multi-year contract options.",
+      category: "Pricing",
+      compliance: "pending",
+      assignee: null,
+      status: 'Unassigned'
+    },
+    {
+      id: 4,
+      question: "How does your solution integrate with third-party CRM platforms like Salesforce?",
+      category: "Product",
+      compliance: "pending",
+      assignee: tenant.members.find(m => m.role === 'Editor') || null,
+      status: 'Completed'
+    }
+  ], [tenant.members]);
+  
+  const [summary, setSummary] = useState(sampleSummary)
+  const [questions, setQuestions] = useState<Question[]>(sampleQuestions)
   const [isLoading, setIsLoading] = useState(false)
   const { toast } = useToast()
-  const { tenant } = useTenant();
 
   const handleProcessRfp = async (rfpText: string) => {
     if (!rfpText.trim()) {
