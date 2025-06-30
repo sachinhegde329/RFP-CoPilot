@@ -4,48 +4,37 @@
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select"
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import {
-  Sparkles,
-  ShieldCheck,
-  CheckCircle2,
-  XCircle,
-  History,
-  Loader2,
-  Bot,
-  Clipboard,
-  ClipboardCheck,
-  Tag,
-  BookOpenCheck,
-} from "lucide-react"
+import { Sparkles, ShieldCheck, CheckCircle2, XCircle, History, Loader2, Bot, Clipboard, ClipboardCheck, Tag, BookOpenCheck, UserPlus, Circle, CheckCircle, CircleDotDashed } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { generateAnswerAction, reviewAnswerAction } from "@/app/actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { hasFeatureAccess } from "@/lib/access-control"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import type { TeamMember } from "@/lib/tenants"
 
-type QAndAItemProps = {
-  question: string
+type Question = {
   id: number
+  question: string
   category: string
   compliance: "passed" | "failed" | "pending"
-  tenantId: string
+  assignee?: TeamMember | null
+  status: 'Unassigned' | 'In Progress' | 'Completed'
 }
 
-export function QAndAItem({ question, id, category, compliance, tenantId }: QAndAItemProps) {
+type QAndAItemProps = {
+  questionData: Question
+  tenantId: string
+  members: TeamMember[]
+  onUpdateQuestion: (questionId: number, updates: Partial<Question>) => void
+}
+
+export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }: QAndAItemProps) {
+  const { id, question, category, compliance, assignee, status } = questionData;
   const [answer, setAnswer] = useState("")
   const [sources, setSources] = useState<string[]>([])
   const [review, setReview] = useState("")
@@ -103,6 +92,23 @@ export function QAndAItem({ question, id, category, compliance, tenantId }: QAnd
     setIsCopied(true);
     setTimeout(() => setIsCopied(false), 2000);
   }
+
+  const handleAssigneeChange = (member: TeamMember | null) => {
+    onUpdateQuestion(id, { assignee: member });
+  };
+
+  const handleStatusChange = (newStatus: Question['status']) => {
+    onUpdateQuestion(id, { status: newStatus });
+  };
+
+  const StatusIcon = ({ status }: { status: Question['status'] }) => {
+    switch (status) {
+      case 'Completed': return <CheckCircle className="h-4 w-4 text-green-600" />;
+      case 'In Progress': return <CircleDotDashed className="h-4 w-4 text-yellow-600" />;
+      case 'Unassigned':
+      default: return <Circle className="h-4 w-4 text-muted-foreground" />;
+    }
+  };
 
   const ComplianceBadge = () => {
     switch (compliance) {
@@ -214,6 +220,70 @@ export function QAndAItem({ question, id, category, compliance, tenantId }: QAnd
           </Alert>
         )}
       </CardContent>
+       <CardFooter className="flex flex-wrap gap-4 justify-between items-center bg-muted/50 p-3 border-t">
+        <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">Assignee:</span>
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="h-8">
+                        {assignee ? (
+                            <>
+                                <Avatar className="h-5 w-5 mr-2">
+                                    {assignee.avatar && <AvatarImage src={assignee.avatar} alt={assignee.name} />}
+                                    <AvatarFallback className="text-xs">{assignee.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                {assignee.name}
+                            </>
+                        ) : (
+                            <>
+                                <UserPlus className="mr-2 h-4 w-4"/>
+                                Unassigned
+                            </>
+                        )}
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent>
+                    <DropdownMenuLabel>Assign to</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => handleAssigneeChange(null)}>
+                        <UserPlus className="mr-2 h-4 w-4"/>
+                        Unassigned
+                    </DropdownMenuItem>
+                    {members.map(member => (
+                        <DropdownMenuItem key={member.id} onSelect={() => handleAssigneeChange(member)}>
+                             <Avatar className="h-5 w-5 mr-2">
+                                {member.avatar && <AvatarImage src={member.avatar} alt={member.name} />}
+                                <AvatarFallback className="text-xs">{member.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            {member.name}
+                        </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
+        </div>
+        <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-muted-foreground">Status:</span>
+             <Select value={status} onValueChange={(value: Question['status']) => handleStatusChange(value)}>
+                <SelectTrigger className="w-[150px] h-8">
+                   <div className="flex items-center gap-2">
+                     <StatusIcon status={status} />
+                     <SelectValue />
+                   </div>
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="Unassigned">
+                        <div className="flex items-center gap-2"><Circle className="h-4 w-4 text-muted-foreground" /> Unassigned</div>
+                    </SelectItem>
+                    <SelectItem value="In Progress">
+                        <div className="flex items-center gap-2"><CircleDotDashed className="h-4 w-4 text-yellow-600" /> In Progress</div>
+                    </SelectItem>
+                    <SelectItem value="Completed">
+                        <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /> Completed</div>
+                    </SelectItem>
+                </SelectContent>
+            </Select>
+        </div>
+      </CardFooter>
     </Card>
   )
 }

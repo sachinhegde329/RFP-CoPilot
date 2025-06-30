@@ -133,10 +133,11 @@ export async function extractQuestionsAction(rfpText: string) {
   }
   try {
     const result = await extractRfpQuestions({ documentText: rfpText })
-    // Add a default 'pending' compliance status to each question for the UI
     const questionsWithStatus = result.questions.map(q => ({
       ...q,
       compliance: "pending" as const,
+      assignee: null,
+      status: "Unassigned" as const,
     }))
     return { questions: questionsWithStatus }
   } catch (e) {

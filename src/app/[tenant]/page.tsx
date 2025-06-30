@@ -12,12 +12,15 @@ import { summarizeRfpAction, extractQuestionsAction } from "@/app/actions"
 import { useToast } from "@/hooks/use-toast"
 import { Card, CardContent } from "@/components/ui/card"
 import { FileText, Bot } from "lucide-react"
+import type { TeamMember } from "@/lib/tenants"
 
 type Question = {
   id: number
   question: string
   category: string
   compliance: "passed" | "failed" | "pending"
+  assignee?: TeamMember | null
+  status: 'Unassigned' | 'In Progress' | 'Completed'
 }
 
 export default function DashboardPage() {
@@ -101,7 +104,11 @@ export default function DashboardPage() {
                  </CardContent>
                </Card>
             ) : questions.length > 0 ? (
-              <QAndAList questions={questions} tenantId={tenant.id} />
+              <QAndAList 
+                initialQuestions={questions} 
+                tenantId={tenant.id} 
+                members={tenant.members} 
+              />
             ) : !isLoading ? (
                <Card>
                  <CardContent className="pt-6">
