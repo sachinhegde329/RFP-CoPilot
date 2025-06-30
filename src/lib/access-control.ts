@@ -1,7 +1,10 @@
-import type { Tenant } from "./tenants";
+
+import type { Tenant, Role } from "./tenants";
 import type { addOnsConfig } from "./tenants";
 
 export type Feature = keyof typeof addOnsConfig | 'aiExpertReview';
+export type Action = 'manageTeam' | 'editWorkspace' | 'approveContent' | 'editContent' | 'viewContent';
+
 
 const planFeatureMatrix: Record<Tenant['plan'], Feature[]> = {
     free: [],
@@ -9,6 +12,15 @@ const planFeatureMatrix: Record<Tenant['plan'], Feature[]> = {
     growth: ['aiExpertReview', 'analytics', 'customTemplates'],
     enterprise: ['aiExpertReview', 'analytics', 'customTemplates', 'complianceValidation'],
 };
+
+const rolePermissions: Record<Role, Action[]> = {
+    Owner: ['manageTeam', 'editWorkspace', 'approveContent', 'editContent', 'viewContent'],
+    Admin: ['manageTeam', 'editWorkspace', 'approveContent', 'editContent', 'viewContent'],
+    Approver: ['approveContent', 'editContent', 'viewContent'],
+    Editor: ['editContent', 'viewContent'],
+    Viewer: ['viewContent'],
+};
+
 
 /**
  * Checks if a tenant has access to a specific feature based on their plan and add-ons.
@@ -28,4 +40,14 @@ export function hasFeatureAccess(tenant: Tenant, feature: Feature): boolean {
     }
 
     return false;
+}
+
+/**
+ * Checks if a user with a given role can perform a specific action.
+ * @param role The user's role.
+ * @param action The action to check.
+ * @returns `true` if the role has permission, otherwise `false`.
+ */
+export function canPerformAction(role: Role, action: Action): boolean {
+    return rolePermissions[role]?.includes(action) || false;
 }

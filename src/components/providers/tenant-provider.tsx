@@ -1,23 +1,27 @@
+
 'use client';
 
 import { type Tenant } from '@/lib/tenants';
-import React, { createContext, useContext } from 'react';
+import React, { createContext, useContext, useState, Dispatch, SetStateAction } from 'react';
 
 type TenantContextType = {
   tenant: Tenant;
+  setTenant: Dispatch<SetStateAction<Tenant>>;
 };
 
 const TenantContext = createContext<TenantContextType | null>(null);
 
 export function TenantProvider({
   children,
-  tenant,
+  tenant: initialTenant,
 }: {
   children: React.ReactNode;
   tenant: Tenant;
 }) {
+  const [tenant, setTenant] = useState<Tenant>(initialTenant);
+
   return (
-    <TenantContext.Provider value={{ tenant }}>
+    <TenantContext.Provider value={{ tenant, setTenant }}>
       {children}
     </TenantContext.Provider>
   );

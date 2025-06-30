@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { MoreHorizontal, PlusCircle, Trash2, Mail, Edit } from 'lucide-react'
+import { MoreHorizontal, PlusCircle, Trash2, Mail, Edit, Loader2 } from 'lucide-react'
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { 
@@ -26,24 +26,64 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useTenant } from '@/components/providers/tenant-provider';
 import Link from "next/link";
+import { type Role, type TeamMember } from '@/lib/tenants';
+import { useToast } from '@/hooks/use-toast';
+import { inviteMemberAction, removeMemberAction, updateMemberRoleAction } from '@/app/actions';
 
-// Mock data for team members
-const teamMembers = [
-  { id: 1, name: 'Alex Johnson', email: 'alex.j@megacorp.com', role: 'Owner', avatar: 'https://placehold.co/100x100.png', status: 'Active' },
-  { id: 2, name: 'Maria Garcia', email: 'maria.g@megacorp.com', role: 'Admin', avatar: 'https://placehold.co/100x100.png', status: 'Active' },
-  { id: 3, name: 'David Chen', email: 'david.c@megacorp.com', role: 'Approver', avatar: 'https://placehold.co/100x100.png', status: 'Active' },
-  { id: 4, name: 'Priya Patel', email: 'priya.p@megacorp.com', role: 'Editor', avatar: 'https://placehold.co/100x100.png', status: 'Active' },
-  { id: 5, name: 'John Smith', email: 'john.s@megacorp.com', role: 'Viewer', avatar: 'https://placehold.co/100x100.png', status: 'Active' },
-  { id: 6, name: 'sara.k@example.com', email: 'sara.k@example.com', role: 'Editor', avatar: null, status: 'Pending' },
-];
 
 export default function TeamSettingsPage() {
-    const { tenant } = useTenant();
+    const { tenant, setTenant } = useTenant();
+    const { toast } = useToast();
     const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
+    const [inviteEmail, setInviteEmail] = useState('');
+    const [inviteRole, setInviteRole] = useState<Role>('Editor');
+    const [isLoading, setIsLoading] = useState(false);
 
+    const teamMembers = tenant.members;
     const totalSeats = tenant.limits.seats;
     const usedSeats = teamMembers.length;
     const availableSeats = totalSeats - usedSeats;
+
+    const handleInviteMember = async () => {
+        if (!inviteEmail || !inviteRole) {
+            toast({ variant: 'destructive', title: 'Missing information', description: 'Please provide an email and a role.' });
+            return;
+        }
+        setIsLoading(true);
+
+        const result = await inviteMemberAction(tenant.id, inviteEmail, inviteRole);
+        if (result.error || !result.member) {
+            toast({ variant: 'destructive', title: 'Invitation Failed', description: result.error });
+        } else {
+            setTenant(prev => ({ ...prev, members: [result.member!, ...prev.members] }));
+            toast({ title: 'Invitation Sent', description: `An invitation has been sent to ${inviteEmail}.` });
+            setIsInviteDialogOpen(false);
+            setInviteEmail('');
+            setInviteRole('Editor');
+        }
+        setIsLoading(false);
+    };
+
+    const handleRemoveMember = async (member: TeamMember) => {
+        const result = await removeMemberAction(tenant.id, member.id);
+        if (result.error) {
+            toast({ variant: 'destructive', title: 'Error', description: result.error });
+        } else {
+            setTenant(prev => ({ ...prev, members: prev.members.filter(m => m.id !== member.id) }));
+            toast({ title: 'Member Removed', description: `${member.name} has been removed from the workspace.` });
+        }
+    }
+
+    const handleRoleChange = async (memberId: number, newRole: Role) => {
+        const result = await updateMemberRoleAction(tenant.id, memberId, newRole);
+         if (result.error || !result.member) {
+            toast({ variant: 'destructive', title: 'Error', description: result.error });
+        } else {
+            setTenant(prev => ({ ...prev, members: prev.members.map(m => m.id === memberId ? result.member! : m) }));
+            toast({ title: 'Role Updated', description: `The role has been successfully updated.` });
+        }
+    }
+
 
     return (
         <Card>
@@ -71,22 +111,34 @@ export default function TeamSettingsPage() {
                                 <Label htmlFor="email" className="text-right">
                                 Email
                                 </Label>
-                                <Input id="email" type="email" placeholder="name@company.com" className="col-span-3" />
+                                <Input 
+                                    id="email" 
+                                    type="email" 
+                                    placeholder="name@company.com" 
+                                    className="col-span-3"
+                                    value={inviteEmail}
+                                    onChange={(e) => setInviteEmail(e.target.value)}
+                                    disabled={isLoading} 
+                                />
                             </div>
                             <div className="grid grid-cols-4 items-center gap-4">
                                 <Label htmlFor="role" className="text-right">
                                 Role
                                 </Label>
                                 <div className="col-span-3">
-                                    <Select>
+                                    <Select 
+                                        value={inviteRole}
+                                        onValueChange={(value) => setInviteRole(value as Role)}
+                                        disabled={isLoading}
+                                    >
                                         <SelectTrigger id="role">
                                             <SelectValue placeholder="Select a role" />
                                         </SelectTrigger>
                                         <SelectContent>
-                                            <SelectItem value="viewer">Viewer</SelectItem>
-                                            <SelectItem value="editor">Editor</SelectItem>
-                                            <SelectItem value="approver">Approver</SelectItem>
-                                            <SelectItem value="admin">Admin</SelectItem>
+                                            <SelectItem value="Viewer">Viewer</SelectItem>
+                                            <SelectItem value="Editor">Editor</SelectItem>
+                                            <SelectItem value="Approver">Approver</SelectItem>
+                                            <SelectItem value="Admin">Admin</SelectItem>
                                         </SelectContent>
                                     </Select>
                                     <p className="text-xs text-muted-foreground mt-2">
@@ -96,7 +148,10 @@ export default function TeamSettingsPage() {
                             </div>
                         </div>
                         <DialogFooter>
-                            <Button type="submit" onClick={() => setIsInviteDialogOpen(false)}>Send Invitation</Button>
+                            <Button type="submit" onClick={handleInviteMember} disabled={isLoading}>
+                                {isLoading && <Loader2 className="mr-2 animate-spin" />}
+                                Send Invitation
+                            </Button>
                         </DialogFooter>
                     </DialogContent>
                 </Dialog>
@@ -130,7 +185,7 @@ export default function TeamSettingsPage() {
                                     <div className="flex items-center gap-3">
                                         <Avatar>
                                             {member.avatar && <AvatarImage src={member.avatar} alt={member.name}/>}
-                                            <AvatarFallback>{member.name.charAt(0)}</AvatarFallback>
+                                            <AvatarFallback>{member.name.charAt(0).toUpperCase()}</AvatarFallback>
                                         </Avatar>
                                         <div>
                                             <div className="font-medium">{member.name}</div>
@@ -160,11 +215,14 @@ export default function TeamSettingsPage() {
                                                 </DropdownMenuSubTrigger>
                                                 <DropdownMenuPortal>
                                                     <DropdownMenuSubContent>
-                                                        <DropdownMenuRadioGroup value={member.role.toLowerCase()}>
-                                                            <DropdownMenuRadioItem value="viewer">Viewer</DropdownMenuRadioItem>
-                                                            <DropdownMenuRadioItem value="editor">Editor</DropdownMenuRadioItem>
-                                                            <DropdownMenuRadioItem value="approver">Approver</DropdownMenuRadioItem>
-                                                            <DropdownMenuRadioItem value="admin">Admin</DropdownMenuRadioItem>
+                                                        <DropdownMenuRadioGroup 
+                                                            value={member.role.toLowerCase()}
+                                                            onValueChange={(value) => handleRoleChange(member.id, value as Role)}
+                                                        >
+                                                            <DropdownMenuRadioItem value="Viewer">Viewer</DropdownMenuRadioItem>
+                                                            <DropdownMenuRadioItem value="Editor">Editor</DropdownMenuRadioItem>
+                                                            <DropdownMenuRadioItem value="Approver">Approver</DropdownMenuRadioItem>
+                                                            <DropdownMenuRadioItem value="Admin">Admin</DropdownMenuRadioItem>
                                                         </DropdownMenuRadioGroup>
                                                     </DropdownMenuSubContent>
                                                 </DropdownMenuPortal>
@@ -174,7 +232,7 @@ export default function TeamSettingsPage() {
                                             
                                             <DropdownMenuSeparator />
 
-                                            <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+                                            <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive" onSelect={() => handleRemoveMember(member)}>
                                                 <Trash2 className="mr-2 h-4 w-4" /> 
                                                 Remove Member
                                             </DropdownMenuItem>

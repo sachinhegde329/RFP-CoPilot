@@ -7,7 +7,14 @@ import { aiExpertReview } from "@/ai/flows/ai-expert-review"
 import { extractRfpQuestions } from "@/ai/flows/extract-rfp-questions"
 import { parseDocument } from "@/ai/flows/parse-document"
 import { knowledgeBaseService } from "@/lib/knowledge-base"
-import { getTenantBySubdomain, plansConfig } from "@/lib/tenants"
+import {
+    getTenantBySubdomain,
+    plansConfig,
+    inviteMember as inviteMemberToTenant,
+    removeMember as removeMemberFromTenant,
+    updateMemberRole as updateMemberRoleInTenant,
+    type Role
+} from "@/lib/tenants"
 import { stripe } from "@/lib/stripe"
 import { hasFeatureAccess } from "@/lib/access-control"
 
@@ -356,5 +363,59 @@ export async function createCustomerPortalSessionAction(tenantId: string) {
     console.error(e);
     const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
     return { error: `Stripe error: ${errorMessage}` };
+  }
+}
+
+// == TEAM MANAGEMENT ACTIONS ==
+
+export async function inviteMemberAction(tenantId: string, email: string, role: Role) {
+  if (!tenantId || !email || !role) {
+    return { error: "Missing required parameters." };
+  }
+  try {
+    const newMember = inviteMemberToTenant(tenantId, email, role);
+    if (!newMember) {
+      return { error: `Could not invite ${email}. They may already be a member.` };
+    }
+    // In a real app, you would send an invitation email here.
+    return { success: true, member: newMember };
+  } catch (e) {
+    console.error(e);
+    const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
+    return { error: `Failed to invite member: ${errorMessage}` };
+  }
+}
+
+export async function removeMemberAction(tenantId: string, memberId: number) {
+  if (!tenantId || !memberId) {
+    return { error: "Missing required parameters." };
+  }
+  try {
+    const success = removeMemberFromTenant(tenantId, memberId);
+    if (!success) {
+      return { error: "Could not remove member. Owners cannot be removed." };
+    }
+    return { success: true };
+  } catch (e) {
+    console.error(e);
+    const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
+    return { error: `Failed to remove member: ${errorMessage}` };
+  }
+}
+
+export async function updateMemberRoleAction(tenantId: string, memberId: number, newRole: Role) {
+  if (!tenantId || !memberId || !newRole) {
+    return { error: "Missing required parameters." };
+  }
+  try {
+    const updatedMember = updateMemberRoleInTenant(tenantId, memberId, newRole);
+    if (!updatedMember) {
+      return { error: "Could not update role. Owners cannot be changed." };
+    }
+    return { success: true, member: updatedMember };
+  } catch (e) {
+    console.error(e);
+    const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
+    return { error: `Failed to update member role: ${errorMessage}` };
   }
 }

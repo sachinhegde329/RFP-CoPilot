@@ -1,5 +1,17 @@
 
+
 export type AddOn = 'analytics' | 'customTemplates' | 'complianceValidation';
+export type Role = 'Owner' | 'Admin' | 'Approver' | 'Editor' | 'Viewer';
+export type MemberStatus = 'Active' | 'Pending';
+
+export interface TeamMember {
+  id: number;
+  name: string;
+  email: string;
+  role: Role;
+  avatar?: string | null;
+  status: MemberStatus;
+}
 
 export interface Tenant {
   id: string;
@@ -18,6 +30,7 @@ export interface Tenant {
     fileSizeMb: number;
     seats: number;
   };
+  members: TeamMember[];
 }
 
 export const addOnsConfig = {
@@ -60,6 +73,10 @@ const tenants: Omit<Tenant, 'limits'>[] = [
       logoUrl: 'https://placehold.co/128x32.png',
       logoDataAiHint: 'modern logo',
     },
+    members: [
+      { id: 1, name: 'Alice (Owner)', email: 'alice@acme.com', role: 'Owner', avatar: 'https://placehold.co/100x100.png', status: 'Active' },
+      { id: 2, name: 'Bob (Admin)', email: 'bob@acme.com', role: 'Admin', avatar: 'https://placehold.co/100x100.png', status: 'Active' },
+    ],
   },
   {
     id: 'megacorp',
@@ -74,6 +91,14 @@ const tenants: Omit<Tenant, 'limits'>[] = [
       logoUrl: 'https://placehold.co/128x32.png',
       logoDataAiHint: 'corporate logo',
     },
+    members: [
+        { id: 1, name: 'Alex Johnson', email: 'alex.j@megacorp.com', role: 'Owner', avatar: 'https://placehold.co/100x100.png', status: 'Active' },
+        { id: 2, name: 'Maria Garcia', email: 'maria.g@megacorp.com', role: 'Admin', avatar: 'https://placehold.co/100x100.png', status: 'Active' },
+        { id: 3, name: 'David Chen', email: 'david.c@megacorp.com', role: 'Approver', avatar: 'https://placehold.co/100x100.png', status: 'Active' },
+        { id: 4, name: 'Priya Patel', email: 'priya.p@megacorp.com', role: 'Editor', avatar: 'https://placehold.co/100x100.png', status: 'Active' },
+        { id: 5, name: 'John Smith', email: 'john.s@megacorp.com', role: 'Viewer', avatar: 'https://placehold.co/100x100.png', status: 'Active' },
+        { id: 6, name: 'sara.k@example.com', email: 'sara.k@example.com', role: 'Editor', avatar: null, status: 'Pending' },
+    ],
   },
 ];
 
@@ -98,6 +123,8 @@ function createFreeTenant(subdomain: string): Tenant {
   const sanitizedSubdomain = subdomain.toLowerCase().replace(/[^a-z0-9-]/g, '-');
   const name = sanitizedSubdomain.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 
+  const ownerEmail = `${sanitizedSubdomain}-owner@example.com`;
+
   return {
     id: sanitizedSubdomain,
     name: `${name}`,
@@ -112,6 +139,9 @@ function createFreeTenant(subdomain: string): Tenant {
       logoDataAiHint: 'generic logo',
     },
     limits: plansConfig.free,
+    members: [
+        { id: 1, name: 'Workspace Owner', email: ownerEmail, role: 'Owner', avatar: null, status: 'Active' }
+    ]
   };
 }
 
@@ -123,7 +153,7 @@ function getLimitsForTenant(tenantData: Omit<Tenant, 'limits'>): { seats: number
     return plansConfig[tenantData.plan];
 }
 
-export function updateTenant(tenantId: string, updates: Partial<Tenant>) {
+export function updateTenant(tenantId: string, updates: Partial<Omit<Tenant, 'limits'>>) {
     const tenantIndex = tenants.findIndex(t => t.id === tenantId);
     if (tenantIndex > -1) {
         tenants[tenantIndex] = { ...tenants[tenantIndex], ...updates };
@@ -131,6 +161,59 @@ export function updateTenant(tenantId: string, updates: Partial<Tenant>) {
     }
     return null;
 }
+
+export function inviteMember(tenantId: string, email: string, role: Role): TeamMember | null {
+  const tenantIndex = tenants.findIndex(t => t.id === tenantId);
+  if (tenantIndex === -1) return null;
+
+  const tenant = tenants[tenantIndex];
+  if (tenant.members.find(m => m.email === email)) {
+    // Member already exists
+    return null;
+  }
+  
+  const newId = Math.max(0, ...tenant.members.map(m => m.id)) + 1;
+  const newMember: TeamMember = {
+    id: newId,
+    email: email,
+    name: email, // use email as name for pending invite
+    role,
+    status: 'Pending',
+    avatar: null
+  };
+
+  tenant.members.push(newMember);
+  return newMember;
+}
+
+export function removeMember(tenantId: string, memberId: number): boolean {
+    const tenantIndex = tenants.findIndex(t => t.id === tenantId);
+    if (tenantIndex === -1) return false;
+
+    const tenant = tenants[tenantIndex];
+    const memberIndex = tenant.members.findIndex(m => m.id === memberId);
+    
+    if (memberIndex > -1 && tenant.members[memberIndex].role !== 'Owner') {
+        tenant.members.splice(memberIndex, 1);
+        return true;
+    }
+    return false;
+}
+
+export function updateMemberRole(tenantId: string, memberId: number, newRole: Role): TeamMember | null {
+    const tenantIndex = tenants.findIndex(t => t.id === tenantId);
+    if (tenantIndex === -1) return null;
+    
+    const tenant = tenants[tenantIndex];
+    const memberIndex = tenant.members.findIndex(m => m.id === memberId);
+
+    if (memberIndex > -1 && tenant.members[memberIndex].role !== 'Owner') {
+        tenant.members[memberIndex].role = newRole;
+        return tenant.members[memberIndex];
+    }
+    return null;
+}
+
 
 export function getTenantBySubdomain(subdomain: string): Tenant | null {
   const tenantData = tenants.find((t) => t.subdomain === subdomain);
