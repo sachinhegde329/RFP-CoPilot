@@ -5,7 +5,6 @@ import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Sparkles, ShieldCheck, CheckCircle2, XCircle, History, Loader2, Bot, Clipboard, ClipboardCheck, Tag, BookOpenCheck, UserPlus, Circle, CheckCircle, CircleDotDashed, Bold, Italic, Underline, List, MessageSquare, Send } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
@@ -14,10 +13,13 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { hasFeatureAccess } from "@/lib/access-control"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import type { TeamMember } from "@/lib/tenants"
 import { Input } from "../ui/input"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+
 
 type Question = {
   id: number
@@ -105,7 +107,8 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
     setTimeout(() => setIsCopied(false), 2000);
   }
 
-  const handleAssigneeChange = (member: TeamMember | null) => {
+  const handleAssigneeChange = (memberId: string) => {
+    const member = members.find(m => m.id.toString() === memberId) || null;
     onUpdateQuestion(id, { assignee: member });
   };
 
@@ -125,12 +128,12 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
     setNewComment("");
   };
 
-  const StatusIcon = ({ status }: { status: Question['status'] }) => {
+  const StatusIcon = ({ status, className }: { status: Question['status'], className?: string }) => {
     switch (status) {
-      case 'Completed': return <CheckCircle className="h-4 w-4 text-green-600" />;
-      case 'In Progress': return <CircleDotDashed className="h-4 w-4 text-yellow-600" />;
+      case 'Completed': return <CheckCircle className={className || "h-4 w-4 text-green-600"} />;
+      case 'In Progress': return <CircleDotDashed className={className || "h-4 w-4 text-yellow-600"} />;
       case 'Unassigned':
-      default: return <Circle className="h-4 w-4 text-muted-foreground" />;
+      default: return <Circle className={className || "h-4 w-4 text-muted-foreground"} />;
     }
   };
 
@@ -251,74 +254,80 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
             </Alert>
           )}
         </CardContent>
-        <CardFooter className="flex flex-wrap gap-4 justify-between items-center bg-muted/50 p-3 border-t">
-          <div className="flex items-center gap-x-4 gap-y-2 flex-wrap">
-            <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-muted-foreground">Assignee:</span>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="h-8">
-                            {assignee ? (
-                                <>
-                                    <Avatar className="h-5 w-5 mr-2">
-                                        {assignee.avatar && <AvatarImage src={assignee.avatar} alt={assignee.name} />}
-                                        <AvatarFallback className="text-xs">{assignee.name.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                    {assignee.name}
-                                </>
-                            ) : (
-                                <>
-                                    <UserPlus className="mr-2 h-4 w-4"/>
-                                    Unassigned
-                                </>
-                            )}
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        <DropdownMenuLabel>Assign to</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={() => handleAssigneeChange(null)}>
-                            <UserPlus className="mr-2 h-4 w-4"/>
-                            Unassigned
-                        </DropdownMenuItem>
-                        {members.map(member => (
-                            <DropdownMenuItem key={member.id} onSelect={() => handleAssigneeChange(member)}>
-                                <Avatar className="h-5 w-5 mr-2">
-                                    {member.avatar && <AvatarImage src={member.avatar} alt={member.name} />}
-                                    <AvatarFallback className="text-xs">{member.name.charAt(0)}</AvatarFallback>
+        <CardFooter className="flex items-center justify-between bg-muted/50 p-3 border-t">
+          <div className="flex items-center gap-2">
+             <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="h-8 px-2 text-xs sm:text-sm sm:px-3">
+                        {assignee ? (
+                            <>
+                                <Avatar className="h-5 w-5 mr-0 sm:mr-2">
+                                    {assignee.avatar && <AvatarImage src={assignee.avatar} alt={assignee.name} />}
+                                    <AvatarFallback className="text-xs">{assignee.name.charAt(0)}</AvatarFallback>
                                 </Avatar>
-                                {member.name}
-                            </DropdownMenuItem>
-                        ))}
+                                <span className="hidden sm:inline-block truncate max-w-[100px]">{assignee.name}</span>
+                            </>
+                        ) : (
+                            <>
+                                <UserPlus className="h-4 w-4 mr-0 sm:mr-2"/>
+                                <span className="hidden sm:inline-block">Assign</span>
+                            </>
+                        )}
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                    <DropdownMenuLabel>Assign to</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={() => handleAssigneeChange('unassigned')}>
+                        <UserPlus className="mr-2 h-4 w-4"/>
+                        Unassigned
+                    </DropdownMenuItem>
+                    {members.map(member => (
+                        <DropdownMenuItem key={member.id} onSelect={() => handleAssigneeChange(member.id.toString())}>
+                            <Avatar className="h-5 w-5 mr-2">
+                                {member.avatar && <AvatarImage src={member.avatar} alt={member.name} />}
+                                <AvatarFallback className="text-xs">{member.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            {member.name}
+                        </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="h-8 w-8 data-[state=open]:bg-accent">
+                          <StatusIcon status={status} />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start">
+                      <DropdownMenuLabel>Set status</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={() => handleStatusChange('Unassigned')}>
+                          <Circle className="mr-2 h-4 w-4 text-muted-foreground" /> Unassigned
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => handleStatusChange('In Progress')}>
+                          <CircleDotDashed className="mr-2 h-4 w-4 text-yellow-600" /> In Progress
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => handleStatusChange('Completed')}>
+                          <CheckCircle className="mr-2 h-4 w-4 text-green-600" /> Completed
+                      </DropdownMenuItem>
                     </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
-            <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-muted-foreground">Status:</span>
-                <Select value={status} onValueChange={(value: Question['status']) => handleStatusChange(value)}>
-                    <SelectTrigger className="w-[150px] h-8">
-                      <div className="flex items-center gap-2">
-                        <StatusIcon status={status} />
-                        <SelectValue />
-                      </div>
-                    </SelectTrigger>
-                    <SelectContent>
-                        <SelectItem value="Unassigned">
-                            <div className="flex items-center gap-2"><Circle className="h-4 w-4 text-muted-foreground" /> Unassigned</div>
-                        </SelectItem>
-                        <SelectItem value="In Progress">
-                            <div className="flex items-center gap-2"><CircleDotDashed className="h-4 w-4 text-yellow-600" /> In Progress</div>
-                        </SelectItem>
-                        <SelectItem value="Completed">
-                            <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /> Completed</div>
-                        </SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
+                  </DropdownMenu>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p className="capitalize">{status}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
           </div>
-          <Button variant="outline" size="sm" onClick={() => setIsCommentSheetOpen(true)}>
-            <MessageSquare className="mr-2 h-4 w-4" />
-            Comments ({comments.length})
+          <Button variant="ghost" size="sm" onClick={() => setIsCommentSheetOpen(true)} className="text-muted-foreground hover:text-foreground">
+            <MessageSquare className="mr-1.5 h-4 w-4" />
+            <span className="text-xs font-medium">{comments.length}</span>
           </Button>
         </CardFooter>
       </Card>
@@ -368,3 +377,5 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
     </>
   )
 }
+
+    
