@@ -1,32 +1,99 @@
 'use client'
 
+import { useRef } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { File, PlusCircle, MoreHorizontal, Download, Trash2, Paperclip } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { useToast } from "@/hooks/use-toast"
 
 type Attachment = {
   id: number;
   name: string;
   size: string;
   type: string;
+  url: string;
 };
 
 type AttachmentsCardProps = {
     attachments: Attachment[];
+    onUpdateAttachments: (attachments: Attachment[]) => void;
 }
 
-export function AttachmentsCard({ attachments }: AttachmentsCardProps) {
+export function AttachmentsCard({ attachments, onUpdateAttachments }: AttachmentsCardProps) {
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
+  
+  const handleAddClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (attachments.length >= 3) {
+      toast({
+        variant: 'destructive',
+        title: 'Attachment Limit Reached',
+        description: 'You can only upload a maximum of 3 supporting documents.',
+      });
+      return;
+    }
+
+    const newAttachment: Attachment = {
+      id: Date.now(),
+      name: file.name,
+      size: file.size > 1024 * 1024
+          ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+          : `${(file.size / 1024).toFixed(0)} KB`,
+      type: file.type,
+      url: URL.createObjectURL(file),
+    };
+
+    onUpdateAttachments([...attachments, newAttachment]);
+
+    toast({
+      title: 'Attachment Added',
+      description: `${file.name} has been added.`,
+    });
+
+    // Reset the file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleDelete = (id: number) => {
+    const attachmentToRemove = attachments.find(att => att.id === id);
+    const newAttachments = attachments.filter(att => att.id !== id);
+    onUpdateAttachments(newAttachments);
+    
+    if (attachmentToRemove) {
+        toast({
+          title: 'Attachment Removed',
+          description: `${attachmentToRemove.name} has been removed.`,
+        });
+    }
+  };
+
+
   return (
     <Card>
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        className="hidden"
+      />
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
             <Paperclip className="h-5 w-5" />
             Attachments
         </CardTitle>
         <CardDescription>
-          Manage all supporting documents for this RFP.
+          Manage all supporting documents for this RFP. (Max 3)
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
@@ -43,10 +110,14 @@ export function AttachmentsCard({ attachments }: AttachmentsCardProps) {
               {attachments.map((attachment) => (
                 <TableRow key={attachment.id}>
                   <TableCell>
-                    <div className="flex items-center gap-2">
+                    <a 
+                        href={attachment.url}
+                        download={attachment.name}
+                        className="flex items-center gap-2 hover:underline"
+                    >
                       <File className="h-4 w-4 text-muted-foreground" />
                       <span className="font-medium truncate max-w-xs">{attachment.name}</span>
-                    </div>
+                    </a>
                   </TableCell>
                   <TableCell>{attachment.size}</TableCell>
                   <TableCell className="text-right">
@@ -57,11 +128,16 @@ export function AttachmentsCard({ attachments }: AttachmentsCardProps) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent>
-                        <DropdownMenuItem>
-                          <Download className="mr-2 h-4 w-4" />
-                          Download
+                        <DropdownMenuItem asChild>
+                           <a href={attachment.url} download={attachment.name} className="flex items-center cursor-pointer">
+                                <Download className="mr-2 h-4 w-4" />
+                                Download
+                            </a>
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive">
+                        <DropdownMenuItem 
+                            className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                            onSelect={() => handleDelete(attachment.id)}
+                        >
                           <Trash2 className="mr-2 h-4 w-4" />
                           Delete
                         </DropdownMenuItem>
@@ -81,7 +157,12 @@ export function AttachmentsCard({ attachments }: AttachmentsCardProps) {
         )}
       </CardContent>
       <CardFooter>
-        <Button variant="outline" className="w-full">
+        <Button 
+            variant="outline" 
+            className="w-full"
+            onClick={handleAddClick}
+            disabled={attachments.length >= 3}
+        >
           <PlusCircle className="mr-2" />
           Add Attachment
         </Button>

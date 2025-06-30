@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { RfpSummaryCard } from "@/components/dashboard/rfp-summary-card"
 import { QAndAList } from "@/components/dashboard/q-and-a-list"
@@ -28,6 +28,7 @@ type Attachment = {
   name: string;
   size: string;
   type: string;
+  url: string;
 };
 
 type DashboardClientProps = {
@@ -44,6 +45,14 @@ export function DashboardClient({ initialSummary, initialQuestions }: DashboardC
   const [isLoading, setIsLoading] = useState(false)
   const [isLocked, setIsLocked] = useState(false)
   const { toast } = useToast()
+
+  // Clean up Object URLs when the component unmounts to prevent memory leaks
+  useEffect(() => {
+    return () => {
+      attachments.forEach(att => URL.revokeObjectURL(att.url));
+    }
+  }, [attachments]);
+
 
   const handleUpdateQuestion = (questionId: number, updates: Partial<Question>) => {
     setQuestions(prevQuestions =>
@@ -69,14 +78,15 @@ export function DashboardClient({ initialSummary, initialQuestions }: DashboardC
 
     if (file) {
       const newAttachment: Attachment = {
-        id: attachments.length + 1,
+        id: Date.now(),
         name: file.name,
         size: file.size > 1024 * 1024 
             ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
             : `${(file.size / 1024).toFixed(0)} KB`,
         type: file.type,
+        url: URL.createObjectURL(file),
       };
-      setAttachments([newAttachment]); // For now, we just show the primary RFP doc.
+      setAttachments([newAttachment]);
     } else {
       setAttachments([]); // Clear attachments if it's pasted text
     }
@@ -119,6 +129,17 @@ export function DashboardClient({ initialSummary, initialQuestions }: DashboardC
     }
   }
 
+  const handleUpdateAttachments = (updatedAttachments: Attachment[]) => {
+    // Revoke URLs for attachments that are being removed to prevent memory leaks
+    attachments.forEach(att => {
+        if (!updatedAttachments.some(updatedAtt => updatedAtt.id === att.id)) {
+            URL.revokeObjectURL(att.url);
+        }
+    });
+    setAttachments(updatedAttachments);
+  };
+
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-3">
@@ -160,7 +181,10 @@ export function DashboardClient({ initialSummary, initialQuestions }: DashboardC
         ) : null}
       </div>
       <div className="lg:col-span-1 space-y-6">
-        <AttachmentsCard attachments={attachments} />
+        <AttachmentsCard 
+            attachments={attachments}
+            onUpdateAttachments={handleUpdateAttachments}
+        />
         <ComplianceCard />
         <TemplateCard 
           questions={questions}
