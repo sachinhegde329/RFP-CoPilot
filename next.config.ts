@@ -21,6 +21,11 @@ const nextConfig: NextConfig = {
   serverExternalPackages: [
     'canvas',
     'pdfkit',
+    'docx',
+    'mammoth',
+    'xlsx',
+    'pdf-parse',
+    'cheerio',
     'dropbox',
     'googleapis',
     '@microsoft/microsoft-graph-client',
