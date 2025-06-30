@@ -179,6 +179,15 @@ export function TemplateCard({ questions, isLocked, onLockChange }: TemplateCard
                 disabled={!isLocked}
             />
         </div>
+
+        {isExportDisabled && (
+          <Alert variant="secondary">
+              <ShieldAlert className="h-4 w-4" />
+              <AlertDescription>
+                  {exportButtonTooltipContent}
+              </AlertDescription>
+          </Alert>
+        )}
       </CardContent>
       <CardFooter>
         <TooltipProvider>
