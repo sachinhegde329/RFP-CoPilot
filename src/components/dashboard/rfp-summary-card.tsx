@@ -22,7 +22,7 @@ import { useTenant } from "@/components/providers/tenant-provider"
 type RfpSummaryCardProps = {
   summary: string;
   isLoading: boolean;
-  onProcessRfp: (rfpText: string) => void;
+  onProcessRfp: (rfpText: string, file?: File) => void;
 };
 
 export function RfpSummaryCard({ summary, isLoading, onProcessRfp }: RfpSummaryCardProps) {
@@ -77,7 +77,7 @@ export function RfpSummaryCard({ summary, isLoading, onProcessRfp }: RfpSummaryC
                 description: `Successfully parsed ${file.name}.`,
             });
             setRfpText(result.text)
-            onProcessRfp(result.text)
+            onProcessRfp(result.text, file)
         }
         setIsUploading(false)
         if(fileInputRef.current) {

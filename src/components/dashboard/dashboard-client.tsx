@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast"
 import { Card, CardContent } from "@/components/ui/card"
 import { FileText, Bot } from "lucide-react"
 import type { TeamMember } from "@/lib/tenants"
+import { AttachmentsCard } from "./attachments-card"
 
 type Question = {
   id: number
@@ -22,6 +23,13 @@ type Question = {
   status: 'Unassigned' | 'In Progress' | 'Completed'
 }
 
+type Attachment = {
+  id: number;
+  name: string;
+  size: string;
+  type: string;
+};
+
 type DashboardClientProps = {
   initialSummary: string;
   initialQuestions: Question[];
@@ -32,6 +40,7 @@ export function DashboardClient({ initialSummary, initialQuestions }: DashboardC
 
   const [summary, setSummary] = useState(initialSummary)
   const [questions, setQuestions] = useState<Question[]>(initialQuestions)
+  const [attachments, setAttachments] = useState<Attachment[]>([]);
   const [isLoading, setIsLoading] = useState(false)
   const [isLocked, setIsLocked] = useState(false)
   const { toast } = useToast()
@@ -44,7 +53,7 @@ export function DashboardClient({ initialSummary, initialQuestions }: DashboardC
     )
   }
 
-  const handleProcessRfp = async (rfpText: string) => {
+  const handleProcessRfp = async (rfpText: string, file?: File) => {
     if (!rfpText.trim()) {
       toast({
         variant: "destructive",
@@ -57,6 +66,21 @@ export function DashboardClient({ initialSummary, initialQuestions }: DashboardC
     setSummary("")
     setQuestions([])
     setIsLocked(false) // Unlock when new RFP is processed
+
+    if (file) {
+      const newAttachment: Attachment = {
+        id: attachments.length + 1,
+        name: file.name,
+        size: file.size > 1024 * 1024 
+            ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+            : `${(file.size / 1024).toFixed(0)} KB`,
+        type: file.type,
+      };
+      setAttachments([newAttachment]); // For now, we just show the primary RFP doc.
+    } else {
+      setAttachments([]); // Clear attachments if it's pasted text
+    }
+
 
     try {
       // Run actions in parallel
@@ -136,6 +160,7 @@ export function DashboardClient({ initialSummary, initialQuestions }: DashboardC
         ) : null}
       </div>
       <div className="lg:col-span-1 space-y-6">
+        <AttachmentsCard attachments={attachments} />
         <ComplianceCard />
         <TemplateCard 
           questions={questions}
