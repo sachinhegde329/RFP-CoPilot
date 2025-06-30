@@ -21,6 +21,7 @@ import { stripe } from "@/lib/stripe"
 import { hasFeatureAccess, canPerformAction, type Action } from "@/lib/access-control"
 import { notificationService } from "@/lib/notifications.service";
 import { exportService } from "@/lib/export.service";
+import { templateService, type Template } from "@/lib/template.service"
 
 import { Document, Packer, Paragraph, HeadingLevel, TextRun } from 'docx';
 import PDFDocument from 'pdfkit';
@@ -705,5 +706,57 @@ export async function getExportHistoryAction(tenantId: string, rfpId: string) {
         console.error(e);
         const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
         return { error: `Failed to retrieve export history: ${errorMessage}` };
+    }
+}
+
+// == TEMPLATE ACTIONS ==
+
+export async function getTemplatesAction(tenantId: string, currentUser: CurrentUser): Promise<{ templates?: Template[], error?: string }> {
+    const permCheck = checkPermission(tenantId, currentUser, 'viewContent');
+    if (permCheck.error) return { error: permCheck.error };
+    
+    try {
+        const templates = templateService.getTemplates(tenantId);
+        return { templates };
+    } catch (e) {
+        return { error: 'Failed to retrieve templates.' };
+    }
+}
+
+export async function createTemplateAction(tenantId: string, data: { name: string; description: string }, currentUser: CurrentUser): Promise<{ template?: Template, error?: string }> {
+    const permCheck = checkPermission(tenantId, currentUser, 'editWorkspace');
+    if (permCheck.error) return { error: permCheck.error };
+    
+    try {
+        const template = templateService.createTemplate(tenantId, data);
+        return { template };
+    } catch (e) {
+        return { error: 'Failed to create template.' };
+    }
+}
+
+export async function duplicateTemplateAction(tenantId: string, templateId: string, currentUser: CurrentUser): Promise<{ template?: Template, error?: string }> {
+    const permCheck = checkPermission(tenantId, currentUser, 'editWorkspace');
+    if (permCheck.error) return { error: permCheck.error };
+
+    try {
+        const template = templateService.duplicateTemplate(tenantId, templateId);
+        if (!template) return { error: 'Template not found.' };
+        return { template };
+    } catch (e) {
+        return { error: 'Failed to duplicate template.' };
+    }
+}
+
+export async function deleteTemplateAction(tenantId: string, templateId: string, currentUser: CurrentUser): Promise<{ success?: boolean, error?: string }> {
+    const permCheck = checkPermission(tenantId, currentUser, 'editWorkspace');
+    if (permCheck.error) return { error: permCheck.error };
+
+    try {
+        const success = templateService.deleteTemplate(tenantId, templateId);
+        if (!success) return { error: 'Could not delete template. System templates are protected.' };
+        return { success };
+    } catch (e) {
+        return { error: 'Failed to delete template.' };
     }
 }
