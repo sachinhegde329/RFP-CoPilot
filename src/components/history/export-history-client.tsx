@@ -25,14 +25,14 @@ export function ExportHistoryClient({ initialHistory }: ExportHistoryClientProps
         <>
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold">Export History</h1>
-                    <p className="text-muted-foreground">Review all past exports of your RFP responses.</p>
+                    <h1 className="text-3xl font-bold">RFP Management</h1>
+                    <p className="text-muted-foreground">Manage your RFPs and view their version history.</p>
                 </div>
             </div>
             <Card>
                 <CardHeader>
-                    <CardTitle>History Log</CardTitle>
-                    <CardDescription>A chronological record of all exported RFP documents.</CardDescription>
+                    <CardTitle>Version History</CardTitle>
+                    <CardDescription>A chronological record of all exported versions for your RFPs.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     {history.length > 0 ? (
@@ -119,8 +119,8 @@ export function ExportHistoryClient({ initialHistory }: ExportHistoryClientProps
                     ) : (
                         <div className="flex flex-col items-center justify-center gap-4 text-center p-8 border-2 border-dashed border-muted rounded-lg">
                             <History className="size-12 text-muted-foreground" />
-                            <h3 className="font-semibold">No Export History</h3>
-                            <p className="text-sm text-muted-foreground">Your exported RFP versions will appear here.</p>
+                            <h3 className="font-semibold">No RFP History</h3>
+                            <p className="text-sm text-muted-foreground">When you export an RFP, its version history will appear here.</p>
                         </div>
                     )}
                 </CardContent>

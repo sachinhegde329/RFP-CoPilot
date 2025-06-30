@@ -40,7 +40,6 @@ export function AppSidebar() {
     { href: `/${tenant.subdomain}/knowledge-base`, label: "Knowledge Base", icon: Database },
     { href: `/${tenant.subdomain}/templates`, label: "Templates", icon: Blocks },
     { href: `/${tenant.subdomain}/analytics`, label: "Analytics", icon: BarChartHorizontalBig },
-    { href: `/${tenant.subdomain}/history`, label: "History", icon: History },
   ];
 
   return (
