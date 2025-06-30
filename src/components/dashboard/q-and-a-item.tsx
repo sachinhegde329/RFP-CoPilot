@@ -180,11 +180,10 @@ export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQ
             <p className="font-normal text-sm leading-snug flex-1">{question}</p>
           </div>
           <div className="flex items-center gap-2">
-            
             <TooltipProvider delayDuration={100}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <div className="p-1">
+                  <div className="flex h-6 w-6 items-center justify-center">
                     <StatusIcon status={status} />
                   </div>
                 </TooltipTrigger>
@@ -195,39 +194,39 @@ export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQ
             <TooltipProvider delayDuration={100}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                   <DropdownMenu>
+                  <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                        <button className={cn("rounded-full", isEditingDisabled ? "cursor-not-allowed" : "hover:bg-accent")} disabled={isEditingDisabled}>
-                            {assignee ? (
-                                <Avatar className="h-6 w-6">
-                                    {assignee.avatar && <AvatarImage src={assignee.avatar} alt={assignee.name} />}
-                                    <AvatarFallback className="text-xs">{assignee.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                            ) : (
-                                <div className="h-6 w-6 rounded-full border-2 border-dashed flex items-center justify-center">
-                                    <UserPlus className="h-3 w-3 text-muted-foreground" />
-                                </div>
-                            )}
-                        </button>
+                      <button className={cn("flex h-6 w-6 items-center justify-center rounded-full", isEditingDisabled ? "cursor-not-allowed" : "hover:bg-accent/50")} disabled={isEditingDisabled}>
+                        {assignee ? (
+                          <Avatar className="h-full w-full">
+                            {assignee.avatar && <AvatarImage src={assignee.avatar} alt={assignee.name} />}
+                            <AvatarFallback className="text-xs">{assignee.name.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                        ) : (
+                          <div className="flex h-full w-full items-center justify-center rounded-full border-2 border-dashed">
+                            <UserPlus className="h-3 w-3 text-muted-foreground" />
+                          </div>
+                        )}
+                      </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>Assign to</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onSelect={() => handleAssigneeChange('unassigned')}>
-                            <UserPlus className="mr-2 h-4 w-4"/>
-                            Unassigned
+                      <DropdownMenuLabel>Assign to</DropdownMenuLabel>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={() => handleAssigneeChange('unassigned')}>
+                        <UserPlus className="mr-2 h-4 w-4"/>
+                        Unassigned
+                      </DropdownMenuItem>
+                      {members.map(member => (
+                        <DropdownMenuItem key={member.id} onSelect={() => handleAssigneeChange(member.id.toString())}>
+                          <Avatar className="h-5 w-5 mr-2">
+                            {member.avatar && <AvatarImage src={member.avatar} alt={member.name} />}
+                            <AvatarFallback className="text-xs">{member.name.charAt(0)}</AvatarFallback>
+                          </Avatar>
+                          {member.name}
                         </DropdownMenuItem>
-                        {members.map(member => (
-                            <DropdownMenuItem key={member.id} onSelect={() => handleAssigneeChange(member.id.toString())}>
-                                <Avatar className="h-5 w-5 mr-2">
-                                    {member.avatar && <AvatarImage src={member.avatar} alt={member.name} />}
-                                    <AvatarFallback className="text-xs">{member.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                {member.name}
-                            </DropdownMenuItem>
-                        ))}
+                      ))}
                     </DropdownMenuContent>
-                </DropdownMenu>
+                  </DropdownMenu>
                 </TooltipTrigger>
                 <TooltipContent>
                   <p>{assignee ? `Assigned to ${assignee.name}` : 'Unassigned'}</p>
@@ -235,10 +234,6 @@ export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQ
               </Tooltip>
             </TooltipProvider>
             
-            <Badge variant="outline" className="hidden sm:inline-flex items-center whitespace-nowrap">
-                <Tag className="mr-1 h-3 w-3" />
-                {category}
-            </Badge>
             <ComplianceBadge />
             
             {comments.length > 0 && (
