@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState, useMemo, useEffect } from "react"
@@ -40,7 +41,7 @@ type FilterType = "all" | "assignedToMe" | "unassigned" | "inProgress" | "comple
 
 export function QAndAList({ initialQuestions, tenantId, members, isLocked, onUpdateQuestion }: QAndAListProps) {
   const [questions, setQuestions] = useState<Question[]>(initialQuestions)
-  const [activeFilter, setActiveFilter] = useState<FilterType>("assignedToMe")
+  const [activeFilter, setActiveFilter] = useState<FilterType>("inProgress")
   const { tenant } = useTenant(); 
   const currentUser = tenant.members[0]; // For demo, assume current user is the first member
 
