@@ -193,13 +193,13 @@ export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQ
           </div>
           <div className="flex items-center gap-2">
             <DropdownMenu>
-              <DropdownMenuTrigger asChild>
+              <DropdownMenuTrigger asChild disabled={isEditingDisabled}>
                 <TooltipProvider delayDuration={100}>
                     <Tooltip>
                         <TooltipTrigger asChild>
-                            <button onClick={(e) => e.stopPropagation()} className={cn("flex h-6 w-6 items-center justify-center rounded-full", isEditingDisabled ? "cursor-not-allowed" : "hover:bg-accent/50")} disabled={isEditingDisabled}>
+                            <div role="button" onClick={(e) => e.stopPropagation()} className={cn("flex h-6 w-6 items-center justify-center rounded-full", isEditingDisabled ? "cursor-not-allowed opacity-50" : "hover:bg-accent/50")}>
                                 <StatusIcon status={status} />
-                            </button>
+                            </div>
                         </TooltipTrigger>
                         <TooltipContent><p>Change status: {status}</p></TooltipContent>
                     </Tooltip>
@@ -227,8 +227,8 @@ export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQ
               <Tooltip>
                 <TooltipTrigger asChild>
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button onClick={(e) => e.stopPropagation()} className={cn("flex h-6 w-6 items-center justify-center rounded-full", isEditingDisabled ? "cursor-not-allowed" : "hover:bg-accent/50")} disabled={isEditingDisabled}>
+                    <DropdownMenuTrigger asChild disabled={isEditingDisabled}>
+                      <div role="button" onClick={(e) => e.stopPropagation()} className={cn("flex h-6 w-6 items-center justify-center rounded-full", isEditingDisabled ? "cursor-not-allowed opacity-50" : "hover:bg-accent/50")}>
                         {assignee ? (
                           <Avatar className="h-full w-full">
                             {assignee.avatar && <AvatarImage src={assignee.avatar} alt={assignee.name} />}
@@ -239,7 +239,7 @@ export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQ
                             <UserPlus className="h-3 w-3 text-muted-foreground" />
                           </div>
                         )}
-                      </button>
+                      </div>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                       <DropdownMenuLabel>Assign to</DropdownMenuLabel>
