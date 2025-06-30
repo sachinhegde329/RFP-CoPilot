@@ -41,7 +41,7 @@ type FilterType = "all" | "assignedToMe" | "unassigned" | "completed"
 
 export function QAndAList({ initialQuestions, tenantId, members, isLocked, onUpdateQuestion }: QAndAListProps) {
   const [questions, setQuestions] = useState<Question[]>(initialQuestions)
-  const [activeFilter, setActiveFilter] = useState<FilterType>("all")
+  const [activeFilter, setActiveFilter] = useState<FilterType>("assignedToMe")
   const { tenant } = useTenant(); 
   const currentUser = tenant.members[0]; // For demo, assume current user is the first member
 
