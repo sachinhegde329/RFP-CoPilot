@@ -4,7 +4,6 @@
 import { useState } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
 import { Sparkles, ShieldCheck, CheckCircle2, XCircle, History, Loader2, Bot, Clipboard, ClipboardCheck, Tag, BookOpenCheck, UserPlus, Circle, CheckCircle, CircleDotDashed, Bold, Italic, Underline, List, MessageSquare, Send } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
@@ -19,6 +18,12 @@ import type { TeamMember } from "@/lib/tenants"
 import { Input } from "../ui/input"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion"
+import { cn } from "@/lib/utils"
 
 
 type Question = {
@@ -147,19 +152,19 @@ export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQ
     switch (compliance) {
       case "passed":
         return (
-          <Badge variant="secondary" className="text-green-600">
+          <Badge variant="secondary" className="text-green-600 whitespace-nowrap">
             <CheckCircle2 className="mr-1 h-3 w-3" /> Passed
           </Badge>
         )
       case "failed":
         return (
-          <Badge variant="destructive">
+          <Badge variant="destructive" className="whitespace-nowrap">
             <XCircle className="mr-1 h-3 w-3" /> Failed
           </Badge>
         )
       default:
         return (
-          <Badge variant="outline">
+          <Badge variant="outline" className="whitespace-nowrap">
             <ShieldCheck className="mr-1 h-3 w-3" /> Pending
           </Badge>
         )
@@ -168,181 +173,172 @@ export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQ
 
   return (
     <>
-      <Card className={isEditingDisabled ? "bg-muted/30" : ""}>
-        <CardHeader>
-          <div className="flex justify-between items-start gap-4">
-            <CardTitle className="text-base font-medium flex-1">
-              {`Q${id}: ${question}`}
-            </CardTitle>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <Badge variant="outline" className="hidden sm:flex items-center">
-                <Tag className="mr-1 h-3 w-3" />
-                {category}
-              </Badge>
-              <ComplianceBadge />
-            </div>
+      <AccordionItem value={`item-${id}`} className={cn(isEditingDisabled && "bg-muted/30 cursor-not-allowed", "border-x-0 border-t-0 border-b")}>
+        <AccordionTrigger className="p-4 text-left hover:no-underline [&[data-state=open]]:bg-muted/50">
+          <div className="flex-1 flex items-start gap-4 mr-4">
+            <span className="text-sm font-semibold text-primary mt-px">{`Q${id}`}</span>
+            <p className="font-normal text-sm leading-snug flex-1">{question}</p>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="rounded-md border">
-            <div className="p-2 border-b flex items-center gap-1">
-              <Button variant="ghost" size="icon" disabled={isEditingDisabled}><Bold /></Button>
-              <Button variant="ghost" size="icon" disabled={isEditingDisabled}><Italic /></Button>
-              <Button variant="ghost" size="icon" disabled={isEditingDisabled}><Underline /></Button>
-              <Button variant="ghost" size="icon" disabled={isEditingDisabled}><List /></Button>
-            </div>
-            <div className="relative">
-              <Textarea
-                placeholder="Draft your answer here..."
-                value={answer}
-                onChange={(e) => onUpdateQuestion(id, { answer: e.target.value })}
-                className="min-h-[120px] w-full resize-y border-0 pr-10 focus-visible:ring-0"
-                disabled={isEditingDisabled}
-              />
-              <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={handleCopy}>
-                {isCopied ? <ClipboardCheck className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
-                <span className="sr-only">Copy</span>
-              </Button>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Button onClick={handleGenerateAnswer} disabled={isGenerating || isEditingDisabled}>
-                {isGenerating ? (
-                  <Loader2 className="animate-spin" />
-                ) : (
-                  <Sparkles />
-                )}
-                Generate Answer
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleReviewAnswer}
-                disabled={isReviewing || !answer || !canUseAiReview || isEditingDisabled}
-              >
-                {isReviewing ? <Loader2 className="animate-spin" /> : <Bot />}
-                AI Expert Review
-              </Button>
-            </div>
-          </div>
-          {review && (
-            <Alert>
-              <Bot className="h-4 w-4" />
-              <AlertTitle>AI Expert Review</AlertTitle>
-              <AlertDescription className="prose prose-sm max-w-none">
-                {review}
-              </AlertDescription>
-            </Alert>
-          )}
-          {sources.length > 0 && (
-            <Alert variant="secondary">
-              <BookOpenCheck className="h-4 w-4" />
-              <AlertTitle>Sources Used</AlertTitle>
-              <AlertDescription>
-                <ul className="list-disc list-inside text-xs">
-                  {sources.map((source, index) => (
-                      <li key={index}>{source}</li>
-                  ))}
-                </ul>
-              </AlertDescription>
-            </Alert>
-          )}
-        </CardContent>
-        <CardFooter className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 bg-muted/50 p-3 border-t">
           <div className="flex items-center gap-2">
-             <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="h-8 px-2 text-xs sm:text-sm sm:px-3" disabled={isEditingDisabled}>
-                        {assignee ? (
-                            <>
-                                <Avatar className="h-5 w-5 mr-0 sm:mr-2">
-                                    {assignee.avatar && <AvatarImage src={assignee.avatar} alt={assignee.name} />}
-                                    <AvatarFallback className="text-xs">{assignee.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <span className="hidden sm:inline-block truncate max-w-[100px]">{assignee.name}</span>
-                            </>
-                        ) : (
-                            <>
-                                <UserPlus className="h-4 w-4 mr-0 sm:mr-2"/>
-                                <span className="hidden sm:inline-block">Assign</span>
-                            </>
-                        )}
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                    <DropdownMenuLabel>Assign to</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => handleAssigneeChange('unassigned')}>
-                        <UserPlus className="mr-2 h-4 w-4"/>
-                        Unassigned
-                    </DropdownMenuItem>
-                    {members.map(member => (
-                        <DropdownMenuItem key={member.id} onSelect={() => handleAssigneeChange(member.id.toString())}>
-                            <Avatar className="h-5 w-5 mr-2">
-                                {member.avatar && <AvatarImage src={member.avatar} alt={member.name} />}
-                                <AvatarFallback className="text-xs">{member.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            {member.name}
-                        </DropdownMenuItem>
-                    ))}
-                </DropdownMenuContent>
-            </DropdownMenu>
-
-            <TooltipProvider>
+            
+            <TooltipProvider delayDuration={100}>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 data-[state=open]:bg-accent" disabled={isEditingDisabled}>
-                          <StatusIcon status={status} />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
-                      <DropdownMenuLabel>Set status</DropdownMenuLabel>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onSelect={() => handleStatusChange('Unassigned')}>
-                          <Circle className="mr-2 h-4 w-4 text-muted-foreground" /> Unassigned
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => handleStatusChange('In Progress')}>
-                          <CircleDotDashed className="mr-2 h-4 w-4 text-yellow-600" /> In Progress
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onSelect={() => handleStatusChange('Completed')}>
-                          <CheckCircle className="mr-2 h-4 w-4 text-green-600" /> Completed
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                  <div className="p-1">
+                    <StatusIcon status={status} />
+                  </div>
                 </TooltipTrigger>
-                <TooltipContent>
-                  <p className="capitalize">{status}</p>
-                </TooltipContent>
+                <TooltipContent><p>{status}</p></TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
-             <Button variant="ghost" size="icon" onClick={() => setIsCommentSheetOpen(true)} className="text-muted-foreground hover:text-foreground h-8 w-8 relative">
+            <TooltipProvider delayDuration={100}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                   <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <button className={cn("rounded-full", isEditingDisabled ? "cursor-not-allowed" : "hover:bg-accent")} disabled={isEditingDisabled}>
+                            {assignee ? (
+                                <Avatar className="h-6 w-6">
+                                    {assignee.avatar && <AvatarImage src={assignee.avatar} alt={assignee.name} />}
+                                    <AvatarFallback className="text-xs">{assignee.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                            ) : (
+                                <div className="h-6 w-6 rounded-full border-2 border-dashed flex items-center justify-center">
+                                    <UserPlus className="h-3 w-3 text-muted-foreground" />
+                                </div>
+                            )}
+                        </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Assign to</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={() => handleAssigneeChange('unassigned')}>
+                            <UserPlus className="mr-2 h-4 w-4"/>
+                            Unassigned
+                        </DropdownMenuItem>
+                        {members.map(member => (
+                            <DropdownMenuItem key={member.id} onSelect={() => handleAssigneeChange(member.id.toString())}>
+                                <Avatar className="h-5 w-5 mr-2">
+                                    {member.avatar && <AvatarImage src={member.avatar} alt={member.name} />}
+                                    <AvatarFallback className="text-xs">{member.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                {member.name}
+                            </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>{assignee ? `Assigned to ${assignee.name}` : 'Unassigned'}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            
+            <Badge variant="outline" className="hidden sm:inline-flex items-center whitespace-nowrap">
+                <Tag className="mr-1 h-3 w-3" />
+                {category}
+            </Badge>
+            <ComplianceBadge />
+            
+            {comments.length > 0 && (
+              <div className="hidden lg:flex items-center gap-1 text-muted-foreground text-sm">
                 <MessageSquare className="h-4 w-4" />
-                <span className="sr-only">Comments</span>
+                <span>{comments.length}</span>
+              </div>
+            )}
+          </div>
+        </AccordionTrigger>
+        <AccordionContent className="p-4 pt-2">
+          <div className="space-y-4">
+            <div className="rounded-md border">
+              <div className="p-2 border-b flex items-center gap-1">
+                <Button variant="ghost" size="icon" disabled={isEditingDisabled}><Bold /></Button>
+                <Button variant="ghost" size="icon" disabled={isEditingDisabled}><Italic /></Button>
+                <Button variant="ghost" size="icon" disabled={isEditingDisabled}><Underline /></Button>
+                <Button variant="ghost" size="icon" disabled={isEditingDisabled}><List /></Button>
+              </div>
+              <div className="relative">
+                <Textarea
+                  placeholder="Draft your answer here..."
+                  value={answer}
+                  onChange={(e) => onUpdateQuestion(id, { answer: e.target.value })}
+                  className="min-h-[120px] w-full resize-y border-0 pr-10 focus-visible:ring-0"
+                  disabled={isEditingDisabled}
+                />
+                <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={handleCopy}>
+                  {isCopied ? <ClipboardCheck className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
+                  <span className="sr-only">Copy</span>
+                </Button>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Button onClick={handleGenerateAnswer} disabled={isGenerating || isEditingDisabled}>
+                  {isGenerating ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <Sparkles />
+                  )}
+                  Generate Answer
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleReviewAnswer}
+                  disabled={isReviewing || !answer || !canUseAiReview || isEditingDisabled}
+                >
+                  {isReviewing ? <Loader2 className="animate-spin" /> : <Bot />}
+                  AI Expert Review
+                </Button>
+              </div>
+            </div>
+            {review && (
+              <Alert>
+                <Bot className="h-4 w-4" />
+                <AlertTitle>AI Expert Review</AlertTitle>
+                <AlertDescription className="prose prose-sm max-w-none">
+                  {review}
+                </AlertDescription>
+              </Alert>
+            )}
+            {sources.length > 0 && (
+              <Alert variant="secondary">
+                <BookOpenCheck className="h-4 w-4" />
+                <AlertTitle>Sources Used</AlertTitle>
+                <AlertDescription>
+                  <ul className="list-disc list-inside text-xs">
+                    {sources.map((source, index) => (
+                        <li key={index}>{source}</li>
+                    ))}
+                  </ul>
+                </AlertDescription>
+              </Alert>
+            )}
+          </div>
+          <div className="mt-4 pt-4 border-t flex justify-between items-center">
+             <Button variant="ghost" size="sm" onClick={() => setIsCommentSheetOpen(true)} className="text-muted-foreground hover:text-foreground relative">
+                <MessageSquare className="h-4 w-4 mr-2" />
+                Comments
                 {comments.length > 0 && (
-                    <div className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground text-[10px] font-bold">
-                        {comments.length}
-                    </div>
+                    <Badge variant="secondary" className="ml-2">{comments.length}</Badge>
                 )}
             </Button>
+            <div className="flex items-center gap-2">
+                <History className="h-4 w-4 text-muted-foreground" />
+                <Select defaultValue="v3" disabled={isEditingDisabled}>
+                <SelectTrigger className="h-8 w-[120px] text-xs">
+                    <SelectValue placeholder="Version" />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="v3">Version 3</SelectItem>
+                    <SelectItem value="v2">Version 2</SelectItem>
+                    <SelectItem value="v1">Version 1</SelectItem>
+                </SelectContent>
+                </Select>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <History className="h-4 w-4 text-muted-foreground" />
-            <Select defaultValue="v3" disabled={isEditingDisabled}>
-              <SelectTrigger className="h-8 w-[120px] text-xs">
-                <SelectValue placeholder="Version" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="v3">Version 3</SelectItem>
-                <SelectItem value="v2">Version 2</SelectItem>
-                <SelectItem value="v1">Version 1</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </CardFooter>
-      </Card>
+        </AccordionContent>
+      </AccordionItem>
       <Sheet open={isCommentSheetOpen} onOpenChange={setIsCommentSheetOpen}>
         <SheetContent className="flex flex-col gap-0 sm:max-w-lg">
           <SheetHeader className="p-6">

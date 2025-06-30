@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useState, useMemo, useEffect } from "react"
@@ -8,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import type { TeamMember } from "@/lib/tenants"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { PlusCircle } from "lucide-react"
+import { Accordion } from "@/components/ui/accordion"
 
 type Question = {
   id: number
@@ -69,25 +69,27 @@ export function QAndAList({ initialQuestions, tenantId, members, isLocked, onUpd
           </Button>
         </div>
         <div className="flex flex-wrap gap-2 pt-4">
-            <Button variant={activeFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('all')}>All</Button>
-            <Button variant={activeFilter === 'assignedToMe' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('assignedToMe')}>Assigned to Me</Button>
-            <Button variant={activeFilter === 'unassigned' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('unassigned')}>Unassigned</Button>
-            <Button variant={activeFilter === 'completed' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('completed')}>Completed</Button>
+            <Button variant={activeFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('all')}>All ({questions.length})</Button>
+            <Button variant={activeFilter === 'assignedToMe' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('assignedToMe')}>Assigned to Me ({questions.filter(q => q.assignee?.id === currentUser.id).length})</Button>
+            <Button variant={activeFilter === 'unassigned' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('unassigned')}>Unassigned ({questions.filter(q => !q.assignee).length})</Button>
+            <Button variant={activeFilter === 'completed' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('completed')}>Completed ({questions.filter(q => q.status === 'Completed').length})</Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
-        {filteredQuestions.map((q) => (
-          <QAndAItem
-            key={q.id}
-            questionData={q}
-            tenantId={tenantId}
-            members={members}
-            onUpdateQuestion={onUpdateQuestion}
-            isLocked={isLocked}
-          />
-        ))}
+      <CardContent className="p-0">
+        <Accordion type="multiple" className="w-full">
+            {filteredQuestions.map((q) => (
+            <QAndAItem
+                key={q.id}
+                questionData={q}
+                tenantId={tenantId}
+                members={members}
+                onUpdateQuestion={onUpdateQuestion}
+                isLocked={isLocked}
+            />
+            ))}
+        </Accordion>
          {filteredQuestions.length === 0 && (
-            <div className="text-center text-muted-foreground p-8 border-2 border-dashed rounded-lg">
+            <div className="text-center text-muted-foreground p-8 border-2 border-dashed rounded-lg m-6">
                 No questions match the current filter.
             </div>
         )}
