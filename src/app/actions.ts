@@ -548,7 +548,7 @@ async function generatePdfBuffer(doc: InstanceType<typeof PDFDocument>): Promise
 export async function exportRfpAction(payload: {
     tenantId: string;
     rfpId: string;
-    questions: { id: number, question: string, status: string, answer: string }[],
+    questions: Question[],
     currentUser: CurrentUser,
     exportVersion: string,
     format: 'pdf' | 'docx',
@@ -646,6 +646,7 @@ export async function exportRfpAction(payload: {
             exportedAt: new Date().toISOString(),
             exportedBy: currentUser,
             questionCount: questions.length,
+            questions: questions,
             acknowledgments,
         });
 

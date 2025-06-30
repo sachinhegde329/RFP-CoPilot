@@ -4,14 +4,16 @@
 import { useState } from "react"
 import { format, formatDistanceToNow } from "date-fns"
 import type { ExportRecord } from "@/lib/export.service"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Download, MessageSquare, History } from "lucide-react"
+import { Download, MessageSquare, History, File } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 
 type ExportHistoryClientProps = {
     initialHistory: ExportRecord[];
@@ -19,6 +21,7 @@ type ExportHistoryClientProps = {
 
 export function ExportHistoryClient({ initialHistory }: ExportHistoryClientProps) {
     const [history, setHistory] = useState(initialHistory);
+    const [selectedRecord, setSelectedRecord] = useState<ExportRecord | null>(null);
 
     return (
         <>
@@ -48,7 +51,7 @@ export function ExportHistoryClient({ initialHistory }: ExportHistoryClientProps
                             </TableHeader>
                             <TableBody>
                                 {history.map(record => (
-                                    <TableRow key={record.id}>
+                                    <TableRow key={record.id} onClick={() => setSelectedRecord(record)} className="cursor-pointer">
                                         <TableCell>
                                             <Badge variant="outline">{record.version}</Badge>
                                         </TableCell>
@@ -69,46 +72,9 @@ export function ExportHistoryClient({ initialHistory }: ExportHistoryClientProps
                                         <TableCell>{record.questionCount}</TableCell>
                                         <TableCell className="text-right">
                                             <div className="flex justify-end gap-2">
-                                                <Dialog>
-                                                    <DialogTrigger asChild>
-                                                        <Button variant="outline" size="sm" disabled={record.acknowledgments.length === 0}>
-                                                            <MessageSquare className="mr-2 h-4 w-4" /> Notes
-                                                        </Button>
-                                                    </DialogTrigger>
-                                                    <DialogContent>
-                                                        <DialogHeader>
-                                                            <DialogTitle>Export Notes for {record.version}</DialogTitle>
-                                                            <DialogDescription>
-                                                                Acknowledgments and comments from the team for this export.
-                                                            </DialogDescription>
-                                                        </DialogHeader>
-                                                        <div className="max-h-[60vh] overflow-y-auto p-1">
-                                                            <div className="space-y-4 py-4">
-                                                                {record.acknowledgments.map((ack, index) => (
-                                                                    <div key={index} className="flex items-start gap-3">
-                                                                        <Avatar className="h-8 w-8">
-                                                                            <AvatarFallback>{ack.name.charAt(0)}</AvatarFallback>
-                                                                        </Avatar>
-                                                                        <div>
-                                                                            <p className="font-semibold text-sm">{ack.name} <span className="text-muted-foreground font-normal">({ack.role})</span></p>
-                                                                            <p className="text-sm text-muted-foreground italic">"{ack.comment}"</p>
-                                                                        </div>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        </div>
-                                                    </DialogContent>
-                                                </Dialog>
-                                                <TooltipProvider>
-                                                    <Tooltip>
-                                                        <TooltipTrigger asChild>
-                                                            <span tabIndex={0}><Button variant="outline" size="sm" disabled><Download className="mr-2 h-4 w-4" /> Download</Button></span>
-                                                        </TooltipTrigger>
-                                                        <TooltipContent>
-                                                            <p>Re-downloading is not supported in this prototype.</p>
-                                                        </TooltipContent>
-                                                    </Tooltip>
-                                                </TooltipProvider>
+                                                <Button variant="outline" size="sm" onClick={(e) => {e.stopPropagation(); setSelectedRecord(record)}}>
+                                                    View Details
+                                                </Button>
                                             </div>
                                         </TableCell>
                                     </TableRow>
@@ -124,6 +90,98 @@ export function ExportHistoryClient({ initialHistory }: ExportHistoryClientProps
                     )}
                 </CardContent>
             </Card>
+
+            <Dialog open={!!selectedRecord} onOpenChange={(isOpen) => !isOpen && setSelectedRecord(null)}>
+                <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
+                    <DialogHeader>
+                        <DialogTitle>Export Details: {selectedRecord?.version}</DialogTitle>
+                        <DialogDescription>
+                            Snapshot of the RFP exported on {selectedRecord && format(new Date(selectedRecord.exportedAt), "PPp")} by {selectedRecord?.exportedBy.name}.
+                        </DialogDescription>
+                    </DialogHeader>
+                    {selectedRecord && (
+                        <div className="grid md:grid-cols-3 gap-6 flex-1 min-h-0">
+                            <div className="md:col-span-1 space-y-6 flex flex-col">
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="text-lg">Exported File</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="flex items-center gap-3 p-3 bg-muted rounded-md">
+                                            <File className="h-8 w-8 text-muted-foreground" />
+                                            <div>
+                                                <p className="font-medium text-sm truncate">RFP_Response_{selectedRecord.version.replace(/\s+/g, '_')}.{selectedRecord.format}</p>
+                                                <p className="text-xs text-muted-foreground">{selectedRecord.format.toUpperCase()} Document</p>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                    <CardFooter>
+                                        <TooltipProvider>
+                                            <Tooltip>
+                                                <TooltipTrigger asChild>
+                                                    <span className="w-full" tabIndex={0}>
+                                                        <Button className="w-full" disabled>
+                                                            <Download className="mr-2 h-4 w-4" /> Download Again
+                                                        </Button>
+                                                    </span>
+                                                </TooltipTrigger>
+                                                <TooltipContent>
+                                                    <p>Re-downloading is not supported in this prototype.</p>
+                                                </TooltipContent>
+                                            </Tooltip>
+                                        </TooltipProvider>
+                                    </CardFooter>
+                                </Card>
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle className="text-lg">Acknowledgments</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <ScrollArea className="h-48 pr-4">
+                                            <div className="space-y-4">
+                                                {selectedRecord.acknowledgments.length > 0 ? selectedRecord.acknowledgments.map((ack, index) => (
+                                                    <div key={index} className="flex items-start gap-3">
+                                                        <Avatar className="h-8 w-8">
+                                                            <AvatarFallback>{ack.name.charAt(0)}</AvatarFallback>
+                                                        </Avatar>
+                                                        <div>
+                                                            <p className="font-semibold text-sm">{ack.name} <span className="text-muted-foreground font-normal">({ack.role})</span></p>
+                                                            <p className="text-sm text-muted-foreground italic">"{ack.comment}"</p>
+                                                        </div>
+                                                    </div>
+                                                )) : (
+                                                    <p className="text-sm text-muted-foreground text-center py-4">No acknowledgments for this version.</p>
+                                                )}
+                                            </div>
+                                        </ScrollArea>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                            <div className="md:col-span-2 flex flex-col">
+                                <Card className="flex-1 flex flex-col">
+                                    <CardHeader>
+                                        <CardTitle className="text-lg">Questions & Answers ({selectedRecord.questionCount})</CardTitle>
+                                    </CardHeader>
+                                    <CardContent className="flex-1 overflow-hidden p-0">
+                                        <ScrollArea className="h-full p-6 pt-0">
+                                            <Accordion type="single" collapsible className="w-full">
+                                                {selectedRecord.questions.map(q => (
+                                                    <AccordionItem key={q.id} value={`q-${q.id}`}>
+                                                        <AccordionTrigger className="text-left">{q.question}</AccordionTrigger>
+                                                        <AccordionContent className="prose prose-sm dark:prose-invert max-w-none">
+                                                            <p>{q.answer || "No answer provided."}</p>
+                                                        </AccordionContent>
+                                                    </AccordionItem>
+                                                ))}
+                                            </Accordion>
+                                        </ScrollArea>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        </div>
+                    )}
+                </DialogContent>
+            </Dialog>
         </>
     )
 }
