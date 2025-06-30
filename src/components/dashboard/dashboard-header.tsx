@@ -1,6 +1,7 @@
 
 "use client"
 
+import { useState, useEffect } from "react"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -19,40 +20,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { Bell, Bot, CheckCircle, CircleUserRound, MessageSquare, UserPlus } from "lucide-react"
+import { Bell, Bot, CheckCircle, CircleUserRound, MessageSquare, UserPlus, Loader2 } from "lucide-react"
 import { useTenant } from "@/components/providers/tenant-provider"
+import { getNotificationsAction, markNotificationsAsReadAction } from "@/app/actions"
+import type { Notification } from "@/lib/notifications.service"
+import { useToast } from "@/hooks/use-toast"
+import { cn } from "@/lib/utils"
 
-
-const notifications = [
-    {
-        id: 1,
-        type: 'assignment',
-        user: { name: 'Alex Johnson' },
-        text: "assigned 'Data Retention Policy' to you.",
-        time: '5m ago'
-    },
-    {
-        id: 2,
-        type: 'comment',
-        user: { name: 'Maria Garcia' },
-        text: "mentioned you on 'SLA for uptime'",
-        time: '1h ago'
-    },
-    {
-        id: 3,
-        type: 'review',
-        user: { name: 'AI Expert' },
-        text: "review for 'Pricing Structure' is complete.",
-        time: '3h ago'
-    },
-    {
-        id: 4,
-        type: 'status',
-        user: { name: 'Priya Patel' },
-        text: "marked 'CRM Integration' as Completed.",
-        time: '1d ago'
-    }
-];
 
 function getNotificationIcon(type: string) {
     const className = "h-4 w-4 text-muted-foreground"
@@ -68,6 +42,52 @@ function getNotificationIcon(type: string) {
 
 export function DashboardHeader() {
   const { tenant } = useTenant()
+  const { toast } = useToast()
+  const [notifications, setNotifications] = useState<Notification[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+
+  // Assuming current user is the first member for this demo
+  const currentUser = tenant.members[0];
+
+  const unreadCount = notifications.filter(n => !n.isRead).length
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      if (!currentUser) return;
+      setIsLoading(true);
+      const result = await getNotificationsAction(tenant.id, currentUser.id);
+      if (result.success && result.notifications) {
+        setNotifications(result.notifications);
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Could not load notifications",
+          description: result.error,
+        });
+      }
+      setIsLoading(false);
+    };
+
+    fetchNotifications();
+  }, [tenant.id, currentUser, toast]);
+  
+  const handleMarkAllAsRead = async () => {
+    if (!currentUser) return;
+    // Optimistically update UI
+    setNotifications(prev => prev.map(n => ({...n, isRead: true})));
+
+    const result = await markNotificationsAsReadAction(tenant.id, currentUser.id);
+    if (result.error) {
+        toast({
+            variant: "destructive",
+            title: "Error",
+            description: "Could not mark notifications as read.",
+        });
+        // Revert optimistic update on error
+        setNotifications(prev => prev.map(n => ({...n, isRead: false})));
+    }
+  }
+
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 md:px-6">
@@ -93,32 +113,42 @@ export function DashboardHeader() {
         <DropdownMenuTrigger asChild>
             <Button variant="outline" size="icon" className="rounded-full relative">
                 <Bell className="h-5 w-5"/>
-                <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
-                </span>
+                {unreadCount > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                    </span>
+                )}
                 <span className="sr-only">Toggle notifications</span>
             </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-80">
             <DropdownMenuLabel>Notifications</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            {notifications.map(notification => (
-                <DropdownMenuItem key={notification.id} className="flex items-start gap-3 whitespace-normal cursor-pointer">
-                    <div className="mt-1">
-                        {getNotificationIcon(notification.type)}
-                    </div>
-                    <div className="flex-1">
-                        <p className="text-sm">
-                            <span className="font-semibold">{notification.user.name}</span>
-                            {' '}{notification.text}
-                        </p>
-                        <p className="text-xs text-muted-foreground">{notification.time}</p>
-                    </div>
-                </DropdownMenuItem>
-            ))}
+            {isLoading ? (
+                <div className="flex justify-center items-center p-4">
+                    <Loader2 className="animate-spin" />
+                </div>
+            ) : notifications.length > 0 ? (
+                notifications.map(notification => (
+                    <DropdownMenuItem key={notification.id} className={cn("flex items-start gap-3 whitespace-normal cursor-pointer", !notification.isRead && "font-semibold")}>
+                        <div className="mt-1">
+                            {getNotificationIcon(notification.type)}
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-sm">
+                                <span className="font-medium">{notification.actor.name}</span>
+                                {' '}{notification.text}
+                            </p>
+                            <p className={cn("text-xs", !notification.isRead ? "text-muted-foreground" : "text-muted-foreground/70")}>{notification.timestamp}</p>
+                        </div>
+                    </DropdownMenuItem>
+                ))
+            ) : (
+                <DropdownMenuItem disabled className="text-center justify-center">No notifications</DropdownMenuItem>
+            )}
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="justify-center cursor-pointer">
+            <DropdownMenuItem className="justify-center cursor-pointer" onSelect={handleMarkAllAsRead} disabled={isLoading || unreadCount === 0}>
                 Mark all as read
             </DropdownMenuItem>
         </DropdownMenuContent>

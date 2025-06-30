@@ -17,6 +17,7 @@ import {
 } from "@/lib/tenants"
 import { stripe } from "@/lib/stripe"
 import { hasFeatureAccess } from "@/lib/access-control"
+import { notificationService } from "@/lib/notifications.service";
 
 
 // This action is used by the main dashboard's RfpSummaryCard
@@ -419,4 +420,32 @@ export async function updateMemberRoleAction(tenantId: string, memberId: number,
     const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
     return { error: `Failed to update member role: ${errorMessage}` };
   }
+}
+
+// == NOTIFICATION ACTIONS ==
+
+export async function getNotificationsAction(tenantId: string, userId: number) {
+    if (!tenantId || !userId) {
+        return { error: "Missing required parameters." };
+    }
+    try {
+        const notifications = notificationService.getNotifications(tenantId, userId);
+        return { success: true, notifications };
+    } catch (e) {
+        console.error(e);
+        return { error: "Failed to retrieve notifications." };
+    }
+}
+
+export async function markNotificationsAsReadAction(tenantId: string, userId: number) {
+    if (!tenantId || !userId) {
+        return { error: "Missing required parameters." };
+    }
+    try {
+        const notifications = notificationService.markAllAsRead(tenantId, userId);
+        return { success: true, notifications };
+    } catch (e) {
+        console.error(e);
+        return { error: "Failed to update notifications." };
+    }
 }
