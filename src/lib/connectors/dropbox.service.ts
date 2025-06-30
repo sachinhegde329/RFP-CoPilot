@@ -3,18 +3,18 @@
  * This service handles OAuth, listing files/folders, and ingesting file content.
  */
 
+import { Dropbox } from 'dropbox';
 import type { DataSource } from '@/lib/knowledge-base';
 import { knowledgeBaseService } from '@/lib/knowledge-base';
 import { parseDocument } from '@/ai/flows/parse-document';
 
 class DropboxService {
-    /**
-     * Initiates the connection to Dropbox via OAuth.
-     */
-    async connect() {
-        // TODO: This would redirect the user to the Dropbox OAuth consent screen.
-        console.log("Connecting to Dropbox...");
-        return Promise.resolve();
+    
+    private getClient(source: DataSource): Dropbox {
+        if (!source.auth?.accessToken) {
+            throw new Error("Dropbox source is not authenticated.");
+        }
+        return new Dropbox({ accessToken: source.auth.accessToken });
     }
 
     /**
@@ -22,36 +22,47 @@ class DropboxService {
      * @param source The DataSource containing auth tokens.
      * @returns A list of resources.
      */
-    async listResources(source: DataSource) {
-        // TODO: Use the Dropbox SDK/API to list files in a specified folder.
-        // API: /files/list_folder
-        console.log("Listing resources from Dropbox for source:", source.id);
-        return Promise.resolve([
-            { id: 'id:123', name: 'Security_Whitepaper.docx', '.tag': 'file', path_display: '/Security/Security_Whitepaper.docx' },
-            { id: 'id:456', name: 'Product Docs', '.tag': 'folder' },
-        ]);
+    async listResources(source: DataSource): Promise<any[]> {
+        const dbx = this.getClient(source);
+        let allFiles: any[] = [];
+        let hasMore = true;
+        let cursor: string | undefined = undefined;
+
+        while (hasMore) {
+            const response = await (cursor ? dbx.filesListFolderContinue({ cursor }) : dbx.filesListFolder({ path: '', recursive: true, limit: 100 }));
+            const files = response.result.entries.filter(entry => entry['.tag'] === 'file');
+            allFiles = allFiles.concat(files);
+            hasMore = response.result.has_more;
+            cursor = response.result.cursor;
+        }
+        
+        return allFiles;
     }
 
     /**
      * Fetches the content of a specific file from Dropbox.
      * @param source The DataSource containing auth tokens.
-     * @param resourceId The ID of the file.
+     * @param resourcePath The path of the file.
      * @returns The raw content of the resource (e.g., as a Buffer).
      */
-    async fetchResource(source: DataSource, resourceId: string): Promise<{ fileBinary: Buffer, mimeType: string }> {
-        // TODO: Use the Dropbox SDK/API to download a file.
-        // API: /files/download
-        // For this mock, we determine MIME type from extension.
-        console.log(`Fetching Dropbox file ${resourceId} for source:`, source.id);
-        const mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-        return Promise.resolve({ fileBinary: Buffer.from("Mock DOCX file content"), mimeType });
+    async fetchResource(source: DataSource, resourcePath: string): Promise<{ fileBinary: Buffer, mimeType: string }> {
+        const dbx = this.getClient(source);
+        const response: any = await dbx.filesDownload({ path: resourcePath });
+        const fileBinary = response.result.fileBinary;
+        
+        // This is a simplification; a real app might use a library like 'mime-types'
+        const ext = resourcePath.split('.').pop()?.toLowerCase();
+        let mimeType = 'application/octet-stream';
+        if (ext === 'pdf') mimeType = 'application/pdf';
+        if (ext === 'docx') mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+        if (ext === 'xlsx') mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+        if (ext === 'md' || ext === 'txt') mimeType = 'text/plain';
+
+        return { fileBinary, mimeType };
     }
 
     /**
      * Parses the raw file content into clean text using the generic parseDocument flow.
-     * @param rawContent The raw Buffer from fetchResource.
-     * @param mimeType The MIME type of the file.
-     * @returns The parsed text content and chunks.
      */
     async parseContent(fileBinary: Buffer, mimeType: string): Promise<{ text: string, chunks: string[] }> {
         const base64Data = fileBinary.toString('base64');
@@ -67,19 +78,25 @@ class DropboxService {
         console.log(`Starting sync for Dropbox source: ${source.name}`);
         knowledgeBaseService.deleteChunksBySourceId(source.tenantId, source.id);
 
-        const resources = await this.listResources(source);
-        const files = resources.filter(r => r['.tag'] === 'file');
+        const files = await this.listResources(source);
         let totalItems = 0;
 
         for (const file of files) {
-            const { fileBinary, mimeType } = await this.fetchResource(source, file.id);
-            const { chunks } = await this.parseContent(fileBinary, mimeType);
-            const url = `https://www.dropbox.com/home${file.path_display}`;
-            await knowledgeBaseService.addChunks(source.tenantId, source.id, 'dropbox', file.name, chunks, url);
-            totalItems += chunks.length;
+            try {
+                const { fileBinary, mimeType } = await this.fetchResource(source, file.path_display);
+                const { chunks } = await this.parseContent(fileBinary, mimeType);
+                await knowledgeBaseService.addChunks(source.tenantId, source.id, 'dropbox', file.name, chunks, `https://www.dropbox.com/home${file.path_display}`);
+                totalItems += chunks.length;
+            } catch (error) {
+                console.error(`Skipping file ${file.name} due to error:`, error);
+            }
         }
-
-        knowledgeBaseService.updateDataSource(source.tenantId, source.id, { itemCount: totalItems });
+        
+        knowledgeBaseService.updateDataSource(source.tenantId, source.id, {
+            status: 'Synced',
+            itemCount: totalItems,
+            lastSynced: new Date().toLocaleDateString(),
+        });
 
         return source;
     }

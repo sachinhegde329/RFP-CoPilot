@@ -3,82 +3,95 @@
  * This service handles OAuth, listing sites/drives/files,
  * and ingesting file content from SharePoint.
  */
-
+import { Client } from '@microsoft/microsoft-graph-client';
+import { type AuthenticationProvider } from '@microsoft/microsoft-graph-client';
 import type { DataSource } from '@/lib/knowledge-base';
 import { knowledgeBaseService } from '@/lib/knowledge-base';
 import { parseDocument } from '@/ai/flows/parse-document';
-// To use the Microsoft Graph client, you would initialize it like this:
-// import { Client } from '@microsoft/microsoft-graph-client';
-// import { TokenCredentialAuthenticationProvider } from '@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials';
-
 
 class SharePointService {
-    /**
-     * Initiates the connection to SharePoint via Microsoft Graph OAuth.
-     */
-    async connect() {
-        // This is handled by the /api/auth/microsoft/initiate route.
-        console.log("Connecting to SharePoint...");
-        return Promise.resolve();
+
+    private getClient(source: DataSource): Client {
+        if (!source.auth?.accessToken) {
+            throw new Error("SharePoint source is not authenticated.");
+        }
+        const authProvider: AuthenticationProvider = (callback) => {
+            // In a real app, you would handle token refresh here if needed.
+            callback(null, source.auth!.accessToken);
+        };
+        return Client.initWithMiddleware({ authProvider });
     }
 
     /**
-     * Lists resources (e.g., document libraries, files) from SharePoint.
-     * @param source The DataSource containing auth tokens.
-     * @returns A list of resources.
+     * Lists all files from all document libraries in the root SharePoint site.
      */
-    async listResources(source: DataSource) {
-        // TODO: Use the Microsoft Graph API to list sites, drives, and files.
-        // API: /sites, /sites/{site-id}/drives, /drives/{drive-id}/root/children
-        console.log("Listing resources from SharePoint for source:", source.id);
-        return Promise.resolve([
-            { id: 'item-123', name: 'Compliance Overview.docx', webUrl: 'https://tenant.sharepoint.com/sites/compliance/...' },
-            { id: 'item-456', name: 'Sales & Marketing Assets', folder: {} },
-        ]);
+    async listResources(source: DataSource): Promise<any[]> {
+        const graphClient = this.getClient(source);
+        let allItems: any[] = [];
+        
+        // 1. Get drives (document libraries) for the root site
+        const drives = await graphClient.api('/sites/root/drives').get();
+        
+        // 2. For each drive, list all files recursively
+        for (const drive of drives.value) {
+            let nextLink: string | undefined = `/drives/${drive.id}/root/search(q='')?$top=100`;
+            while (nextLink) {
+                const driveItems = await graphClient.api(nextLink).get();
+                const files = driveItems.value.filter((item: any) => item.file);
+                allItems = allItems.concat(files);
+                nextLink = driveItems['@odata.nextLink'];
+            }
+        }
+        return allItems;
     }
 
     /**
      * Fetches the content of a specific file from SharePoint.
-     * @param source The DataSource containing auth tokens.
-     * @param resourceId The ID of the file (drive item).
-     * @returns The raw content of the resource.
      */
-    async fetchResource(source: DataSource, resourceId: string): Promise<{ content: Buffer, mimeType: string }> {
-        // TODO: Use the Microsoft Graph API to download a file.
-        // API: /drives/{drive-id}/items/{item-id}/content
-        console.log(`Fetching SharePoint file ${resourceId} for source:`, source.id);
-        const mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-        return Promise.resolve({ content: Buffer.from("Mock file content from SharePoint."), mimeType });
+    async fetchResource(source: DataSource, file: any): Promise<{ content: Buffer, mimeType: string }> {
+        const graphClient = this.getClient(source);
+        const downloadUrl = file['@microsoft.graph.downloadUrl'];
+        if (!downloadUrl) {
+            throw new Error(`No download URL for file ${file.name}`);
+        }
+        
+        const response = await fetch(downloadUrl);
+        if (!response.ok) {
+            throw new Error(`Failed to download file: ${response.statusText}`);
+        }
+        const arrayBuffer = await response.arrayBuffer();
+        return { content: Buffer.from(arrayBuffer), mimeType: file.file.mimeType };
     }
     
-    /**
-     * Parses the raw file content into clean text and chunks.
-     */
     async parseContent(content: Buffer, mimeType: string): Promise<{ text: string, chunks: string[] }> {
         const dataUri = `data:${mimeType};base64,${content.toString('base64')}`;
         const result = await parseDocument({ documentDataUri: dataUri });
         return result;
     }
 
-    /**
-     * A full sync operation for a SharePoint data source.
-     */
     async sync(source: DataSource) {
         console.log(`Starting sync for SharePoint source: ${source.name}`);
         knowledgeBaseService.deleteChunksBySourceId(source.tenantId, source.id);
 
-        const resources = await this.listResources(source);
-        const files = resources.filter(r => !r.folder);
+        const files = await this.listResources(source);
         let totalItems = 0;
 
         for (const file of files) {
-            const { content, mimeType } = await this.fetchResource(source, file.id);
-            const { chunks } = await this.parseContent(content, mimeType);
-            await knowledgeBaseService.addChunks(source.tenantId, source.id, 'sharepoint', file.name, chunks, file.webUrl);
-            totalItems += chunks.length;
+            try {
+                const { content, mimeType } = await this.fetchResource(source, file);
+                const { chunks } = await this.parseContent(content, mimeType);
+                await knowledgeBaseService.addChunks(source.tenantId, source.id, 'sharepoint', file.name, chunks, file.webUrl);
+                totalItems += chunks.length;
+            } catch (error) {
+                console.error(`Skipping file ${file.name} due to error:`, error);
+            }
         }
-
-        knowledgeBaseService.updateDataSource(source.tenantId, source.id, { itemCount: totalItems });
+        
+        knowledgeBaseService.updateDataSource(source.tenantId, source.id, {
+            status: 'Synced',
+            itemCount: totalItems,
+            lastSynced: new Date().toLocaleDateString(),
+        });
         
         return source;
     }

@@ -4,7 +4,7 @@
  * and ingesting file content.
  */
 
-import { google } from 'googleapis';
+import { google, type drive_v3 } from 'googleapis';
 import type { DataSource } from '@/lib/knowledge-base';
 import { knowledgeBaseService } from '@/lib/knowledge-base';
 import { parseDocument } from '@/ai/flows/parse-document';
@@ -12,11 +12,6 @@ import { parseDocument } from '@/ai/flows/parse-document';
 
 class GoogleDriveService {
 
-    /**
-     * Returns an authenticated OAuth2 client for Google Drive API calls.
-     * @param source The DataSource containing the auth tokens.
-     * @returns An authenticated OAuth2 client.
-     */
     private getOAuth2Client(source: DataSource) {
         if (!source.auth) {
             throw new Error("Google Drive source is not authenticated.");
@@ -36,77 +31,86 @@ class GoogleDriveService {
         return oAuth2Client;
     }
 
-    /**
-     * Lists resources (files/folders) from a user's Google Drive.
-     * @param source The DataSource containing auth tokens.
-     * @returns A list of resources.
-     */
-    async listResources(source: DataSource) {
-        // const oAuth2Client = this.getOAuth2Client(source);
-        // const drive = google.drive({ version: 'v3', auth: oAuth2Client });
-        // const res = await drive.files.list({ ... });
-        // TODO: Implement actual API call with folder selection.
-        console.log("Listing resources from Google Drive for source:", source.id);
-        return Promise.resolve([
-            { id: '123xyz', name: 'Q1_RFP_Responses.gdoc', mimeType: 'application/vnd.google-apps.document', webViewLink: 'https://docs.google.com/document/d/123xyz' },
-            { id: '789def', name: 'Pricing.gsheet', mimeType: 'application/vnd.google-apps.spreadsheet', webViewLink: 'https://docs.google.com/spreadsheets/d/789def' },
-            { id: '456abc', name: 'Security Folder', mimeType: 'application/vnd.google-apps.folder' },
-        ]);
-    }
-
-    /**
-     * Fetches the content of a specific file from Google Drive.
-     * @param source The DataSource containing auth tokens.
-     * @param file The file object from listResources.
-     * @returns The raw content of the resource (e.g., exported as text or docx).
-     */
-    async fetchResource(source: DataSource, file: { id: string, mimeType: string }): Promise<{ content: Buffer, mimeType: string }> {
-        // const oAuth2Client = this.getOAuth2Client(source);
-        // const drive = google.drive({ version: 'v3', auth: oAuth2Client });
-        // For Google Docs, you would export them. For other files, you get the content directly.
-        // const res = await drive.files.export({ fileId: resourceId, mimeType: 'text/plain' });
-        console.log(`Fetching GDrive file ${file.id} for source:`, source.id);
+    async listResources(source: DataSource): Promise<drive_v3.Schema$File[]> {
+        const oAuth2Client = this.getOAuth2Client(source);
+        const drive = google.drive({ version: 'v3', auth: oAuth2Client });
         
-        let exportMimeType;
-        if (file.mimeType === 'application/vnd.google-apps.document') {
-            exportMimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-        } else if (file.mimeType === 'application/vnd.google-apps.spreadsheet') {
-            exportMimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
-        } else {
-             exportMimeType = 'application/pdf'; // Default fallback
-        }
+        let allFiles: drive_v3.Schema$File[] = [];
+        let pageToken: string | undefined = undefined;
 
-        return Promise.resolve({ content: Buffer.from("Mock file content from Google Drive."), mimeType: exportMimeType });
+        do {
+            const res = await drive.files.list({
+                q: "mimeType != 'application/vnd.google-apps.folder'", // List all files, not folders
+                fields: 'nextPageToken, files(id, name, mimeType, webViewLink)',
+                spaces: 'drive',
+                pageToken: pageToken,
+                pageSize: 100,
+            });
+            if (res.data.files) {
+                allFiles = allFiles.concat(res.data.files);
+            }
+            pageToken = res.data.nextPageToken || undefined;
+        } while (pageToken);
+
+        return allFiles;
     }
 
-    /**
-     * Parses the raw file content into clean text and chunks.
-     */
+    async fetchResource(source: DataSource, file: drive_v3.Schema$File): Promise<{ content: Buffer, mimeType: string } | null> {
+        if (!file.id || !file.mimeType) return null;
+
+        const oAuth2Client = this.getOAuth2Client(source);
+        const drive = google.drive({ version: 'v3', auth: oAuth2Client });
+        
+        // Handle Google Workspace docs (Docs, Sheets, Slides) by exporting them
+        if (file.mimeType.includes('google-apps')) {
+            let exportMimeType = 'application/pdf'; // Default fallback
+            if (file.mimeType === 'application/vnd.google-apps.document') {
+                exportMimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+            } else if (file.mimeType === 'application/vnd.google-apps.spreadsheet') {
+                exportMimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+            }
+            
+            const res = await drive.files.export({ fileId: file.id, mimeType: exportMimeType }, { responseType: 'arraybuffer' });
+            return { content: Buffer.from(res.data as ArrayBuffer), mimeType: exportMimeType };
+        } 
+        // Handle other file types (PDF, DOCX, etc.) by downloading them directly
+        else {
+            const res = await drive.files.get({ fileId: file.id, alt: 'media' }, { responseType: 'arraybuffer' });
+            return { content: Buffer.from(res.data as ArrayBuffer), mimeType: file.mimeType };
+        }
+    }
+
     async parseContent(content: Buffer, mimeType: string): Promise<{ text: string, chunks: string[] }> {
         const dataUri = `data:${mimeType};base64,${content.toString('base64')}`;
         const result = await parseDocument({ documentDataUri: dataUri });
         return result;
     }
     
-    /**
-     * A full sync operation for a Google Drive data source.
-     */
     async sync(source: DataSource) {
         console.log(`Starting sync for Google Drive source: ${source.name}`);
         knowledgeBaseService.deleteChunksBySourceId(source.tenantId, source.id);
 
-        const resources = await this.listResources(source);
-        const files = resources.filter(r => r.mimeType !== 'application/vnd.google-apps.folder');
+        const files = await this.listResources(source);
         let totalItems = 0;
 
         for (const file of files) {
-            const { content, mimeType } = await this.fetchResource(source, file);
-            const { chunks } = await this.parseContent(content, mimeType);
-            await knowledgeBaseService.addChunks(source.tenantId, source.id, 'gdrive', file.name, chunks, file.webViewLink);
-            totalItems += chunks.length;
+            try {
+                const resource = await this.fetchResource(source, file);
+                if (resource) {
+                    const { chunks } = await this.parseContent(resource.content, resource.mimeType);
+                    await knowledgeBaseService.addChunks(source.tenantId, source.id, 'gdrive', file.name!, chunks, file.webViewLink || undefined);
+                    totalItems += chunks.length;
+                }
+            } catch (error) {
+                 console.error(`Skipping file ${file.name} due to error:`, error);
+            }
         }
-
-        knowledgeBaseService.updateDataSource(source.tenantId, source.id, { itemCount: totalItems });
+        
+        knowledgeBaseService.updateDataSource(source.tenantId, source.id, {
+            status: 'Synced',
+            itemCount: totalItems,
+            lastSynced: new Date().toLocaleDateString(),
+        });
 
         return source;
     }

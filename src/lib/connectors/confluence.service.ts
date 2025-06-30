@@ -8,98 +8,103 @@ import type { DataSource } from '@/lib/knowledge-base';
 import { knowledgeBaseService } from '@/lib/knowledge-base';
 
 class ConfluenceService {
+
+    private getAuthHeaders(): HeadersInit {
+        const { CONFLUENCE_USERNAME, CONFLUENCE_API_TOKEN } = process.env;
+        if (!CONFLUENCE_USERNAME || !CONFLUENCE_API_TOKEN) {
+            throw new Error("Confluence credentials are not configured in .env file.");
+        }
+        const encoded = Buffer.from(`${CONFLUENCE_USERNAME}:${CONFLUENCE_API_TOKEN}`).toString('base64');
+        return {
+            'Authorization': `Basic ${encoded}`,
+            'Accept': 'application/json',
+        };
+    }
+    
     /**
-     * Initiates the connection to Confluence, likely using a PAT or OAuth.
-     * The implementation will depend on the chosen authentication strategy.
+     * Lists all pages from all spaces in Confluence.
+     * @returns A list of page resources.
      */
-    async connect() {
-        // TODO: Implement Confluence authentication flow (e.g., OAuth 2.0 or PAT)
-        console.log("Connecting to Confluence...");
-        return Promise.resolve();
+    async listResources(source: DataSource): Promise<any[]> {
+        const { CONFLUENCE_URL } = process.env;
+        if (!CONFLUENCE_URL) {
+            throw new Error("Confluence URL is not configured in .env file.");
+        }
+
+        let allPages: any[] = [];
+        let nextUrl: string | null = `${CONFLUENCE_URL}/wiki/rest/api/content?type=page&limit=50&expand=space`;
+
+        while (nextUrl) {
+            const response = await fetch(nextUrl, { headers: this.getAuthHeaders() });
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Failed to list Confluence resources: ${response.status} ${errorText}`);
+            }
+            const data = await response.json();
+            allPages = allPages.concat(data.results);
+            nextUrl = data._links.next ? `${CONFLUENCE_URL}${data._links.next}` : null;
+        }
+
+        return allPages;
     }
 
     /**
-     * Lists resources (e.g., spaces and pages) from Confluence.
-     * @param source The DataSource containing auth tokens.
-     * @returns A list of resources.
-     */
-    async listResources(source: DataSource) {
-        // TODO: Use the Confluence REST API to list spaces and pages
-        // API: /wiki/rest/api/content
-        console.log("Listing resources from Confluence for source:", source.id);
-        return Promise.resolve([
-            { id: '123', name: 'Product Requirements Space' },
-            { id: '456', name: 'Security Policies Space' },
-        ]);
-    }
-
-    /**
-     * Fetches the content of a specific resource (page) from Confluence.
-     * @param source The DataSource containing auth tokens.
+     * Fetches the content of a specific page from Confluence.
      * @param resourceId The ID of the Confluence page.
      * @returns The raw content of the resource.
      */
     async fetchResource(source: DataSource, resourceId: string): Promise<any> {
-        // TODO: Use the Confluence REST API to fetch page content.
-        // API: /wiki/rest/api/content/{id}?expand=body.storage
-        console.log(`Fetching Confluence page ${resourceId} for source:`, source.id);
-        return Promise.resolve({
-            title: 'Sample Confluence Page',
-            body: {
-                storage: {
-                    value: '<h1>Sample Page</h1><p>This is content from a Confluence page. It discusses our <strong>security protocols</strong> and <em>compliance certifications</em>.</p>'
-                }
-            },
-            _links: { webui: '/display/SPACE/Sample+Confluence+Page' }
-        });
+        const { CONFLUENCE_URL } = process.env;
+        const url = `${CONFLUENCE_URL}/wiki/rest/api/content/${resourceId}?expand=body.storage`;
+        const response = await fetch(url, { headers: this.getAuthHeaders() });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Failed to fetch Confluence page ${resourceId}: ${response.status} ${errorText}`);
+        }
+        
+        return response.json();
     }
 
-     /**
-     * Simple chunking function to split text into smaller pieces.
-     */
     private chunkText(text: string, chunkSize = 500, overlap = 50): string[] {
         const chunks: string[] = [];
         if (!text) return chunks;
-
         for (let i = 0; i < text.length; i += (chunkSize - overlap)) {
             chunks.push(text.substring(i, i + chunkSize));
         }
         return chunks;
     }
 
-     /**
-     * Parses the raw HTML content from a Confluence page into clean text and chunks.
-     * @param rawContent The raw content object from fetchResource.
-     * @returns The cleaned text content.
-     */
     parseContent(rawContent: any): { title: string, text: string, chunks: string[], url?: string } {
+        const { CONFLUENCE_URL } = process.env;
         const storageValue = rawContent.body?.storage?.value || '';
         const $ = cheerio.load(storageValue);
         $('br, p, h1, h2, h3, h4, h5, h6, li, blockquote, pre').after('\n');
         const text = $('body').text().replace(/\s\s+/g, ' ').trim();
         const chunks = this.chunkText(text);
-        const url = rawContent._links?.webui ? `https://<your-confluence-domain>.atlassian.net/wiki${rawContent._links.webui}` : undefined;
+        const url = rawContent._links?.webui ? `${CONFLUENCE_URL}/wiki${rawContent._links.webui}` : undefined;
         return { title: rawContent.title, text, chunks, url };
     }
 
-    /**
-     * A full sync operation for a Confluence data source.
-     */
     async sync(source: DataSource) {
         console.log(`Starting sync for Confluence source: ${source.name}`);
         knowledgeBaseService.deleteChunksBySourceId(source.tenantId, source.id);
 
-        const resources = await this.listResources(source);
+        const pages = await this.listResources(source);
         let totalItems = 0;
 
-        for (const resource of resources) {
-            const rawContent = await this.fetchResource(source, resource.id);
+        for (const page of pages) {
+            const rawContent = await this.fetchResource(source, page.id);
             const { title, chunks, url } = this.parseContent(rawContent);
             await knowledgeBaseService.addChunks(source.tenantId, source.id, 'confluence', title, chunks, url);
             totalItems += chunks.length;
         }
 
-        knowledgeBaseService.updateDataSource(source.tenantId, source.id, { itemCount: totalItems });
+        knowledgeBaseService.updateDataSource(source.tenantId, source.id, {
+            status: 'Synced',
+            itemCount: totalItems,
+            lastSynced: new Date().toLocaleDateString(),
+        });
         
         return source;
     }
