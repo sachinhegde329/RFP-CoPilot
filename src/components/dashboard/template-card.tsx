@@ -11,10 +11,8 @@ import {
   CardFooter,
 } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Lock, Unlock, Download, ShieldAlert, AlertTriangle, Loader2, Check, UserCheck } from "lucide-react"
+import { Download, ShieldAlert, AlertTriangle, Loader2, UserCheck } from "lucide-react"
 import { useTenant } from "@/components/providers/tenant-provider"
-import Link from "next/link"
-import { hasFeatureAccess } from "@/lib/access-control"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -58,7 +56,6 @@ export function TemplateCard({ questions, isLocked, onLockChange, members }: Tem
   });
   const [acknowledgments, setAcknowledgments] = useState<Acknowledgments>({});
 
-  const canAccess = hasFeatureAccess(tenant, 'customTemplates');
   const currentUser = tenant.members[0]; // For demo
   const isAdmin = currentUser.role === 'Admin' || currentUser.role === 'Owner';
   
@@ -139,34 +136,6 @@ export function TemplateCard({ questions, isLocked, onLockChange, members }: Tem
 
     setIsExporting(false);
   };
-
-
-  if (!canAccess) {
-    return (
-      <Card className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10" />
-        <CardHeader>
-          <CardTitle>Export Response</CardTitle>
-          <CardDescription>
-            Format and export your response using branded templates.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="blur-sm select-none">
-           {/* Content hidden by paywall */}
-        </CardContent>
-        <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-background/20 p-4 text-center">
-          <Lock className="size-8 text-primary mb-2" />
-          <h3 className="font-semibold mb-1">Unlock Custom Templates</h3>
-          <p className="text-sm text-muted-foreground mb-4">
-            Upgrade to a Growth plan to use custom branding and formats.
-          </p>
-          <Button asChild>
-            <Link href={`/pricing?tenant=${tenant.subdomain}`}>View Plans</Link>
-          </Button>
-        </div>
-      </Card>
-    )
-  }
 
   return (
     <Card>
