@@ -475,6 +475,20 @@ export async function markNotificationsAsReadAction(tenantId: string, userId: nu
 
 // == EXPORT ACTION ==
 
+/**
+ * Helper function to convert a PDFKit document stream to a buffer.
+ */
+async function generatePdfBuffer(doc: InstanceType<typeof PDFDocument>): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+        const buffers: Buffer[] = [];
+        doc.on('data', buffers.push.bind(buffers));
+        doc.on('end', () => resolve(Buffer.concat(buffers)));
+        doc.on('error', reject);
+        doc.end();
+    });
+}
+
+
 export async function exportRfpAction(payload: {
     questions: { id: number, question: string, status: string, answer: string }[],
     isLocked: boolean,
@@ -540,46 +554,41 @@ export async function exportRfpAction(payload: {
             };
 
         } else if (format === 'pdf') {
-            return new Promise((resolve, reject) => {
-                const doc = new PDFDocument({ margin: 50, bufferPages: true });
-                const buffers: Buffer[] = [];
-                doc.on('data', buffers.push.bind(buffers));
-                doc.on('end', () => {
-                    const pdfData = Buffer.concat(buffers).toString('base64');
-                    resolve({
-                        success: true,
-                        fileData: pdfData,
-                        fileName,
-                        mimeType: 'application/pdf',
-                    });
-                });
-                doc.on('error', reject);
+            const doc = new PDFDocument({ margin: 50, bufferPages: true });
+            
+            // Add content
+            doc.fontSize(25).text(`RFP Response - Version ${exportVersion}`, { align: 'center' });
+            doc.moveDown(2);
 
-                // Add content
-                doc.fontSize(25).text(`RFP Response - Version ${exportVersion}`, { align: 'center' });
+            questions.forEach(q => {
+                doc.fontSize(14).font('Helvetica-Bold').text(`Q${q.id}: ${q.question}`);
+                doc.moveDown(0.5);
+                doc.fontSize(12).font('Helvetica').text(q.answer || "No answer provided.");
+                doc.moveDown(1.5);
+            });
+
+            if (acknowledgments.length > 0) {
+                doc.addPage();
+                doc.fontSize(25).text('Acknowledgments', { align: 'center' });
                 doc.moveDown(2);
-
-                questions.forEach(q => {
-                    doc.fontSize(14).font('Helvetica-Bold').text(`Q${q.id}: ${q.question}`);
+                acknowledgments.forEach(ack => {
+                    doc.fontSize(14).font('Helvetica-Bold').text(`${ack.name} (${ack.role})`);
                     doc.moveDown(0.5);
-                    doc.fontSize(12).font('Helvetica').text(q.answer || "No answer provided.");
+                    doc.fontSize(12).font('Helvetica-Oblique').text(`"${ack.comment}"`);
                     doc.moveDown(1.5);
                 });
+            }
 
-                if (acknowledgments.length > 0) {
-                    doc.addPage();
-                    doc.fontSize(25).text('Acknowledgments', { align: 'center' });
-                    doc.moveDown(2);
-                    acknowledgments.forEach(ack => {
-                        doc.fontSize(14).font('Helvetica-Bold').text(`${ack.name} (${ack.role})`);
-                        doc.moveDown(0.5);
-                        doc.fontSize(12).font('Helvetica-Oblique').text(`"${ack.comment}"`);
-                        doc.moveDown(1.5);
-                    });
-                }
+            const pdfBuffer = await generatePdfBuffer(doc);
+            const base64 = pdfBuffer.toString('base64');
 
-                doc.end();
-            });
+            return {
+                success: true,
+                fileData: base64,
+                fileName,
+                mimeType: 'application/pdf',
+            };
+
         } else {
             return { error: "Invalid export format specified." };
         }
