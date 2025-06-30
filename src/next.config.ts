@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  serverExternalPackages: ['canvas'],
+  serverExternalPackages: ['canvas', 'pdfkit'],
 };
 
 export default nextConfig;
