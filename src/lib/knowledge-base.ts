@@ -2,6 +2,7 @@
 import { embeddingService } from './embedding.service';
 import { websiteCrawlerService } from './connectors/websiteCrawler.service';
 import { getConnectorService } from './connectors';
+import { tagContent } from '@/ai/flows/tag-content-flow';
 
 export type DataSourceType = 'website' | 'document' | 'confluence' | 'sharepoint' | 'gdrive' | 'notion' | 'github' | 'dropbox';
 export type SyncStatus = 'Synced' | 'Syncing' | 'Error' | 'Pending';
@@ -37,6 +38,7 @@ export interface DocumentChunk {
   title: string; // e.g., page title or document name
   content: string;
   embedding?: number[]; // Vector representation of the content
+  tags?: string[]; // Optional tags for enriched filtering
   metadata: {
     sourceType: DataSourceType;
     url?: string; // URL for websites or external sources
@@ -74,8 +76,8 @@ class KnowledgeBaseService {
             { id: 'megacorp-source-2', tenantId: 'megacorp', type: 'website', name: 'https://en.wikipedia.org/wiki/Mega-corporation', status: 'Error', lastSynced: '1 day ago', itemCount: 87 },
         ],
         chunks: [
-            { id: 'default-1', tenantId: 'megacorp', sourceId: 'megacorp-source-1', title: 'Initial Knowledge', content: "RFP CoPilot is an AI-powered platform designed to streamline the Request for Proposal (RFP) response process. Its core features include AI-driven document summarization, question extraction, and draft answer generation from an internal knowledge base.", metadata: { sourceType: 'document', chunkIndex: 0 } },
-            { id: 'default-2', tenantId: 'megacorp', sourceId: 'megacorp-source-1', title: 'Initial Knowledge', content: "The platform supports various compliance standards like SOC 2 and ISO 27001. All customer data is encrypted at rest using AES-256 and in transit using TLS 1.2+.", metadata: { sourceType: 'document', chunkIndex: 1 } },
+            { id: 'default-1', tenantId: 'megacorp', sourceId: 'megacorp-source-1', title: 'Initial Knowledge', content: "RFP CoPilot is an AI-powered platform designed to streamline the Request for Proposal (RFP) response process. Its core features include AI-driven document summarization, question extraction, and draft answer generation from an internal knowledge base.", metadata: { sourceType: 'document', chunkIndex: 0 }, tags: ['product', 'company'] },
+            { id: 'default-2', tenantId: 'megacorp', sourceId: 'megacorp-source-1', title: 'Initial Knowledge', content: "The platform supports various compliance standards like SOC 2 and ISO 27001. All customer data is encrypted at rest using AES-256 and in transit using TLS 1.2+.", metadata: { sourceType: 'document', chunkIndex: 1 }, tags: ['compliance', 'security'] },
         ],
         logs: [],
     };
@@ -84,7 +86,7 @@ class KnowledgeBaseService {
             { id: 'acme-source-1', tenantId: 'acme', type: 'document', name: 'Acme Inc. Onboarding.pdf', status: 'Synced', lastSynced: 'Initial Setup', uploader: 'System', itemCount: 1 }
         ],
         chunks: [
-            { id: 'default-3', tenantId: 'acme', sourceId: 'acme-source-1', title: 'Acme Inc. Onboarding', content: 'Acme Inc. provides enterprise solutions for supply chain management. Our flagship product, "LogiStream", optimizes logistics from end to end.', metadata: { sourceType: 'document', chunkIndex: 0 } }
+            { id: 'default-3', tenantId: 'acme', sourceId: 'acme-source-1', title: 'Acme Inc. Onboarding', content: 'Acme Inc. provides enterprise solutions for supply chain management. Our flagship product, "LogiStream", optimizes logistics from end to end.', metadata: { sourceType: 'document', chunkIndex: 0 }, tags: ['company', 'product'] }
         ],
         logs: [],
     };
@@ -184,24 +186,32 @@ class KnowledgeBaseService {
   // == CHUNK MANAGEMENT ==
   public async addChunks(tenantId: string, sourceId: string, sourceType: DataSourceType, title: string, chunks: string[], url?: string) {
     this._ensureTenantData(tenantId);
-    // Generate embeddings for all chunks in parallel for efficiency
-    const chunkEmbeddings = await Promise.all(
-        chunks.map(content => embeddingService.generateEmbedding(content))
-    );
+    
+    // Generate embeddings and tags for all chunks in parallel for efficiency
+    const processingPromises = chunks.map(content => Promise.all([
+        embeddingService.generateEmbedding(content),
+        tagContent({ content })
+    ]));
+
+    const processedChunksData = await Promise.all(processingPromises);
       
-    const newChunks: DocumentChunk[] = chunks.map((content, index) => ({
-      id: `${sourceId}-chunk-${index}-${Date.now()}`,
-      tenantId,
-      sourceId,
-      title,
-      content,
-      embedding: chunkEmbeddings[index], // Store the generated embedding
-      metadata: {
-        sourceType,
-        url,
-        chunkIndex: index,
-      }
-    }));
+    const newChunks: DocumentChunk[] = chunks.map((content, index) => {
+      const [embedding, tagResult] = processedChunksData[index];
+      return {
+        id: `${sourceId}-chunk-${index}-${Date.now()}`,
+        tenantId,
+        sourceId,
+        title,
+        content,
+        embedding: embedding, // Store the generated embedding
+        tags: tagResult.tags, // Store the generated tags
+        metadata: {
+          sourceType,
+          url,
+          chunkIndex: index,
+        }
+      };
+    });
     this.tenantData[tenantId].chunks.unshift(...newChunks);
   }
 
