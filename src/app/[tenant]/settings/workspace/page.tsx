@@ -5,6 +5,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
 import Image from "next/image"
+import { useRef } from "react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -40,6 +41,7 @@ type WorkspaceFormValues = z.infer<typeof workspaceFormSchema>
 export default function WorkspaceSettingsPage() {
     const { toast } = useToast()
     const { tenant, setTenant } = useTenant();
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const currentUser = tenant.members[0];
     const canEditWorkspace = canPerformAction(currentUser.role, 'editWorkspace');
@@ -64,6 +66,33 @@ export default function WorkspaceSettingsPage() {
             description: "Your workspace settings have been saved.",
         })
     }
+    
+    const handleLogoUploadClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Create a local URL for preview
+        const logoUrl = URL.createObjectURL(file);
+        
+        // Optimistically update tenant context
+        setTenant(prev => ({
+            ...prev,
+            branding: {
+                ...prev.branding,
+                logoUrl: logoUrl,
+                logoDataAiHint: 'company logo'
+            }
+        }));
+
+        toast({
+            title: "Logo Updated",
+            description: "Your new logo is being previewed. Save changes to make it permanent.",
+        });
+    };
 
     return (
         <Card>
@@ -77,16 +106,23 @@ export default function WorkspaceSettingsPage() {
                 <form onSubmit={form.handleSubmit(onSubmit)}>
                     <CardContent className="space-y-6">
                         <fieldset className="space-y-6" disabled={!canEditWorkspace}>
+                             <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleLogoFileChange}
+                                className="hidden"
+                                accept="image/png, image/jpeg, image/svg+xml"
+                            />
                             <div className="flex items-center gap-4">
                                 <Image 
                                     src={tenant.branding.logoUrl} 
                                     alt={`${tenant.name} Logo`}
                                     width={128}
                                     height={32}
-                                    className="h-10 w-auto p-1 bg-muted rounded-md"
+                                    className="h-10 w-auto p-1 bg-muted rounded-md object-contain"
                                     data-ai-hint={tenant.branding.logoDataAiHint}
                                 />
-                                <Button type="button" variant="outline">
+                                <Button type="button" variant="outline" onClick={handleLogoUploadClick}>
                                     <Upload className="mr-2 h-4 w-4" />
                                     Change Logo
                                 </Button>

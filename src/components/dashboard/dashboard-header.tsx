@@ -2,6 +2,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useTheme } from "next-themes"
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -18,9 +19,13 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuPortal
 } from "@/components/ui/dropdown-menu"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { Bell, Bot, CheckCircle, CircleUserRound, MessageSquare, UserPlus, Loader2 } from "lucide-react"
+import { Bell, Bot, CheckCircle, CircleUserRound, MessageSquare, UserPlus, Loader2, Sun, Moon } from "lucide-react"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { getNotificationsAction, markNotificationsAsReadAction } from "@/app/actions"
 import type { Notification } from "@/lib/notifications.service"
@@ -43,6 +48,7 @@ function getNotificationIcon(type: string) {
 export function DashboardHeader() {
   const { tenant } = useTenant()
   const { toast } = useToast()
+  const { setTheme } = useTheme()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -163,6 +169,26 @@ export function DashboardHeader() {
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuLabel>My Account</DropdownMenuLabel>
+          <DropdownMenuSeparator />
+           <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Sun className="mr-2 h-4 w-4" />
+              <span>Theme</span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuPortal>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem onClick={() => setTheme("light")}>
+                  Light
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme("dark")}>
+                  Dark
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setTheme("system")}>
+                  System
+                </DropdownMenuItem>
+              </DropdownMenuSubContent>
+            </DropdownMenuPortal>
+          </DropdownMenuSub>
           <DropdownMenuSeparator />
           <DropdownMenuItem>Settings</DropdownMenuItem>
           <DropdownMenuItem>Support</DropdownMenuItem>
