@@ -201,6 +201,19 @@ function ExportDialog({ questions, members }: { questions: Question[], members: 
                             </Alert>
                         )}
 
+                        <div className="space-y-2">
+                            <Label htmlFor="export-template">Export Template</Label>
+                            <Select defaultValue="default">
+                                <SelectTrigger id="export-template">
+                                    <SelectValue placeholder="Select a template" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="default">Default Template (Categorized)</SelectItem>
+                                    <SelectItem value="formal" disabled>Formal Proposal (Coming Soon)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
                          <div className="space-y-2">
                             <Label htmlFor="export-version">Export Version Tag</Label>
                             <Input 

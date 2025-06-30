@@ -570,24 +570,48 @@ export async function exportRfpAction(payload: {
     const fileName = `RFP_Response_${exportVersion.replace(/\s+/g, '_')}.${format}`;
 
     try {
+        // Group questions by category for structured export
+        const questionsByCategory = questions.reduce((acc, q) => {
+            const category = q.category || 'Uncategorized';
+            if (!acc[category]) {
+                acc[category] = [];
+            }
+            acc[category].push(q);
+            return acc;
+        }, {} as Record<string, Question[]>);
+
+
         let fileData;
         let mimeType;
+
         if (format === 'docx') {
             const docChildren: Paragraph[] = [
                 new Paragraph({ text: `RFP Response - Version ${exportVersion}`, heading: HeadingLevel.TITLE }),
-                ...questions.flatMap(q => [
-                    new Paragraph({
-                        children: [new TextRun({ text: `Q${q.id}: ${q.question}`, bold: true })],
-                        spacing: { before: 240, after: 120 }
-                    }),
-                    new Paragraph({
-                        text: q.answer || "No answer provided.",
-                    })
-                ])
             ];
+            
+            for (const category in questionsByCategory) {
+                docChildren.push(
+                    new Paragraph({
+                        text: category,
+                        heading: HeadingLevel.HEADING_1,
+                        spacing: { before: 480, after: 240 },
+                    })
+                );
+                questionsByCategory[category].forEach(q => {
+                    docChildren.push(
+                        new Paragraph({
+                            children: [new TextRun({ text: `Q${q.id}: ${q.question}`, bold: true })],
+                            spacing: { before: 240, after: 120 }
+                        }),
+                        new Paragraph({
+                            text: q.answer || "No answer provided.",
+                        })
+                    );
+                });
+            }
 
             if (acknowledgments.length > 0) {
-                docChildren.push(new Paragraph({ text: 'Acknowledgments', heading: HeadingLevel.TITLE, pageBreakBefore: true }));
+                docChildren.push(new Paragraph({ text: 'Acknowledgments', heading: HeadingLevel.HEADING_1, pageBreakBefore: true, spacing: { before: 480, after: 240 } }));
                 acknowledgments.forEach(ack => {
                     docChildren.push(
                         new Paragraph({
@@ -613,11 +637,18 @@ export async function exportRfpAction(payload: {
             doc.fontSize(18).text(`RFP Response - Version ${exportVersion}`, { align: 'center' });
             doc.moveDown(2);
 
-            questions.forEach(q => {
-                doc.font('Helvetica-Bold').fontSize(12).text(`Q${q.id}: ${q.question}`);
-                doc.font('Helvetica').fontSize(10).text(q.answer || "No answer provided.", { indent: 20 });
+            for (const category in questionsByCategory) {
+                doc.font('Helvetica-Bold').fontSize(14).text(category, { underline: true });
+                doc.moveDown(0.5);
+
+                questionsByCategory[category].forEach(q => {
+                    doc.font('Helvetica-Bold').fontSize(11).text(`Q${q.id}: ${q.question}`);
+                    doc.font('Helvetica').fontSize(10).text(q.answer || "No answer provided.", { indent: 20 });
+                    doc.moveDown();
+                });
                 doc.moveDown();
-            });
+            }
+
 
             if (acknowledgments.length > 0) {
                 doc.addPage();
