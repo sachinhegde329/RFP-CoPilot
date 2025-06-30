@@ -8,6 +8,7 @@ import type { TeamMember } from "@/lib/tenants"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { PlusCircle } from "lucide-react"
 import { Accordion } from "@/components/ui/accordion"
+import { Progress } from "@/components/ui/progress"
 
 type Question = {
   id: number
@@ -53,6 +54,11 @@ export function QAndAList({ initialQuestions, tenantId, members, isLocked, onUpd
     }
   }, [questions, activeFilter, currentUser.id])
   
+  // Progress calculation
+  const completedCount = useMemo(() => questions.filter(q => q.status === 'Completed').length, [questions]);
+  const totalCount = questions.length;
+  const progressPercentage = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+
   return (
     <Card>
       <CardHeader>
@@ -68,6 +74,17 @@ export function QAndAList({ initialQuestions, tenantId, members, isLocked, onUpd
             Add Question
           </Button>
         </div>
+
+        {totalCount > 0 && (
+          <div className="pt-4 space-y-2">
+              <div className="flex justify-between items-center text-sm text-muted-foreground">
+                  <span>Overall Progress</span>
+                  <span>{completedCount} of {totalCount} Completed</span>
+              </div>
+              <Progress value={progressPercentage} className="h-2" />
+          </div>
+        )}
+
         <div className="flex flex-wrap gap-2 pt-4">
             <Button variant={activeFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('all')}>All ({questions.length})</Button>
             <Button variant={activeFilter === 'assignedToMe' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('assignedToMe')}>Assigned to Me ({questions.filter(q => q.assignee?.id === currentUser.id).length})</Button>
