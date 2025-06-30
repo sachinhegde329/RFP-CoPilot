@@ -18,7 +18,15 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  serverExternalPackages: ['canvas', 'pdfkit'],
+  serverExternalPackages: [
+    'canvas',
+    'pdfkit',
+    'dropbox',
+    'googleapis',
+    '@microsoft/microsoft-graph-client',
+    '@octokit/rest',
+    '@notionhq/client',
+  ],
 };
 
 export default nextConfig;
