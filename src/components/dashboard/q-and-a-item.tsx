@@ -192,16 +192,36 @@ export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQ
             <p className="font-normal text-sm leading-snug flex-1">{question}</p>
           </div>
           <div className="flex items-center gap-2">
-            <TooltipProvider delayDuration={100}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex h-6 w-6 items-center justify-center">
-                    <StatusIcon status={status} />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent><p>{status}</p></TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <TooltipProvider delayDuration={100}>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button className={cn("flex h-6 w-6 items-center justify-center rounded-full", isEditingDisabled ? "cursor-not-allowed" : "hover:bg-accent/50")} disabled={isEditingDisabled}>
+                                <StatusIcon status={status} />
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent><p>Change status: {status}</p></TooltipContent>
+                    </Tooltip>
+                </TooltipProvider>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>Set Status</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={() => handleStatusChange('Unassigned')}>
+                  <Circle className="mr-2 h-4 w-4 text-muted-foreground" />
+                  Unassigned
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => handleStatusChange('In Progress')}>
+                  <CircleDotDashed className="mr-2 h-4 w-4 text-yellow-600" />
+                  In Progress
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => handleStatusChange('Completed')}>
+                  <CheckCircle className="mr-2 h-4 w-4 text-green-600" />
+                  Completed
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <TooltipProvider delayDuration={100}>
               <Tooltip>
