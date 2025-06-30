@@ -7,6 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button"
 import type { TeamMember } from "@/lib/tenants"
 import { useTenant } from "@/components/providers/tenant-provider"
+import { PlusCircle } from "lucide-react"
 
 type Question = {
   id: number
@@ -55,11 +56,19 @@ export function QAndAList({ initialQuestions, tenantId, members, isLocked, onUpd
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Extracted Questions</CardTitle>
-        <CardDescription>
-          Filter, assign, and answer the questions extracted from the RFP.
-        </CardDescription>
-        <div className="flex flex-wrap gap-2 pt-2">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <CardTitle>Extracted Questions</CardTitle>
+            <CardDescription>
+              Filter, assign, and answer the questions extracted from the RFP.
+            </CardDescription>
+          </div>
+          <Button>
+            <PlusCircle className="mr-2" />
+            Add Question
+          </Button>
+        </div>
+        <div className="flex flex-wrap gap-2 pt-4">
             <Button variant={activeFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('all')}>All</Button>
             <Button variant={activeFilter === 'assignedToMe' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('assignedToMe')}>Assigned to Me</Button>
             <Button variant={activeFilter === 'unassigned' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('unassigned')}>Unassigned</Button>
