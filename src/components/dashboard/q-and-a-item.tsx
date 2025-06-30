@@ -34,10 +34,11 @@ type QAndAItemProps = {
   questionData: Question
   tenantId: string
   members: TeamMember[]
+  isLocked: boolean
   onUpdateQuestion: (questionId: number, updates: Partial<Question>) => void
 }
 
-export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }: QAndAItemProps) {
+export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQuestion }: QAndAItemProps) {
   const { id, question, category, compliance, assignee, status } = questionData;
   const { tenant } = useTenant();
   const { toast } = useToast();
@@ -51,6 +52,9 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
   const [isCommentSheetOpen, setIsCommentSheetOpen] = useState(false)
   const canUseAiReview = hasFeatureAccess(tenant, 'aiExpertReview');
   const currentUser = tenant.members[0];
+
+  const isEditor = currentUser.role === 'Editor';
+  const isEditingDisabled = isLocked && isEditor;
 
   const mockComments = [
     { id: 1, author: members[1] || members[0], timestamp: '2 hours ago', content: 'Good start, but can we clarify the part about data residency?' },
@@ -108,11 +112,13 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
   }
 
   const handleAssigneeChange = (memberId: string) => {
+    if (isEditingDisabled) return;
     const member = members.find(m => m.id.toString() === memberId) || null;
     onUpdateQuestion(id, { assignee: member });
   };
 
   const handleStatusChange = (newStatus: Question['status']) => {
+    if (isEditingDisabled) return;
     onUpdateQuestion(id, { status: newStatus });
   };
 
@@ -162,7 +168,7 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
 
   return (
     <>
-      <Card>
+      <Card className={isEditingDisabled ? "bg-muted/30" : ""}>
         <CardHeader>
           <div className="flex justify-between items-start gap-4">
             <CardTitle className="text-base font-medium flex-1">
@@ -180,10 +186,10 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
         <CardContent className="space-y-4">
           <div className="rounded-md border">
             <div className="p-2 border-b flex items-center gap-1">
-              <Button variant="ghost" size="icon" disabled><Bold /></Button>
-              <Button variant="ghost" size="icon" disabled><Italic /></Button>
-              <Button variant="ghost" size="icon" disabled><Underline /></Button>
-              <Button variant="ghost" size="icon" disabled><List /></Button>
+              <Button variant="ghost" size="icon" disabled={isEditingDisabled}><Bold /></Button>
+              <Button variant="ghost" size="icon" disabled={isEditingDisabled}><Italic /></Button>
+              <Button variant="ghost" size="icon" disabled={isEditingDisabled}><Underline /></Button>
+              <Button variant="ghost" size="icon" disabled={isEditingDisabled}><List /></Button>
             </div>
             <div className="relative">
               <Textarea
@@ -191,6 +197,7 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
                 className="min-h-[120px] w-full resize-y border-0 pr-10 focus-visible:ring-0"
+                disabled={isEditingDisabled}
               />
               <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={handleCopy}>
                 {isCopied ? <ClipboardCheck className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
@@ -200,7 +207,7 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <Button onClick={handleGenerateAnswer} disabled={isGenerating}>
+              <Button onClick={handleGenerateAnswer} disabled={isGenerating || isEditingDisabled}>
                 {isGenerating ? (
                   <Loader2 className="animate-spin" />
                 ) : (
@@ -211,7 +218,7 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
               <Button
                 variant="outline"
                 onClick={handleReviewAnswer}
-                disabled={isReviewing || !answer || !canUseAiReview}
+                disabled={isReviewing || !answer || !canUseAiReview || isEditingDisabled}
               >
                 {isReviewing ? <Loader2 className="animate-spin" /> : <Bot />}
                 AI Expert Review
@@ -245,7 +252,7 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
           <div className="flex items-center gap-2">
              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="h-8 px-2 text-xs sm:text-sm sm:px-3">
+                    <Button variant="outline" className="h-8 px-2 text-xs sm:text-sm sm:px-3" disabled={isEditingDisabled}>
                         {assignee ? (
                             <>
                                 <Avatar className="h-5 w-5 mr-0 sm:mr-2">
@@ -286,7 +293,7 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
                 <TooltipTrigger asChild>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 data-[state=open]:bg-accent">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 data-[state=open]:bg-accent" disabled={isEditingDisabled}>
                           <StatusIcon status={status} />
                       </Button>
                     </DropdownMenuTrigger>
@@ -323,7 +330,7 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
           </div>
           <div className="flex items-center gap-2">
             <History className="h-4 w-4 text-muted-foreground" />
-            <Select defaultValue="v3">
+            <Select defaultValue="v3" disabled={isEditingDisabled}>
               <SelectTrigger className="h-8 w-[120px] text-xs">
                 <SelectValue placeholder="Version" />
               </SelectTrigger>

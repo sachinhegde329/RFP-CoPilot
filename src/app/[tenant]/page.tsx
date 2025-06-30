@@ -69,6 +69,7 @@ export default function DashboardPage() {
   const [summary, setSummary] = useState(sampleSummary)
   const [questions, setQuestions] = useState<Question[]>(sampleQuestions)
   const [isLoading, setIsLoading] = useState(false)
+  const [isLocked, setIsLocked] = useState(false)
   const { toast } = useToast()
 
   const handleProcessRfp = async (rfpText: string) => {
@@ -83,6 +84,7 @@ export default function DashboardPage() {
     setIsLoading(true)
     setSummary("")
     setQuestions([])
+    setIsLocked(false) // Unlock when new RFP is processed
 
     try {
       // Run actions in parallel
@@ -149,6 +151,7 @@ export default function DashboardPage() {
                 initialQuestions={questions} 
                 tenantId={tenant.id} 
                 members={tenant.members} 
+                isLocked={isLocked}
               />
             ) : !isLoading ? (
                <Card>
@@ -164,7 +167,11 @@ export default function DashboardPage() {
           </div>
           <div className="lg:col-span-1 space-y-6">
             <ComplianceCard />
-            <TemplateCard />
+            <TemplateCard 
+              questions={questions}
+              isLocked={isLocked}
+              onLockChange={setIsLocked}
+            />
           </div>
         </div>
       </main>

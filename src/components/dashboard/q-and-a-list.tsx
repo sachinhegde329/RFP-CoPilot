@@ -21,11 +21,12 @@ type QAndAListProps = {
   initialQuestions: Question[]
   tenantId: string
   members: TeamMember[]
+  isLocked: boolean
 }
 
 type FilterType = "all" | "assignedToMe" | "unassigned" | "completed"
 
-export function QAndAList({ initialQuestions, tenantId, members }: QAndAListProps) {
+export function QAndAList({ initialQuestions, tenantId, members, isLocked }: QAndAListProps) {
   const [questions, setQuestions] = useState<Question[]>(initialQuestions)
   const [activeFilter, setActiveFilter] = useState<FilterType>("all")
   const { tenant } = useTenant(); 
@@ -79,6 +80,7 @@ export function QAndAList({ initialQuestions, tenantId, members }: QAndAListProp
             tenantId={tenantId}
             members={members}
             onUpdateQuestion={handleUpdateQuestion}
+            isLocked={isLocked}
           />
         ))}
          {filteredQuestions.length === 0 && (
