@@ -16,8 +16,8 @@ import { hasFeatureAccess } from "@/lib/access-control"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import type { TeamMember } from "@/lib/tenants"
-import { Separator } from "../ui/separator"
 import { Input } from "../ui/input"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 
 type Question = {
   id: number
@@ -46,6 +46,7 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
   const [isGenerating, setIsGenerating] = useState(false)
   const [isReviewing, setIsReviewing] = useState(false)
   const [isCopied, setIsCopied] = useState(false)
+  const [isCommentSheetOpen, setIsCommentSheetOpen] = useState(false)
   const canUseAiReview = hasFeatureAccess(tenant, 'aiExpertReview');
   const currentUser = tenant.members[0];
 
@@ -157,196 +158,213 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex justify-between items-start gap-4">
-          <CardTitle className="text-base font-medium flex-1">
-            {`Q${id}: ${question}`}
-          </CardTitle>
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <Badge variant="outline" className="hidden sm:flex items-center">
-              <Tag className="mr-1 h-3 w-3" />
-              {category}
-            </Badge>
-            <ComplianceBadge />
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="p-2 border rounded-md flex items-center gap-1">
-            <Button variant="ghost" size="icon" disabled><Bold /></Button>
-            <Button variant="ghost" size="icon" disabled><Italic /></Button>
-            <Button variant="ghost" size="icon" disabled><Underline /></Button>
-            <Button variant="ghost" size="icon" disabled><List /></Button>
-        </div>
-        <div className="relative">
-          <Textarea
-            placeholder="Draft your answer here..."
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-            className="pr-10"
-            rows={5}
-          />
-          <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={handleCopy}>
-            {isCopied ? <ClipboardCheck className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
-            <span className="sr-only">Copy</span>
-          </Button>
-        </div>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <Button onClick={handleGenerateAnswer} disabled={isGenerating}>
-              {isGenerating ? (
-                <Loader2 className="animate-spin" />
-              ) : (
-                <Sparkles />
-              )}
-              Generate Answer
-            </Button>
-            <Button
-              variant="outline"
-              onClick={handleReviewAnswer}
-              disabled={isReviewing || !answer || !canUseAiReview}
-            >
-              {isReviewing ? <Loader2 className="animate-spin" /> : <Bot />}
-              AI Expert Review
-            </Button>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <History className="text-muted-foreground" />
-            <Select defaultValue="v3">
-              <SelectTrigger className="w-[120px]">
-                <SelectValue placeholder="Version" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="v3">Version 3</SelectItem>
-                <SelectItem value="v2">Version 2</SelectItem>
-                <SelectItem value="v1">Version 1</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        {review && (
-          <Alert>
-            <Bot className="h-4 w-4" />
-            <AlertTitle>AI Expert Review</AlertTitle>
-            <AlertDescription className="prose prose-sm max-w-none">
-              {review}
-            </AlertDescription>
-          </Alert>
-        )}
-        {sources.length > 0 && (
-          <Alert variant="secondary">
-            <BookOpenCheck className="h-4 w-4" />
-            <AlertTitle>Sources Used</AlertTitle>
-            <AlertDescription>
-              <ul className="list-disc list-inside text-xs">
-                {sources.map((source, index) => (
-                    <li key={index}>{source}</li>
-                ))}
-              </ul>
-            </AlertDescription>
-          </Alert>
-        )}
-        <Separator />
-        <div className="space-y-4">
-            <h4 className="flex items-center gap-2 font-medium text-sm"><MessageSquare className="h-4 w-4" /> Comments ({comments.length})</h4>
-            <div className="space-y-4 max-h-48 overflow-y-auto pr-2">
-                {comments.map(comment => (
-                    <div key={comment.id} className="flex items-start gap-3">
-                        <Avatar className="h-8 w-8">
-                            {comment.author.avatar && <AvatarImage src={comment.author.avatar} alt={comment.author.name} />}
-                            <AvatarFallback>{comment.author.name.charAt(0)}</AvatarFallback>
-                        </Avatar>
-                        <div>
-                            <div className="flex items-center gap-2 text-sm">
-                                <span className="font-semibold">{comment.author.name}</span>
-                                <span className="text-xs text-muted-foreground">{comment.timestamp}</span>
-                            </div>
-                            <p className="text-sm text-muted-foreground">{comment.content}</p>
-                        </div>
-                    </div>
-                ))}
+    <>
+      <Card>
+        <CardHeader>
+          <div className="flex justify-between items-start gap-4">
+            <CardTitle className="text-base font-medium flex-1">
+              {`Q${id}: ${question}`}
+            </CardTitle>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Badge variant="outline" className="hidden sm:flex items-center">
+                <Tag className="mr-1 h-3 w-3" />
+                {category}
+              </Badge>
+              <ComplianceBadge />
             </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="p-2 border rounded-md flex items-center gap-1">
+              <Button variant="ghost" size="icon" disabled><Bold /></Button>
+              <Button variant="ghost" size="icon" disabled><Italic /></Button>
+              <Button variant="ghost" size="icon" disabled><Underline /></Button>
+              <Button variant="ghost" size="icon" disabled><List /></Button>
+          </div>
+          <div className="relative">
+            <Textarea
+              placeholder="Draft your answer here..."
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+              className="pr-10"
+              rows={5}
+            />
+            <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={handleCopy}>
+              {isCopied ? <ClipboardCheck className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
+              <span className="sr-only">Copy</span>
+            </Button>
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-                 <Avatar className="h-8 w-8">
-                    {currentUser.avatar && <AvatarImage src={currentUser.avatar} alt={currentUser.name} />}
-                    <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <Input 
-                    placeholder="Add a comment..." 
-                    value={newComment}
-                    onChange={(e) => setNewComment(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddComment(); } }}
-                />
-                <Button onClick={handleAddComment} size="icon"><Send /></Button>
+              <Button onClick={handleGenerateAnswer} disabled={isGenerating}>
+                {isGenerating ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <Sparkles />
+                )}
+                Generate Answer
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleReviewAnswer}
+                disabled={isReviewing || !answer || !canUseAiReview}
+              >
+                {isReviewing ? <Loader2 className="animate-spin" /> : <Bot />}
+                AI Expert Review
+              </Button>
             </div>
-        </div>
-      </CardContent>
-       <CardFooter className="flex flex-wrap gap-4 justify-between items-center bg-muted/50 p-3 border-t">
-        <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground">Assignee:</span>
-            <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="h-8">
-                        {assignee ? (
-                            <>
-                                <Avatar className="h-5 w-5 mr-2">
-                                    {assignee.avatar && <AvatarImage src={assignee.avatar} alt={assignee.name} />}
-                                    <AvatarFallback className="text-xs">{assignee.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                {assignee.name}
-                            </>
-                        ) : (
-                            <>
-                                <UserPlus className="mr-2 h-4 w-4"/>
-                                Unassigned
-                            </>
-                        )}
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                    <DropdownMenuLabel>Assign to</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={() => handleAssigneeChange(null)}>
-                        <UserPlus className="mr-2 h-4 w-4"/>
-                        Unassigned
-                    </DropdownMenuItem>
-                    {members.map(member => (
-                        <DropdownMenuItem key={member.id} onSelect={() => handleAssigneeChange(member)}>
-                             <Avatar className="h-5 w-5 mr-2">
-                                {member.avatar && <AvatarImage src={member.avatar} alt={member.name} />}
-                                <AvatarFallback className="text-xs">{member.name.charAt(0)}</AvatarFallback>
-                            </Avatar>
-                            {member.name}
-                        </DropdownMenuItem>
-                    ))}
-                </DropdownMenuContent>
-            </DropdownMenu>
-        </div>
-        <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-muted-foreground">Status:</span>
-             <Select value={status} onValueChange={(value: Question['status']) => handleStatusChange(value)}>
-                <SelectTrigger className="w-[150px] h-8">
-                   <div className="flex items-center gap-2">
-                     <StatusIcon status={status} />
-                     <SelectValue />
-                   </div>
+
+            <div className="flex items-center gap-2">
+              <History className="text-muted-foreground" />
+              <Select defaultValue="v3">
+                <SelectTrigger className="w-[120px]">
+                  <SelectValue placeholder="Version" />
                 </SelectTrigger>
                 <SelectContent>
-                    <SelectItem value="Unassigned">
-                        <div className="flex items-center gap-2"><Circle className="h-4 w-4 text-muted-foreground" /> Unassigned</div>
-                    </SelectItem>
-                    <SelectItem value="In Progress">
-                        <div className="flex items-center gap-2"><CircleDotDashed className="h-4 w-4 text-yellow-600" /> In Progress</div>
-                    </SelectItem>
-                    <SelectItem value="Completed">
-                        <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /> Completed</div>
-                    </SelectItem>
+                  <SelectItem value="v3">Version 3</SelectItem>
+                  <SelectItem value="v2">Version 2</SelectItem>
+                  <SelectItem value="v1">Version 1</SelectItem>
                 </SelectContent>
-            </Select>
-        </div>
-      </CardFooter>
-    </Card>
+              </Select>
+            </div>
+          </div>
+          {review && (
+            <Alert>
+              <Bot className="h-4 w-4" />
+              <AlertTitle>AI Expert Review</AlertTitle>
+              <AlertDescription className="prose prose-sm max-w-none">
+                {review}
+              </AlertDescription>
+            </Alert>
+          )}
+          {sources.length > 0 && (
+            <Alert variant="secondary">
+              <BookOpenCheck className="h-4 w-4" />
+              <AlertTitle>Sources Used</AlertTitle>
+              <AlertDescription>
+                <ul className="list-disc list-inside text-xs">
+                  {sources.map((source, index) => (
+                      <li key={index}>{source}</li>
+                  ))}
+                </ul>
+              </AlertDescription>
+            </Alert>
+          )}
+        </CardContent>
+        <CardFooter className="flex flex-wrap gap-4 justify-between items-center bg-muted/50 p-3 border-t">
+          <div className="flex items-center gap-x-4 gap-y-2 flex-wrap">
+            <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground">Assignee:</span>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="outline" className="h-8">
+                            {assignee ? (
+                                <>
+                                    <Avatar className="h-5 w-5 mr-2">
+                                        {assignee.avatar && <AvatarImage src={assignee.avatar} alt={assignee.name} />}
+                                        <AvatarFallback className="text-xs">{assignee.name.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                    {assignee.name}
+                                </>
+                            ) : (
+                                <>
+                                    <UserPlus className="mr-2 h-4 w-4"/>
+                                    Unassigned
+                                </>
+                            )}
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuLabel>Assign to</DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onSelect={() => handleAssigneeChange(null)}>
+                            <UserPlus className="mr-2 h-4 w-4"/>
+                            Unassigned
+                        </DropdownMenuItem>
+                        {members.map(member => (
+                            <DropdownMenuItem key={member.id} onSelect={() => handleAssigneeChange(member)}>
+                                <Avatar className="h-5 w-5 mr-2">
+                                    {member.avatar && <AvatarImage src={member.avatar} alt={member.name} />}
+                                    <AvatarFallback className="text-xs">{member.name.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                {member.name}
+                            </DropdownMenuItem>
+                        ))}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+            <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground">Status:</span>
+                <Select value={status} onValueChange={(value: Question['status']) => handleStatusChange(value)}>
+                    <SelectTrigger className="w-[150px] h-8">
+                      <div className="flex items-center gap-2">
+                        <StatusIcon status={status} />
+                        <SelectValue />
+                      </div>
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="Unassigned">
+                            <div className="flex items-center gap-2"><Circle className="h-4 w-4 text-muted-foreground" /> Unassigned</div>
+                        </SelectItem>
+                        <SelectItem value="In Progress">
+                            <div className="flex items-center gap-2"><CircleDotDashed className="h-4 w-4 text-yellow-600" /> In Progress</div>
+                        </SelectItem>
+                        <SelectItem value="Completed">
+                            <div className="flex items-center gap-2"><CheckCircle className="h-4 w-4 text-green-600" /> Completed</div>
+                        </SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+          </div>
+          <Button variant="outline" size="sm" onClick={() => setIsCommentSheetOpen(true)}>
+            <MessageSquare className="mr-2 h-4 w-4" />
+            Comments ({comments.length})
+          </Button>
+        </CardFooter>
+      </Card>
+      <Sheet open={isCommentSheetOpen} onOpenChange={setIsCommentSheetOpen}>
+        <SheetContent className="flex flex-col gap-0 sm:max-w-lg">
+          <SheetHeader className="p-6">
+            <SheetTitle>Comments on Q{id}</SheetTitle>
+            <SheetDescription className="line-clamp-3 text-left">
+              {question}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto space-y-4 p-6 pt-0">
+            {comments.map(comment => (
+                <div key={comment.id} className="flex items-start gap-3">
+                    <Avatar className="h-8 w-8">
+                        {comment.author.avatar && <AvatarImage src={comment.author.avatar} alt={comment.author.name} />}
+                        <AvatarFallback>{comment.author.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                        <div className="flex items-center gap-2 text-sm">
+                            <span className="font-semibold">{comment.author.name}</span>
+                            <span className="text-xs text-muted-foreground">{comment.timestamp}</span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{comment.content}</p>
+                    </div>
+                </div>
+            ))}
+          </div>
+          <div className="mt-auto flex items-center gap-2 border-t bg-background p-4">
+              <Avatar className="h-8 w-8">
+                {currentUser.avatar && <AvatarImage src={currentUser.avatar} alt={currentUser.name} />}
+                <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <Input 
+                  placeholder="Add a comment..." 
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddComment(); } }}
+              />
+              <Button onClick={handleAddComment} size="icon" disabled={!newComment.trim()}>
+                  <Send />
+                  <span className="sr-only">Send comment</span>
+              </Button>
+          </div>
+        </SheetContent>
+      </Sheet>
+    </>
   )
 }
