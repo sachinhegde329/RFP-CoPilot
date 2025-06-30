@@ -107,9 +107,11 @@ export function TemplateCard({ questions, isLocked, onLockChange, members }: Tem
         }));
 
     const result = await exportRfpAction({
+        tenantId: tenant.id,
+        rfpId: 'main_rfp',
         questions,
         isLocked,
-        currentUserRole: currentUser.role,
+        currentUser: { name: currentUser.name, role: currentUser.role },
         exportVersion,
         format,
         acknowledgments: acknowledgmentsData,

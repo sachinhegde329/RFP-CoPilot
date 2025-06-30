@@ -18,6 +18,7 @@ import {
 import { stripe } from "@/lib/stripe"
 import { hasFeatureAccess } from "@/lib/access-control"
 import { notificationService } from "@/lib/notifications.service";
+import { exportService } from "@/lib/export.service";
 
 import { Document, Packer, Paragraph, HeadingLevel, TextRun } from 'docx';
 import PDFDocument from 'pdfkit';
@@ -490,20 +491,22 @@ async function generatePdfBuffer(doc: InstanceType<typeof PDFDocument>): Promise
 
 
 export async function exportRfpAction(payload: {
+    tenantId: string;
+    rfpId: string;
     questions: { id: number, question: string, status: string, answer: string }[],
     isLocked: boolean,
-    currentUserRole: Role,
+    currentUser: { name: string, role: Role },
     exportVersion: string,
     format: 'pdf' | 'docx',
     acknowledgments: { name: string, role: string, comment: string }[]
 }) {
-    const { questions, isLocked, currentUserRole, exportVersion, format, acknowledgments } = payload;
+    const { tenantId, rfpId, questions, isLocked, currentUser, exportVersion, format, acknowledgments } = payload;
 
     if (!isLocked) {
         return { error: "Export failed: The RFP must be locked before exporting." };
     }
 
-    const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'Owner';
+    const isAdmin = currentUser.role === 'Admin' || currentUser.role === 'Owner';
     const allQuestionsCompleted = questions.every(q => q.status === 'Completed');
 
     if (!allQuestionsCompleted && !isAdmin) {
@@ -513,6 +516,8 @@ export async function exportRfpAction(payload: {
     const fileName = `RFP_Response_${exportVersion.replace(/\s+/g, '_')}.${format}`;
 
     try {
+        let fileData;
+        let mimeType;
         if (format === 'docx') {
             const docChildren: Paragraph[] = [
                 new Paragraph({ text: `RFP Response - Version ${exportVersion}`, heading: HeadingLevel.TITLE }),
@@ -544,14 +549,9 @@ export async function exportRfpAction(payload: {
             }
 
             const doc = new Document({ sections: [{ properties: {}, children: docChildren }] });
-
-            const base64 = await Packer.toBase64String(doc);
-            return {
-                success: true,
-                fileData: base64,
-                fileName,
-                mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-            };
+            
+            fileData = await Packer.toBase64String(doc);
+            mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
         } else if (format === 'pdf') {
             const doc = new PDFDocument({ margin: 50, bufferPages: true });
@@ -563,7 +563,6 @@ export async function exportRfpAction(payload: {
             doc.fontSize(12);
 
             questions.forEach(q => {
-                // Use .text() for simplicity and to avoid font issues
                 doc.text(`Q${q.id}: ${q.question}`, { paragraphGap: 5 });
                 doc.text(q.answer || "No answer provided.", { indent: 20, paragraphGap: 10 });
             });
@@ -581,20 +580,46 @@ export async function exportRfpAction(payload: {
             }
 
             const pdfBuffer = await generatePdfBuffer(doc);
-            const base64 = pdfBuffer.toString('base64');
-
-            return {
-                success: true,
-                fileData: base64,
-                fileName,
-                mimeType: 'application/pdf',
-            };
+            fileData = pdfBuffer.toString('base64');
+            mimeType = 'application/pdf';
 
         } else {
             return { error: "Invalid export format specified." };
         }
+        
+        exportService.addExportRecord(tenantId, {
+            rfpId,
+            version: exportVersion,
+            format,
+            exportedAt: new Date().toISOString(),
+            exportedBy: currentUser,
+            questionCount: questions.length,
+            acknowledgments,
+        });
+
+        return {
+            success: true,
+            fileData,
+            fileName,
+            mimeType,
+        };
     } catch (e) {
         console.error("Export failed:", e);
         return { error: "An unexpected error occurred during file generation." };
+    }
+}
+
+
+export async function getExportHistoryAction(tenantId: string, rfpId: string) {
+    if (!tenantId || !rfpId) {
+        return { error: "Missing required parameters." };
+    }
+    try {
+        const history = exportService.getExportHistory(tenantId, rfpId);
+        return { success: true, history };
+    } catch (e) {
+        console.error(e);
+        const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
+        return { error: `Failed to retrieve export history: ${errorMessage}` };
     }
 }
