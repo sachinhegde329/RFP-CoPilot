@@ -173,7 +173,7 @@ export function QAndAItem({ questionData, tenantId, members, isLocked, onUpdateQ
 
   return (
     <>
-      <AccordionItem value={`item-${id}`} className={cn(isEditingDisabled && "bg-muted/30 cursor-not-allowed", "border-x-0 border-t-0 border-b")}>
+      <AccordionItem value={`item-${id}`} className={cn(isEditingDisabled && "bg-muted/30 cursor-not-allowed")}>
         <AccordionTrigger className="p-4 text-left hover:no-underline [&[data-state=open]]:bg-muted/50">
           <div className="flex-1 flex items-start gap-4 mr-4">
             <span className="text-sm font-semibold text-primary mt-px">{`Q${id}`}</span>

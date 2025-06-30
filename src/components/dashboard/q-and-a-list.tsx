@@ -93,7 +93,7 @@ export function QAndAList({ initialQuestions, tenantId, members, isLocked, onUpd
         </div>
       </CardHeader>
       <CardContent className="p-0">
-        <Accordion type="multiple" className="w-full">
+        <Accordion type="multiple" className="w-full border-b">
             {filteredQuestions.map((q) => (
             <QAndAItem
                 key={q.id}
@@ -106,7 +106,7 @@ export function QAndAList({ initialQuestions, tenantId, members, isLocked, onUpd
             ))}
         </Accordion>
          {filteredQuestions.length === 0 && (
-            <div className="text-center text-muted-foreground p-8 border-2 border-dashed rounded-lg m-6">
+            <div className="text-center text-muted-foreground p-8 border-t">
                 No questions match the current filter.
             </div>
         )}
