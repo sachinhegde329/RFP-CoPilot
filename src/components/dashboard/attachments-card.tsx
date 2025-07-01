@@ -96,7 +96,7 @@ export function AttachmentsCard({ attachments, onUpdateAttachments }: Attachment
           Add supplementary files like appendices or diagrams for the selected RFP. (Max 3)
         </CardDescription>
       </CardHeader>
-      <CardContent className="pt-0">
+      <CardContent className="pt-0 min-h-52">
         {attachments.length > 0 ? (
           <Table>
             <TableHeader>
@@ -149,7 +149,7 @@ export function AttachmentsCard({ attachments, onUpdateAttachments }: Attachment
             </TableBody>
           </Table>
         ) : (
-           <div className="flex flex-col items-center justify-center gap-4 text-center p-8 border-2 border-dashed border-muted rounded-lg">
+           <div className="flex h-full flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed border-muted p-8 text-center">
               <Paperclip className="size-12 text-muted-foreground" />
               <h3 className="font-semibold">No Supporting Documents</h3>
               <p className="text-sm text-muted-foreground">Add supplementary files for this RFP.</p>
