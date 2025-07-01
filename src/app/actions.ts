@@ -290,7 +290,7 @@ export async function addDocumentSourceAction(documentDataUri: string, tenantId:
     return { source: newSource };
 }
 
-export async function addWebsiteSourceAction(url: string, tenantId: string, currentUser: CurrentUser) {
+export async function addWebsiteSourceAction(url: string, tenantId: string, currentUser: CurrentUser, config: { maxDepth: number, maxPages: number }) {
     const permCheck = checkPermission(tenantId, currentUser, 'manageIntegrations');
     if (permCheck.error) return { error: permCheck.error };
 
@@ -304,7 +304,8 @@ export async function addWebsiteSourceAction(url: string, tenantId: string, curr
         name: url,
         status: 'Syncing',
         lastSynced: 'In progress...',
-        itemCount: 0
+        itemCount: 0,
+        config,
     });
 
     // Don't await this, let it run in the background

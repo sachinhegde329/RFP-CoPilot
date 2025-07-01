@@ -26,6 +26,10 @@ export interface DataSource {
     tokenType: string;
     expiryDate: number;
   } | null;
+  config?: {
+    maxDepth?: number;
+    maxPages?: number;
+  };
 }
 
 /**
@@ -79,7 +83,7 @@ class KnowledgeBaseService {
     this.tenantData['megacorp'] = {
         sources: [
             { id: 'megacorp-source-1', tenantId: 'megacorp', type: 'document', name: 'Initial Knowledge.docx', status: 'Synced', lastSynced: 'Initial Setup', uploader: 'System', itemCount: 2 },
-            { id: 'megacorp-source-2', tenantId: 'megacorp', type: 'website', name: 'https://en.wikipedia.org/wiki/Mega-corporation', status: 'Error', lastSynced: '1 day ago', itemCount: 87 },
+            { id: 'megacorp-source-2', tenantId: 'megacorp', type: 'website', name: 'https://en.wikipedia.org/wiki/Mega-corporation', status: 'Error', lastSynced: '1 day ago', itemCount: 87, config: { maxDepth: 1, maxPages: 1 } },
         ],
         chunks: [
             { id: 'default-1', tenantId: 'megacorp', sourceId: 'megacorp-source-1', title: 'Initial Knowledge', content: "RFP CoPilot is an AI-powered platform designed to streamline the Request for Proposal (RFP) response process. Its core features include AI-driven document summarization, question extraction, and draft answer generation from an internal knowledge base.", metadata: { sourceType: 'document', chunkIndex: 0 }, tags: ['product', 'company'] },

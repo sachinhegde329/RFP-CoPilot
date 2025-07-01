@@ -101,6 +101,8 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
   const [configStep, setConfigStep] = useState<'select' | 'configure'>('select');
   const [sourceToConfigure, setSourceToConfigure] = useState<string | null>(null);
   const [websiteUrl, setWebsiteUrl] = useState('');
+  const [maxDepth, setMaxDepth] = useState(2);
+  const [maxPages, setMaxPages] = useState(10);
 
   const currentUser = tenant.members[0];
   const canManageIntegrations = canPerformAction(currentUser.role, 'manageIntegrations');
@@ -161,7 +163,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
     
     setIsDialogOpen(false);
     
-    const result = await addWebsiteSourceAction(websiteUrl, tenant.id, currentUser);
+    const result = await addWebsiteSourceAction(websiteUrl, tenant.id, currentUser, { maxDepth, maxPages });
 
     if(result.error || !result.source) {
         toast({ variant: "destructive", title: "Sync Failed", description: result.error });
@@ -225,6 +227,8 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
         setConfigStep('select');
         setSourceToConfigure(null);
         setWebsiteUrl('');
+        setMaxDepth(2);
+        setMaxPages(10);
       }, 300);
     }
   }, [isDialogOpen]);
@@ -379,7 +383,18 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
                                             <div className="space-y-2">
                                                 <Label htmlFor="website-url">Root URL</Label>
                                                 <Input id="website-url" placeholder="https://www.example.com" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} />
-                                                <p className="text-xs text-muted-foreground">The crawler will start from this page. Only a single page is supported for now.</p>
+                                            </div>
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="max-depth">Max Depth</Label>
+                                                    <Input id="max-depth" type="number" value={maxDepth} onChange={(e) => setMaxDepth(parseInt(e.target.value, 10) || 0)} />
+                                                    <p className="text-xs text-muted-foreground">How many links deep to crawl. 0 means only the root URL.</p>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="max-pages">Max Pages</Label>
+                                                    <Input id="max-pages" type="number" value={maxPages} onChange={(e) => setMaxPages(parseInt(e.target.value, 10) || 0)} />
+                                                    <p className="text-xs text-muted-foreground">The maximum number of pages to ingest.</p>
+                                                </div>
                                             </div>
                                             <Button onClick={handleSyncWebsite} disabled={!websiteUrl}>Sync Website</Button>
                                         </div>

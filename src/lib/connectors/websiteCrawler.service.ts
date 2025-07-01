@@ -5,6 +5,9 @@
 
 import * as cheerio from 'cheerio';
 import type { DataSource } from '@/lib/knowledge-base';
+import { knowledgeBaseService } from '@/lib/knowledge-base';
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 class WebsiteCrawlerService {
 
@@ -27,6 +30,7 @@ class WebsiteCrawlerService {
    * for each discovered URL.
    * @param url The URL of the web page to ingest.
    * @returns An object with the title, cleaned content, and text chunks.
+   * @deprecated This method is kept for backward compatibility with existing flows. New sync logic uses the `sync` method.
    */
   async ingestPage(url: string) {
     try {
@@ -65,6 +69,102 @@ class WebsiteCrawlerService {
       const errorMessage = error instanceof Error ? error.message : "Unknown error";
       return { success: false, error: errorMessage };
     }
+  }
+
+  /**
+   * Private helper to fetch and parse a page for the new sync method.
+   */
+  private async _fetchAndParsePage(url: string): Promise<{ title: string, content: string, links: string[], url: string }> {
+      const response = await fetch(url);
+      if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) {
+        throw new Error(`Skipping non-HTML page: ${url}`);
+      }
+      const html = await response.text();
+      const $ = cheerio.load(html);
+
+      const title = $('title').text() || $('h1').first().text() || url;
+      $('script, style, nav, footer, header, aside, .navbar, .footer, #sidebar').remove();
+      $('br, p, h1, h2, h3, h4, h5, h6, li, blockquote, pre').after('\n');
+      const content = $('body').text().replace(/\s\s+/g, ' ').trim();
+      
+      const links: string[] = [];
+      const baseOrigin = new URL(url).origin;
+      $('a[href]').each((i, el) => {
+          const href = $(el).attr('href');
+          if (href) {
+              try {
+                  const absoluteUrl = new URL(href, url).href.split('#')[0];
+                  if (new URL(absoluteUrl).origin === baseOrigin) {
+                      links.push(absoluteUrl);
+                  }
+              } catch (e) { /* ignore invalid URLs */ }
+          }
+      });
+      const uniqueLinks = [...new Set(links)];
+
+      return { title, content, links: uniqueLinks, url };
+  }
+
+  /**
+   * Performs a multi-page crawl of a website based on the source configuration.
+   * @param source The DataSource containing the root URL and crawl configuration.
+   */
+  async sync(source: DataSource) {
+    console.log(`Starting sync for website source: ${source.name}`);
+    await knowledgeBaseService.deleteChunksBySourceId(source.tenantId, source.id);
+
+    const { maxDepth = 2, maxPages = 10 } = source.config || {};
+    const rateLimitMs = 1000; // 1 req/sec
+
+    const queue: { url: string; depth: number }[] = [{ url: source.name, depth: 0 }];
+    const visited = new Set<string>();
+    let pagesCrawled = 0;
+    let totalItems = 0;
+
+    while (queue.length > 0 && pagesCrawled < maxPages) {
+        const { url, depth } = queue.shift()!;
+
+        if (visited.has(url)) {
+            continue;
+        }
+
+        visited.add(url);
+        
+        try {
+            console.log(`Crawling (${pagesCrawled + 1}/${maxPages}): ${url} at depth ${depth}`);
+            const pageData = await this._fetchAndParsePage(url);
+            pagesCrawled++;
+
+            const chunks = this.chunkText(pageData.content);
+            
+            if (chunks.length > 0) {
+                await knowledgeBaseService.addChunks(source.tenantId, source.id, 'website', pageData.title, chunks, pageData.url);
+                totalItems += chunks.length;
+            }
+
+            if (depth < maxDepth) {
+                for (const link of pageData.links) {
+                    if (!visited.has(link)) {
+                        queue.push({ url: link, depth: depth + 1 });
+                    }
+                }
+            }
+
+        } catch (error) {
+            console.error(`Failed to crawl ${url}:`, error);
+        }
+
+        await sleep(rateLimitMs);
+    }
+    
+    knowledgeBaseService.updateDataSource(source.tenantId, source.id, {
+        status: 'Synced',
+        itemCount: totalItems,
+        lastSynced: new Date().toLocaleDateString(),
+    });
+
+    console.log(`Finished sync for ${source.name}. Crawled ${pagesCrawled} pages, found ${totalItems} chunks.`);
+    return source;
   }
 }
 
