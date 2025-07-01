@@ -1,5 +1,9 @@
 
+
 import type { Tenant } from './tenants';
+
+// NOTE: This service is currently using an in-memory store for prototype purposes.
+// For a production environment, this should be migrated to a persistent database (e.g., Firestore).
 
 export type TemplateType = 'System' | 'Custom';
 export type TemplateIcon = 'FileText' | 'FileJson' | 'Blocks';
@@ -122,7 +126,7 @@ class TemplateService {
         return newTemplate;
     }
 
-    public duplicateTemplate(tenantId: string, templateId: string): Template | null {
+    public async duplicateTemplate(tenantId: string, templateId: string): Promise<Template | null> {
         this._ensureTenantData(tenantId);
         const sourceTemplate = this.tenantData[tenantId].templates.find(t => t.id === templateId);
         if (!sourceTemplate) return null;

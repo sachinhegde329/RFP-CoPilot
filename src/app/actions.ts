@@ -10,11 +10,6 @@ import { rfpService, type Question, type RFP } from "@/lib/rfp.service"
 import {
     getTenantBySubdomain,
     updateTenant as updateTenantData,
-    updateMemberProfile as updateMemberData,
-    plansConfig,
-    inviteMember as inviteMemberToTenant,
-    removeMember as removeMemberFromTenant,
-    updateMemberRole as updateMemberRoleInTenant,
     type Role,
     type TeamMember,
     type Tenant
@@ -29,11 +24,11 @@ import { detectRfpTopics } from "@/ai/flows/detect-rfp-topics"
 import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType, PageBreak } from 'docx';
 import PDFDocument from 'pdfkit';
 
-type CurrentUser = { id: number; role: Role; name: string; }
+type CurrentUser = { id: string; role: Role; name: string; }
 
 // Helper function to check permissions before executing an action
-function checkPermission(tenantId: string, currentUser: CurrentUser, action: Action): { tenant: Tenant, user: TeamMember, error?: undefined } | { error: string } {
-    const tenant = getTenantBySubdomain(tenantId);
+async function checkPermission(tenantId: string, currentUser: CurrentUser, action: Action): Promise<{ tenant: Tenant, user: TeamMember, error?: undefined } | { error: string }> {
+    const tenant = await getTenantBySubdomain(tenantId);
     if (!tenant) return { error: "Tenant not found." };
     
     // In a real app, the user would be loaded from a secure session, not found in the tenant members list.
@@ -49,7 +44,7 @@ function checkPermission(tenantId: string, currentUser: CurrentUser, action: Act
 
 // This action is used by the main dashboard's RfpSummaryCard
 export async function parseDocumentAction(documentDataUri: string, tenantId: string, currentUser: CurrentUser) {
-    const permCheck = checkPermission(tenantId, currentUser, 'uploadRfps');
+    const permCheck = await checkPermission(tenantId, currentUser, 'uploadRfps');
     if (permCheck.error) return { error: permCheck.error };
     const { tenant } = permCheck;
 
@@ -79,7 +74,7 @@ export async function parseDocumentAction(documentDataUri: string, tenantId: str
 }
 
 export async function generateAnswerAction(question: string, rfpId: string, tenantId: string, currentUser: CurrentUser) {
-  const permCheck = checkPermission(tenantId, currentUser, 'editContent');
+  const permCheck = await checkPermission(tenantId, currentUser, 'editContent');
   if (permCheck.error) return { error: permCheck.error };
   const { tenant } = permCheck;
 
@@ -90,7 +85,7 @@ export async function generateAnswerAction(question: string, rfpId: string, tena
       return { error: "You have no AI answers remaining this month. Please upgrade your plan or purchase an AI Answer Pack." };
   }
 
-  const rfp = rfpService.getRfp(tenantId, rfpId);
+  const rfp = await rfpService.getRfp(tenantId, rfpId);
   if (!rfp) {
       return { error: "RFP not found." };
   }
@@ -124,7 +119,7 @@ export async function generateAnswerAction(question: string, rfpId: string, tena
 }
 
 export async function reviewAnswerAction(question: string, answer: string, tenantId: string, currentUser: CurrentUser) {
-  const permCheck = checkPermission(tenantId, currentUser, 'editContent');
+  const permCheck = await checkPermission(tenantId, currentUser, 'editContent');
   if (permCheck.error) return { error: permCheck.error };
   const { tenant } = permCheck;
   
@@ -150,7 +145,7 @@ export async function reviewAnswerAction(question: string, answer: string, tenan
 }
 
 export async function extractQuestionsAction(rfpText: string, rfpName: string, tenantId: string, currentUser: CurrentUser): Promise<{ rfp?: RFP, error?: string }> {
-  const permCheck = checkPermission(tenantId, currentUser, 'uploadRfps');
+  const permCheck = await checkPermission(tenantId, currentUser, 'uploadRfps');
   if (permCheck.error) return { error: permCheck.error };
   const { tenant } = permCheck;
 
@@ -158,7 +153,7 @@ export async function extractQuestionsAction(rfpText: string, rfpName: string, t
     return { error: "RFP text cannot be empty." }
   }
 
-  const existingRfps = rfpService.getRfps(tenant.id);
+  const existingRfps = await rfpService.getRfps(tenant.id);
   if (existingRfps.length >= tenant.limits.rfps) {
       return { error: `You have reached the limit of ${tenant.limits.rfps} active RFPs for your plan. Please upgrade to create more.` };
   }
@@ -179,7 +174,7 @@ export async function extractQuestionsAction(rfpText: string, rfpName: string, t
     }));
     
     // Create a new RFP with the extracted questions and topics
-    const newRfp = rfpService.addRfp(tenantId, rfpName, questionsWithStatus, topicResult.topics);
+    const newRfp = await rfpService.addRfp(tenantId, rfpName, questionsWithStatus, topicResult.topics);
     return { rfp: newRfp }
   } catch (e) {
     console.error(e)
@@ -188,7 +183,7 @@ export async function extractQuestionsAction(rfpText: string, rfpName: string, t
 }
 
 export async function updateQuestionAction(tenantId: string, rfpId: string, questionId: number, updates: Partial<Question>, currentUser: CurrentUser) {
-    const permCheck = checkPermission(tenantId, currentUser, 'editContent');
+    const permCheck = await checkPermission(tenantId, currentUser, 'editContent');
     if (permCheck.error) return { error: permCheck.error };
     
     if (!questionId) {
@@ -203,7 +198,7 @@ export async function updateQuestionAction(tenantId: string, rfpId: string, ques
     }
 
     try {
-        const updatedQuestion = rfpService.updateQuestion(tenantId, rfpId, questionId, updates);
+        const updatedQuestion = await rfpService.updateQuestion(tenantId, rfpId, questionId, updates);
         if (!updatedQuestion) {
             return { error: "Question not found or could not be updated." };
         }
@@ -216,14 +211,14 @@ export async function updateQuestionAction(tenantId: string, rfpId: string, ques
 }
 
 export async function addQuestionAction(tenantId: string, rfpId: string, questionData: Omit<Question, 'id'>, currentUser: CurrentUser) {
-    const permCheck = checkPermission(tenantId, currentUser, 'editContent');
+    const permCheck = await checkPermission(tenantId, currentUser, 'editContent');
     if (permCheck.error) return { error: permCheck.error };
 
     if (!questionData) {
         return { error: "Missing required parameters." };
     }
     try {
-        const newQuestion = rfpService.addQuestion(tenantId, rfpId, questionData);
+        const newQuestion = await rfpService.addQuestion(tenantId, rfpId, questionData);
         return { success: true, question: newQuestion };
     } catch (e) {
         console.error(e);
@@ -234,7 +229,7 @@ export async function addQuestionAction(tenantId: string, rfpId: string, questio
 
 export async function getRfpsAction(tenantId: string): Promise<{ rfps?: RFP[] }> {
     try {
-        const rfps = rfpService.getRfps(tenantId);
+        const rfps = await rfpService.getRfps(tenantId);
         return { rfps };
     } catch (e) {
         console.error(e);
@@ -259,7 +254,7 @@ export async function getKnowledgeSourcesAction(tenantId: string) {
 }
 
 export async function addDocumentSourceAction(documentDataUri: string, tenantId: string, fileName: string, currentUser: CurrentUser) {
-    const permCheck = checkPermission(tenantId, currentUser, 'manageIntegrations');
+    const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
     if (permCheck.error) return { error: permCheck.error };
 
     if (!documentDataUri || !fileName) {
@@ -299,7 +294,7 @@ export async function addDocumentSourceAction(documentDataUri: string, tenantId:
 }
 
 export async function addWebsiteSourceAction(url: string, tenantId: string, currentUser: CurrentUser, config: { maxDepth: number, maxPages: number, filterKeywords?: string[] }) {
-    const permCheck = checkPermission(tenantId, currentUser, 'manageIntegrations');
+    const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
     if (permCheck.error) return { error: permCheck.error };
 
     if (!url) {
@@ -324,7 +319,7 @@ export async function addWebsiteSourceAction(url: string, tenantId: string, curr
 
 
 export async function resyncKnowledgeSourceAction(tenantId: string, sourceId: string, currentUser: CurrentUser) {
-    const permCheck = checkPermission(tenantId, currentUser, 'manageIntegrations');
+    const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
     if (permCheck.error) return { error: permCheck.error };
     
     if (!sourceId) {
@@ -348,7 +343,7 @@ export async function resyncKnowledgeSourceAction(tenantId: string, sourceId: st
 }
 
 export async function deleteKnowledgeSourceAction(tenantId: string, sourceId: string, currentUser: CurrentUser) {
-    const permCheck = checkPermission(tenantId, currentUser, 'manageIntegrations');
+    const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
     if (permCheck.error) return { error: permCheck.error };
 
     if (!sourceId) {
@@ -400,7 +395,7 @@ export async function createCheckoutSessionAction(plan: 'starter' | 'team' | 'bu
         return { error: "Invalid plan selected." };
     }
 
-    const tenant = getTenantBySubdomain(tenantId);
+    const tenant = await getTenantBySubdomain(tenantId);
     if (!tenant) {
         return { error: "Tenant not found." };
     }
@@ -447,7 +442,7 @@ export async function createCustomerPortalSessionAction(tenantId: string) {
     return { error: "Stripe is not configured." };
   }
 
-  const tenant = getTenantBySubdomain(tenantId);
+  const tenant = await getTenantBySubdomain(tenantId);
   if (!tenant) {
     return { error: "Tenant not found." };
   }
@@ -476,90 +471,87 @@ export async function createCustomerPortalSessionAction(tenantId: string) {
 // == TEAM MANAGEMENT ACTIONS ==
 
 export async function inviteMemberAction(tenantId: string, email: string, role: Role, currentUser: CurrentUser) {
-    const permCheck = checkPermission(tenantId, currentUser, 'manageTeam');
+    const permCheck = await checkPermission(tenantId, currentUser, 'manageTeam');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
 
-  if (!email || !role) {
-    return { error: "Missing required parameters." };
-  }
-  try {
-    const newMember = inviteMemberToTenant(tenantId, email, role);
-    if (!newMember) {
-      return { error: `Could not invite ${email}. They may already be a member.` };
+    if (!email || !role) {
+      return { error: "Missing required parameters." };
     }
     // In a real app, you would send an invitation email here.
-    return { success: true, member: newMember };
-  } catch (e) {
-    console.error(e);
-    const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
-    return { error: `Failed to invite member: ${errorMessage}` };
-  }
+    // For now, we add them directly. In Firestore, you'd add a pending member.
+    const updatedTenant = await updateTenantData(tenant.id, {
+        members: [...tenant.members, { id: Date.now().toString(), name: email, email, role, status: 'Pending' }]
+    });
+
+    if (updatedTenant) {
+        return { success: true, member: updatedTenant.members[updatedTenant.members.length - 1] };
+    }
+    return { error: "Failed to invite member" };
 }
 
-export async function removeMemberAction(tenantId: string, memberId: number, currentUser: CurrentUser) {
-    const permCheck = checkPermission(tenantId, currentUser, 'manageTeam');
+export async function removeMemberAction(tenantId: string, memberId: string, currentUser: CurrentUser) {
+    const permCheck = await checkPermission(tenantId, currentUser, 'manageTeam');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
 
-  if (!memberId) {
-    return { error: "Missing required parameters." };
-  }
-  try {
-    const success = removeMemberFromTenant(tenantId, memberId);
-    if (!success) {
-      return { error: "Could not remove member. Owners cannot be removed." };
+    if (!memberId) {
+      return { error: "Missing required parameters." };
     }
-    return { success: true };
-  } catch (e) {
-    console.error(e);
-    const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
-    return { error: `Failed to remove member: ${errorMessage}` };
-  }
+    
+    const memberToRemove = tenant.members.find(m => m.id === memberId);
+    if (!memberToRemove || memberToRemove.role === 'Owner') {
+        return { error: "Could not remove member. Owners cannot be removed." };
+    }
+
+    const updatedMembers = tenant.members.filter(m => m.id !== memberId);
+    const updatedTenant = await updateTenantData(tenantId, { members: updatedMembers });
+
+    return { success: !!updatedTenant };
 }
 
-export async function updateMemberRoleAction(tenantId: string, memberId: number, newRole: Role, currentUser: CurrentUser) {
-    const permCheck = checkPermission(tenantId, currentUser, 'manageTeam');
+export async function updateMemberRoleAction(tenantId: string, memberId: string, newRole: Role, currentUser: CurrentUser) {
+    const permCheck = await checkPermission(tenantId, currentUser, 'manageTeam');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
 
-  if (!memberId || !newRole) {
-    return { error: "Missing required parameters." };
-  }
-  try {
-    const updatedMember = updateMemberRoleInTenant(tenantId, memberId, newRole);
-    if (!updatedMember) {
-      return { error: "Could not update role. Owners cannot be changed." };
+    if (!memberId || !newRole) {
+      return { error: "Missing required parameters." };
     }
-    return { success: true, member: updatedMember };
-  } catch (e) {
-    console.error(e);
-    const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
-    return { error: `Failed to update member role: ${errorMessage}` };
-  }
+
+    const memberToUpdate = tenant.members.find(m => m.id === memberId);
+    if (!memberToUpdate || memberToUpdate.role === 'Owner') {
+        return { error: "Could not update role. Owners cannot be changed." };
+    }
+
+    const updatedMembers = tenant.members.map(m => m.id === memberId ? { ...m, role: newRole } : m);
+    const updatedTenant = await updateTenantData(tenantId, { members: updatedMembers });
+    const updatedMember = updatedTenant?.members.find(m => m.id === memberId);
+    
+    return { success: !!updatedTenant, member: updatedMember };
 }
 
 // == SETTINGS ACTIONS ==
-export async function updateProfileSettingsAction(tenantId: string, userId: number, data: { name: string }, currentUser: CurrentUser) {
+export async function updateProfileSettingsAction(tenantId: string, userId: string, data: { name: string }, currentUser: CurrentUser) {
     // A user can always update their own profile
     if (currentUser.id !== userId) {
         return { error: "You can only update your own profile." };
     }
-    const tenant = getTenantBySubdomain(tenantId);
+    const tenant = await getTenantBySubdomain(tenantId);
     if (!tenant) return { error: "Tenant not found." };
-
-    try {
-        const updatedMember = updateMemberData(tenantId, userId, data);
-        return { member: updatedMember };
-    } catch (e) {
-        const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
-        return { error: `Failed to update profile: ${errorMessage}` };
-    }
+    
+    const updatedMembers = tenant.members.map(m => m.id === userId ? { ...m, ...data } : m);
+    const updatedTenant = await updateTenantData(tenantId, { members: updatedMembers });
+    
+    return { member: updatedTenant?.members.find(m => m.id === userId) };
 }
 
 export async function updateWorkspaceSettingsAction(tenantId: string, data: Partial<Pick<Tenant, 'name' | 'defaultTone'>>, currentUser: CurrentUser) {
-    const permCheck = checkPermission(tenantId, currentUser, 'editWorkspace');
+    const permCheck = await checkPermission(tenantId, currentUser, 'editWorkspace');
     if (permCheck.error) return { error: permCheck.error };
     
     try {
-        const updatedTenant = updateTenantData(tenantId, data);
+        const updatedTenant = await updateTenantData(tenantId, data);
         if (!updatedTenant) return { error: "Tenant not found." };
         return { tenant: updatedTenant };
     } catch (e) {
@@ -569,11 +561,11 @@ export async function updateWorkspaceSettingsAction(tenantId: string, data: Part
 }
 
 export async function updateSecuritySettingsAction(tenantId: string, data: Partial<Pick<Tenant, 'domains'>>, currentUser: CurrentUser) {
-    const permCheck = checkPermission(tenantId, currentUser, 'manageSecurity');
+    const permCheck = await checkPermission(tenantId, currentUser, 'manageSecurity');
     if (permCheck.error) return { error: permCheck.error };
 
     try {
-        const updatedTenant = updateTenantData(tenantId, data);
+        const updatedTenant = await updateTenantData(tenantId, data);
         if (!updatedTenant) return { error: "Tenant not found." };
         return { tenant: updatedTenant };
     } catch (e) {
@@ -685,7 +677,7 @@ export async function exportRfpAction(payload: {
 }) {
     const { tenantId, rfpId, templateId, currentUser, exportVersion, format, acknowledgments } = payload;
     
-    const permCheck = checkPermission(tenantId, currentUser, 'finalizeExport');
+    const permCheck = await checkPermission(tenantId, currentUser, 'finalizeExport');
     if (permCheck.error) return { error: permCheck.error };
     const { user, tenant } = permCheck;
 
@@ -698,7 +690,7 @@ export async function exportRfpAction(payload: {
         return { error: 'Custom export templates are not available on your current plan. Please upgrade or use a system template.' };
     }
 
-    const rfp = rfpService.getRfp(tenantId, rfpId);
+    const rfp = await rfpService.getRfp(tenantId, rfpId);
     if (!rfp) {
         return { error: "RFP not found." };
     }
@@ -832,7 +824,7 @@ export async function exportRfpAction(payload: {
             return { error: "Invalid export format specified." };
         }
         
-        exportService.addExportRecord(tenantId, {
+        await exportService.addExportRecord(tenantId, {
             rfpId,
             version: exportVersion,
             format,
@@ -861,7 +853,7 @@ export async function getExportHistoryAction(tenantId: string, rfpId: string) {
         return { error: "Missing required parameters." };
     }
     try {
-        const history = exportService.getExportHistory(tenantId, rfpId);
+        const history = await exportService.getExportHistory(tenantId, rfpId);
         return { success: true, history };
     } catch (e) {
         console.error(e);
@@ -873,7 +865,7 @@ export async function getExportHistoryAction(tenantId: string, rfpId: string) {
 // == TEMPLATE ACTIONS ==
 
 export async function getTemplatesAction(tenantId: string, currentUser: CurrentUser): Promise<{ templates?: Template[], error?: string }> {
-    const permCheck = checkPermission(tenantId, currentUser, 'viewContent');
+    const permCheck = await checkPermission(tenantId, currentUser, 'viewContent');
     if (permCheck.error) return { error: permCheck.error };
     
     try {
@@ -885,7 +877,7 @@ export async function getTemplatesAction(tenantId: string, currentUser: CurrentU
 }
 
 export async function getTemplateAction(tenantId: string, templateId: string, currentUser: CurrentUser): Promise<{ template?: Template, error?: string }> {
-    const permCheck = checkPermission(tenantId, currentUser, 'viewContent');
+    const permCheck = await checkPermission(tenantId, currentUser, 'viewContent');
     if (permCheck.error) return { error: permCheck.error };
     
     try {
@@ -898,7 +890,7 @@ export async function getTemplateAction(tenantId: string, templateId: string, cu
 }
 
 export async function createTemplateAction(tenantId: string, data: { name: string; description: string }, currentUser: CurrentUser): Promise<{ template?: Template, error?: string }> {
-    const permCheck = checkPermission(tenantId, currentUser, 'editWorkspace');
+    const permCheck = await checkPermission(tenantId, currentUser, 'editWorkspace');
     if (permCheck.error) return { error: permCheck.error };
     
     try {
@@ -910,7 +902,7 @@ export async function createTemplateAction(tenantId: string, data: { name: strin
 }
 
 export async function updateTemplateAction(tenantId: string, templateId: string, data: { name?: string; description?: string; structure?: TemplateSection[] }, currentUser: CurrentUser): Promise<{ template?: Template, error?: string }> {
-    const permCheck = checkPermission(tenantId, currentUser, 'editWorkspace');
+    const permCheck = await checkPermission(tenantId, currentUser, 'editWorkspace');
     if (permCheck.error) return { error: permCheck.error };
 
     try {
@@ -923,11 +915,11 @@ export async function updateTemplateAction(tenantId: string, templateId: string,
 }
 
 export async function duplicateTemplateAction(tenantId: string, templateId: string, currentUser: CurrentUser): Promise<{ template?: Template, error?: string }> {
-    const permCheck = checkPermission(tenantId, currentUser, 'editWorkspace');
+    const permCheck = await checkPermission(tenantId, currentUser, 'editWorkspace');
     if (permCheck.error) return { error: permCheck.error };
 
     try {
-        const template = templateService.duplicateTemplate(tenantId, templateId);
+        const template = await templateService.duplicateTemplate(tenantId, templateId);
         if (!template) return { error: 'Template not found.' };
         return { template };
     } catch (e) {
@@ -936,7 +928,7 @@ export async function duplicateTemplateAction(tenantId: string, templateId: stri
 }
 
 export async function deleteTemplateAction(tenantId: string, templateId: string, currentUser: CurrentUser): Promise<{ success?: boolean, error?: string }> {
-    const permCheck = checkPermission(tenantId, currentUser, 'editWorkspace');
+    const permCheck = await checkPermission(tenantId, currentUser, 'editWorkspace');
     if (permCheck.error) return { error: permCheck.error };
 
     try {
@@ -947,5 +939,3 @@ export async function deleteTemplateAction(tenantId: string, templateId: string,
         return { error: 'Failed to delete template.' };
     }
 }
-
-    

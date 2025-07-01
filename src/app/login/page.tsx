@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -7,58 +8,53 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { getTenantByEmail } from '@/lib/tenants';
 import { FileBox, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import Image from 'next/image';
+
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { findOrCreateTenantForUser } from '@/lib/tenants';
+
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isGuestLoading, setIsGuestLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'Email required',
-        description: 'Please enter your email to continue.',
-      });
-      return;
-    }
+  const handleGoogleSignIn = async () => {
     setIsLoading(true);
+    const provider = new GoogleAuthProvider();
+    try {
+      const result = await signInWithPopup(auth, provider);
+      const user = result.user;
 
-    const tenant = getTenantByEmail(email);
-
-    if (tenant) {
-      // In a real app, you'd handle auth here.
-      // For now, we'll just navigate to the tenant's page.
-      router.push(`/${tenant.subdomain}`);
-    } else {
-      // This path should ideally not be hit with the new logic, but as a fallback.
+      if(user) {
+        const tenant = await findOrCreateTenantForUser(user);
+        if (tenant) {
+            router.push(`/${tenant.subdomain}`);
+        } else {
+             toast({
+                variant: 'destructive',
+                title: 'Login Failed',
+                description: "Could not find or create a workspace for your account.",
+             });
+        }
+      }
+    } catch (error: any) {
       toast({
         variant: 'destructive',
-        title: 'Login Failed',
-        description:
-          "Could not create an account. Please try a different email.",
+        title: 'Sign-in Error',
+        description: error.message || 'An unknown error occurred during sign-in.',
       });
+    } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGuestLogin = () => {
-    setIsGuestLoading(true);
-    // Hardcode the demo tenant 'megacorp' for testing and navigate to its page
-    router.push('/megacorp');
-  };
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
@@ -69,42 +65,21 @@ export default function LoginPage() {
         </div>
         <Card className="w-full">
           <CardHeader>
-            <CardTitle>Get started</CardTitle>
+            <CardTitle>Welcome back</CardTitle>
             <CardDescription>
-              Enter your email to start your free trial. No credit card required.
+              Sign in to your workspace to continue.
             </CardDescription>
           </CardHeader>
-          <form onSubmit={handleSubmit}>
-            <CardContent>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="name@company.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  disabled={isLoading || isGuestLoading}
-                />
-              </div>
+            <CardContent className="flex flex-col gap-4">
+              <Button onClick={handleGoogleSignIn} disabled={isLoading} variant="outline" className="w-full">
+                 {isLoading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Image src="https://placehold.co/20x20.png" alt="Google logo" width={16} height={16} data-ai-hint="google logo" className="mr-2"/>
+                  )}
+                Continue with Google
+              </Button>
             </CardContent>
-            <CardFooter className="flex flex-col gap-4">
-              <Button type="submit" className="w-full" disabled={isLoading || isGuestLoading}>
-                {isLoading ? <Loader2 className="animate-spin" /> : null}
-                {isLoading ? 'Redirecting...' : 'Continue with Email'}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="w-full"
-                onClick={handleGuestLogin}
-                disabled={isLoading || isGuestLoading}
-              >
-                {isGuestLoading ? <Loader2 className="animate-spin" /> : null}
-                {isGuestLoading ? 'Redirecting...' : 'View Live Demo'}
-              </Button>
-            </CardFooter>
-          </form>
         </Card>
       </div>
     </div>

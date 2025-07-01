@@ -1,7 +1,12 @@
+
 import { embeddingService } from './embedding.service';
 import { websiteCrawlerService } from './connectors/websiteCrawler.service';
 import { getConnectorService } from './connectors';
 import { tagContent } from '@/ai/flows/tag-content-flow';
+
+// NOTE: This service is currently using an in-memory store for prototype purposes.
+// For a production environment, this should be migrated to a persistent database (e.g., Firestore)
+// and a dedicated vector database (e.g., Pinecone, Vertex AI Vector Search).
 
 export type DataSourceType = 'website' | 'document' | 'confluence' | 'sharepoint' | 'gdrive' | 'notion' | 'github' | 'dropbox';
 export type SyncStatus = 'Synced' | 'Syncing' | 'Error' | 'Pending';

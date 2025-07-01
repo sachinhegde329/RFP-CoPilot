@@ -1,4 +1,8 @@
 
+
+// NOTE: This service is currently using an in-memory store for prototype purposes.
+// For a production environment, this should be migrated to a persistent database (e.g., Firestore).
+
 export type NotificationType = 'assignment' | 'comment' | 'review' | 'status';
 
 export interface Notification {

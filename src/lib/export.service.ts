@@ -2,6 +2,9 @@
 import type { Role, TeamMember } from './tenants';
 import type { Question } from './rfp.service';
 
+// NOTE: This service is currently using an in-memory store for prototype purposes.
+// For a production environment, this should be migrated to a persistent database (e.g., Firestore).
+
 export interface ExportRecord {
     id: string;
     tenantId: string;
@@ -29,39 +32,45 @@ class ExportService {
     constructor() {
         const { getTenantBySubdomain } = require('./tenants');
         const { rfpService } = require('./rfp.service');
-        const megacorpTenant = getTenantBySubdomain('megacorp');
-        if (megacorpTenant) {
-            const sampleQuestions = rfpService.getQuestions('megacorp');
-            const completedQuestions = sampleQuestions.filter((q: Question) => q.status === 'Completed');
-            this._ensureTenantData('megacorp');
-            if (this.tenantData['megacorp'].history.length === 0) {
-                 this.tenantData['megacorp'].history.push({
-                    id: 'megacorp-main_rfp-1672531200000',
-                    tenantId: 'megacorp',
-                    rfpId: 'main_rfp',
-                    version: 'v1.0 - Initial Draft',
-                    format: 'docx',
-                    exportedAt: new Date('2024-07-15T10:30:00Z').toISOString(),
-                    exportedBy: megacorpTenant.members.find((m: TeamMember) => m.role === 'Editor')!,
-                    questionCount: completedQuestions.length,
-                    questions: completedQuestions,
-                    acknowledgments: [
-                        { name: 'Priya Patel', role: 'Editor', comment: 'Initial answers drafted for all sections.' },
-                        { name: 'David Chen', role: 'Approver', comment: 'Reviewed and approved product-related questions.' }
-                    ]
-                });
+        // We cannot reliably call async functions in a constructor.
+        // Data seeding will need to happen on-demand when a service is called.
+    }
+    
+    private async _ensureTenantData(tenantId: string) {
+        if (!this.tenantData[tenantId]) {
+            this.tenantData[tenantId] = { history: [] };
+             // Seed data for megacorp demo tenant if it doesn't exist
+            if (tenantId === 'megacorp' && this.tenantData[tenantId].history.length === 0) {
+                const { getTenantBySubdomain } = require('./tenants');
+                const { rfpService } = require('./rfp.service');
+                const megacorpTenant = await getTenantBySubdomain('megacorp');
+                if (megacorpTenant) {
+                    const rfps = await rfpService.getRfps('megacorp');
+                    const sampleRfp = rfps.find((r: any) => r.id === 'rfp-3');
+                    if (sampleRfp) {
+                        this.tenantData['megacorp'].history.push({
+                            id: 'megacorp-main_rfp-1672531200000',
+                            tenantId: 'megacorp',
+                            rfpId: sampleRfp.id,
+                            version: 'v1.0 - Initial Draft',
+                            format: 'docx',
+                            exportedAt: new Date('2024-07-15T10:30:00Z').toISOString(),
+                            exportedBy: { id: 3, name: 'David Chen', role: 'Approver' },
+                            questionCount: sampleRfp.questions.length,
+                            questions: sampleRfp.questions,
+                            acknowledgments: [
+                                { name: 'Priya Patel', role: 'Editor', comment: 'Initial answers drafted for all sections.' },
+                                { name: 'David Chen', role: 'Approver', comment: 'Reviewed and approved product-related questions.' }
+                            ]
+                        });
+                    }
+                }
             }
         }
     }
 
-    private _ensureTenantData(tenantId: string) {
-        if (!this.tenantData[tenantId]) {
-            this.tenantData[tenantId] = { history: [] };
-        }
-    }
-
-    public addExportRecord(tenantId: string, record: Omit<ExportRecord, 'id' | 'tenantId'>): ExportRecord {
-        this._ensureTenantData(tenantId);
+    public async addExportRecord(tenantId: string, record: Omit<ExportRecord, 'id' | 'tenantId'>): Promise<ExportRecord> {
+        await this._ensureTenantData(tenantId);
         const newRecord: ExportRecord = {
             ...record,
             id: `${tenantId}-${record.rfpId}-${Date.now()}`,
@@ -71,8 +80,8 @@ class ExportService {
         return newRecord;
     }
 
-    public getExportHistory(tenantId: string, rfpId: string): ExportRecord[] {
-        this._ensureTenantData(tenantId);
+    public async getExportHistory(tenantId: string, rfpId: string): Promise<ExportRecord[]> {
+        await this._ensureTenantData(tenantId);
         return this.tenantData[tenantId].history.filter(record => record.rfpId === rfpId).sort((a, b) => new Date(b.exportedAt).getTime() - new Date(a.exportedAt).getTime());
     }
 }
