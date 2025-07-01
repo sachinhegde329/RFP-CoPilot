@@ -55,7 +55,7 @@ class WebsiteCrawlerService {
 
         if (['h1', 'h2', 'h3', 'h4'].includes(tagName)) {
             processCurrentSection(); // Process the content gathered for the previous section
-            currentHeading = element.text().trim(); // Start a new section with the new heading
+            currentHeading = element.text().trim() || currentHeading; // Start a new section with the new heading
         } else if (['p', 'li', 'pre', 'code'].includes(tagName)) {
              currentContent += element.text().trim() + '\n';
         } else if (tagName === 'table') {
@@ -83,10 +83,6 @@ class WebsiteCrawlerService {
 
   /**
    * Fetches and parses a single web page.
-   * In a full implementation, this would be the core of the crawler that gets called
-   * for each discovered URL.
-   * @param url The URL of the web page to ingest.
-   * @returns An object with the title, cleaned content, and text chunks.
    * @deprecated This method is kept for backward compatibility with existing flows. New sync logic uses the `sync` method.
    */
   async ingestPage(url: string) {
@@ -105,7 +101,7 @@ class WebsiteCrawlerService {
       const title = $('title').text() || $('h1').first().text();
       
       const chunks = this._htmlToSemanticChunks(contentRoot, title);
-      const content = chunks.join('\n\n'); // Re-join for backward compatibility
+      const content = chunks.join('\n\n');
 
       return {
         success: true,
@@ -134,21 +130,18 @@ class WebsiteCrawlerService {
 
       const pageTitle = $('title').text().trim() || $('h1').first().text().trim() || url;
       
-      // Try to find the main content area to avoid boilerplate
       let contentRoot = $('main, article, #content, #main, .main-content').first();
-      if (contentRoot.length === 0) contentRoot = $('body'); // Fallback to the whole body
+      if (contentRoot.length === 0) contentRoot = $('body'); 
 
-      // Extract breadcrumbs for section context before removing them
       const breadcrumbItems: string[] = [];
       $('nav[aria-label="breadcrumb"], .breadcrumb, [class*="breadcrumbs"]').find('li, a, span').each((i, el) => {
-          const text = $(el).text().trim().replace(/>/g, '').trim(); // Clean up separators
+          const text = $(el).text().trim().replace(/>/g, '').trim();
           if (text) {
               breadcrumbItems.push(text);
           }
       });
       const section = breadcrumbItems.filter(item => item.toLowerCase() !== 'home').join(' / ');
       
-      // Remove elements that are typically not part of the main content
       contentRoot.find('script, style, nav, footer, header, aside, form, .navbar, .footer, #sidebar, [role="navigation"], [role="banner"], [role="contentinfo"], [role="complementary"]').remove();
       
       const chunks = this._htmlToSemanticChunks(contentRoot, pageTitle);
@@ -158,9 +151,9 @@ class WebsiteCrawlerService {
 
       $('a[href]').each((i, el) => {
           const href = $(el).attr('href');
-          if (href && !href.startsWith('mailto:') && !href.startsWith('tel:')) { // Filter out mailto/tel links
+          if (href && !href.startsWith('mailto:') && !href.startsWith('tel:')) {
               try {
-                  const absoluteUrl = new URL(href, url).href.split('#')[0].split('?')[0]; // Also remove query params and fragments
+                  const absoluteUrl = new URL(href, url).href.split('#')[0].split('?')[0];
                   if (new URL(absoluteUrl).origin === baseOrigin && !/\.(jpg|jpeg|png|gif|pdf|zip|css|js|svg|ico)$/i.test(absoluteUrl)) {
                       links.push(absoluteUrl);
                   }
@@ -175,16 +168,14 @@ class WebsiteCrawlerService {
 
   /**
    * Performs a multi-page crawl of a website based on the source configuration.
-   * @param source The DataSource containing the root URL and crawl configuration.
    */
   async sync(source: DataSource) {
     console.log(`Starting sync for website source: ${source.name}`);
     await knowledgeBaseService.deleteChunksBySourceId(source.tenantId, source.id);
 
     const { maxDepth = 2, maxPages = 10, filterKeywords = [] } = source.config || {};
-    const rateLimitMs = 1000; // 1 req/sec
+    const rateLimitMs = 1000;
 
-    // Fetch and parse robots.txt
     const rootUrl = new URL(source.name);
     const robotsTxtUrl = new URL('/robots.txt', rootUrl.origin).href;
     let robots;
@@ -195,34 +186,59 @@ class WebsiteCrawlerService {
             robots = robotsParser(robotsTxtUrl, robotsTxtContent);
             console.log(`Successfully parsed robots.txt for ${rootUrl.origin}`);
         } else {
-             console.log(`No robots.txt found or accessible for ${rootUrl.origin}, proceeding without restrictions.`);
+             console.log(`No robots.txt found for ${rootUrl.origin}, proceeding without restrictions.`);
         }
     } catch (error) {
         console.warn(`Could not fetch or parse robots.txt for ${rootUrl.origin}:`, error);
     }
 
-    const queue: { url: string; depth: number }[] = [{ url: source.name, depth: 0 }];
+    const queue: { url: string; depth: number }[] = [];
     const visited = new Set<string>();
     let pagesCrawled = 0;
     let totalItems = 0;
 
     const hasKeywords = filterKeywords.length > 0;
-    
     const matchesKeywords = (text: string): boolean => {
-        if (!hasKeywords) return true; // If no keywords, everything matches
+        if (!hasKeywords) return true;
         return filterKeywords.some(keyword => text.toLowerCase().includes(keyword.toLowerCase()));
     };
+    
+    // Scaling Tip: Use sitemap to avoid over-crawling and discover important pages first.
+    try {
+        const sitemapUrl = new URL('/sitemap.xml', rootUrl.origin).href;
+        console.log(`Attempting to fetch sitemap from: ${sitemapUrl}`);
+        const sitemapResponse = await fetch(sitemapUrl, { headers: { 'User-Agent': USER_AGENT }});
+        if (sitemapResponse.ok) {
+            const sitemapText = await sitemapResponse.text();
+            const $ = cheerio.load(sitemapText, { xmlMode: true });
+            
+            $('loc').each((i, el) => {
+                const sitemapLoc = $(el).text();
+                try {
+                   const parsedUrl = new URL(sitemapLoc);
+                   if (parsedUrl.origin === rootUrl.origin && !visited.has(sitemapLoc)) {
+                        if (matchesKeywords(sitemapLoc)) {
+                            queue.push({ url: sitemapLoc, depth: 0 });
+                            visited.add(sitemapLoc);
+                        }
+                   }
+                } catch (e) { /* Ignore invalid URLs in sitemap */ }
+            });
+            console.log(`Successfully parsed sitemap.xml, enqueued ${queue.length} URLs that match keywords.`);
+        }
+    } catch (error) {
+        console.warn(`Could not fetch sitemap.xml. Falling back to root URL crawl.`);
+    }
+
+    // Always add the root URL if it wasn't already in the visited set from the sitemap.
+    if (!visited.has(source.name)) {
+        queue.unshift({ url: source.name, depth: 0 });
+        visited.add(source.name);
+    }
 
     while (queue.length > 0 && pagesCrawled < maxPages) {
         const { url, depth } = queue.shift()!;
 
-        if (visited.has(url)) {
-            continue;
-        }
-
-        visited.add(url);
-
-        // Respect robots.txt
         if (robots && !robots.isAllowed(url, USER_AGENT)) {
             console.log(`Skipping disallowed URL by robots.txt: ${url}`);
             continue;
@@ -232,10 +248,9 @@ class WebsiteCrawlerService {
             console.log(`Crawling (${pagesCrawled + 1}/${maxPages}): ${url} at depth ${depth}`);
             const pageData = await this._fetchAndParsePage(url);
             
-            // Check if the current page (URL, title, or section) matches keywords
             if (hasKeywords && !matchesKeywords(pageData.url) && !matchesKeywords(pageData.title) && !matchesKeywords(pageData.section)) {
                 console.log(`Skipping page (no keyword match): ${url}`);
-                continue; // Don't process this page or its links
+                continue; 
             }
 
             pagesCrawled++;
@@ -248,7 +263,7 @@ class WebsiteCrawlerService {
             if (depth < maxDepth) {
                 for (const link of pageData.links) {
                     if (!visited.has(link)) {
-                        // Only add links to the queue if they match the keywords
+                        visited.add(link);
                         if (matchesKeywords(link)) {
                            queue.push({ url: link, depth: depth + 1 });
                         }
