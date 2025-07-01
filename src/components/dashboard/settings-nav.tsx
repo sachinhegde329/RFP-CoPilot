@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
-import { User, Users, CreditCard, Settings as SettingsIcon, Shield } from "lucide-react"
+import { User, Users, CreditCard, Settings as SettingsIcon, Shield, Gift } from "lucide-react"
 import { canPerformAction, type Action } from "@/lib/access-control"
 
 export function SettingsNav() {
@@ -19,6 +19,7 @@ export function SettingsNav() {
         { href: `/${tenant.subdomain}/settings/team`, label: "Team Members", icon: Users, permission: 'manageTeam' },
         { href: `/${tenant.subdomain}/settings/billing`, label: "Billing", icon: CreditCard, permission: 'manageTeam' },
         { href: `/${tenant.subdomain}/settings/security`, label: "Security", icon: Shield, permission: 'manageSecurity' },
+        { href: `/${tenant.subdomain}/settings/referrals`, label: "Referrals", icon: Gift, permission: 'viewContent' },
     ];
     
     // Filter the items based on user permissions.

@@ -15,6 +15,7 @@ export default function SettingsPage({ params }: { params: { tenant: string } })
   // The order determines the redirect priority.
   const settingsRoutes = [
     { path: 'profile', permission: 'viewContent' }, // Personal, always available
+    { path: 'referrals', permission: 'viewContent' }, 
     { path: 'workspace', permission: 'editWorkspace' },
     { path: 'team', permission: 'manageTeam' },
     { path: 'billing', permission: 'manageTeam' }, // Assuming billing is tied to team mgmt
