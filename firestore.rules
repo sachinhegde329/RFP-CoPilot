@@ -1,24 +1,17 @@
-
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow public, read-only access to the main tenant document.
-    // This is needed to load the app layout and branding before a user logs in.
+    // Allow public read access to tenant documents for subdomain routing and branding
     match /tenants/{tenantId} {
-      allow get: if true;
+      allow read: if true;
+      allow write: if false; // Disallow public writes
 
-      // Disallow listing all tenants for security.
-      allow list: if false;
-
-      // By default, deny write access to the main tenant document.
-      // Specific write actions should be handled by secure server-side logic.
-      allow write: if false;
-
-      // Secure all subcollections. Only authenticated users can access their tenant's data.
-      // A production app would have more granular rules (e.g., checking if request.auth.uid is in tenant.members).
+      // For the demo tenant, allow anyone to read its subcollections.
+      // For all other tenants, require authentication for any access.
       match /{subcollection}/{docId=**} {
-        allow read, write: if request.auth != null;
+        allow read: if tenantId == 'megacorp' || request.auth != null;
+        allow write: if request.auth != null;
       }
     }
   }

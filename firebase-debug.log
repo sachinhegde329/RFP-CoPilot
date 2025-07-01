@@ -213,3 +213,12 @@ INFO: Detected non-HTTP/2 connection.
 [debug] [2025-07-01T14:24:16.392Z] <<< [apiv2][status] PUT http://127.0.0.1:8080/emulator/v1/projects/demo-app:securityRules 200
 [debug] [2025-07-01T14:24:16.392Z] <<< [apiv2][body] PUT http://127.0.0.1:8080/emulator/v1/projects/demo-app:securityRules {}
 [info] ✔  firestore: Rules updated. 
+[info] i  firestore: Change detected, updating rules... 
+[debug] [2025-07-01T14:25:52.315Z] >>> [apiv2][query] PUT http://127.0.0.1:8080/emulator/v1/projects/demo-app:securityRules [none]
+[debug] [2025-07-01T14:25:52.315Z] >>> [apiv2][body] PUT http://127.0.0.1:8080/emulator/v1/projects/demo-app:securityRules {"ignore_errors":true,"rules":{"files":[{"name":"security.rules","content":"rules_version = '2';\n\nservice cloud.firestore {\n  match /databases/{database}/documents {\n    // Allow public read access to tenant documents for subdomain routing and branding\n    match /tenants/{tenantId} {\n      allow read: if true;\n      allow write: if false; // Disallow public writes\n\n      // For the demo tenant, allow anyone to read its subcollections.\n      // For all other tenants, require authentication for any access.\n      match /{subcollection}/{docId=**} {\n        allow read: if tenantId == 'megacorp' || request.auth != null;\n        allow write: if request.auth != null;\n      }\n    }\n  }\n}\n"}]}}
+[debug] [2025-07-01T14:25:52.342Z] Jul 01, 2025 2:25:52 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+INFO: Detected non-HTTP/2 connection.
+ {"metadata":{"emulator":{"name":"firestore"},"message":"Jul 01, 2025 2:25:52 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead\nINFO: Detected non-HTTP/2 connection.\n"}}
+[debug] [2025-07-01T14:25:52.461Z] <<< [apiv2][status] PUT http://127.0.0.1:8080/emulator/v1/projects/demo-app:securityRules 200
+[debug] [2025-07-01T14:25:52.464Z] <<< [apiv2][body] PUT http://127.0.0.1:8080/emulator/v1/projects/demo-app:securityRules {}
+[info] ✔  firestore: Rules updated. 
