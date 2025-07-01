@@ -8,7 +8,7 @@ import Image from "next/image"
 
 import { useTenant } from '@/components/providers/tenant-provider';
 import { useToast } from '@/hooks/use-toast';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -16,6 +16,7 @@ import { Switch } from "@/components/ui/switch"
 import { LockKeyhole, FileText, ExternalLink, CheckCircle, ShieldAlert } from "lucide-react"
 import { canPerformAction, hasFeatureAccess } from '@/lib/access-control';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
+import { Separator } from '@/components/ui/separator';
 
 export default function SecuritySettingsPage() {
   const { tenant } = useTenant();
@@ -53,15 +54,20 @@ export default function SecuritySettingsPage() {
   const isOktaSsoConfigured = tenant.ssoProvider === 'okta';
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Two-Factor Authentication</CardTitle>
-          <CardDescription>
-            Add an extra layer of security to your account by requiring a second authentication step.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+    <Card>
+      <CardHeader>
+        <CardTitle>Security</CardTitle>
+        <CardDescription>
+          Manage your workspace's security settings, including authentication methods and access policies.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-8">
+        
+        {/* 2FA Section */}
+        <div>
+          <h3 className="text-lg font-medium">Two-Factor Authentication</h3>
+          <p className="text-sm text-muted-foreground mt-1">Add an extra layer of security to your account by requiring a second authentication step.</p>
+          <div className="pt-4">
             <fieldset disabled={!canManageSecurity}>
                 <div className="flex items-center justify-between p-4 border rounded-lg">
                     <div>
@@ -73,20 +79,21 @@ export default function SecuritySettingsPage() {
                     <Switch id="2fa-switch" />
                 </div>
             </fieldset>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <LockKeyhole />
-            <CardTitle>Single Sign-On (SSO)</CardTitle>
           </div>
-          <CardDescription>
+        </div>
+
+        <Separator />
+
+        {/* SSO Section */}
+        <div>
+          <div className="flex items-center gap-2">
+            <LockKeyhole className="h-5 w-5" />
+            <h3 className="text-lg font-medium">Single Sign-On (SSO)</h3>
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">
             Allow your team to sign in using your company's identity provider.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
+          </p>
+          <div className="space-y-4 pt-4">
             {!canManageSso && (
                 <Alert>
                     <ShieldAlert className="h-4 w-4" />
@@ -136,17 +143,18 @@ export default function SecuritySettingsPage() {
             <p className="text-sm text-muted-foreground">
                 Need a different provider? <a href="#" className="text-primary underline">Contact us</a>.
             </p>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Allowed Email Domains</CardTitle>
-          <CardDescription>
+          </div>
+        </div>
+        
+        <Separator />
+
+        {/* Allowed Email Domains Section */}
+        <div>
+          <h3 className="text-lg font-medium">Allowed Email Domains</h3>
+          <p className="text-sm text-muted-foreground mt-1">
             Restrict new member invitations to specific email domains.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+          <div className="pt-4">
             <fieldset disabled={!canManageSecurity}>
                 <div className="flex gap-2">
                     <Input placeholder="example.com" />
@@ -159,27 +167,29 @@ export default function SecuritySettingsPage() {
                     </div>
                 </div>
             </fieldset>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <FileText />
-            <CardTitle>Audit Logs</CardTitle>
           </div>
-          <CardDescription>
+        </div>
+
+        <Separator />
+        
+        {/* Audit Logs Section */}
+        <div>
+          <div className="flex items-center gap-2">
+            <FileText className="h-5 w-5" />
+            <h3 className="text-lg font-medium">Audit Logs</h3>
+          </div>
+          <p className="text-sm text-muted-foreground mt-1">
             Track important events that happen within your workspace. Audit logs are retained for 90 days.
-          </CardDescription>
-        </CardHeader>
-        <CardFooter>
+          </p>
+          <div className="pt-4">
             <Button variant="outline" disabled={!canManageSecurity}>
                 View Audit Logs
                 <ExternalLink className="ml-2" />
             </Button>
-        </CardFooter>
-      </Card>
+          </div>
+        </div>
 
-    </div>
+      </CardContent>
+    </Card>
   )
 }
