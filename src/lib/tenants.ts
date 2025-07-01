@@ -26,6 +26,7 @@ export interface Tenant {
   ssoProvider?: 'microsoft' | 'okta' | 'google' | null;
   addOns?: AddOn[];
   stripeCustomerId?: string;
+  stripeSubscriptionId?: string;
   defaultTone?: BrandTone;
   branding: {
     logoUrl: string;
@@ -157,7 +158,7 @@ export async function getTenantBySubdomain(subdomain: string): Promise<Tenant | 
     return sanitizeData(tenantWithData);
 }
 
-export async function updateTenant(tenantId: string, updates: Partial<Tenant>): Promise<Tenant | null> {
+export async function updateTenant(tenantId: string, updates: Partial<Omit<Tenant, 'id' | 'subdomain' | 'limits'>>): Promise<Tenant | null> {
     const tenantDocRef = doc(db, 'tenants', tenantId);
     await updateDoc(tenantDocRef, updates);
     return getTenantBySubdomain(tenantId);

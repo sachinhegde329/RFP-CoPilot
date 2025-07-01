@@ -1,19 +1,17 @@
 
 import { embeddingService } from './embedding.service';
-import { websiteCrawlerService } from './connectors/websiteCrawler.service';
 import { getConnectorService } from './connectors';
 import { tagContent } from '@/ai/flows/tag-content-flow';
+import { db } from './firebase';
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, writeBatch, addDoc } from 'firebase/firestore';
 
-// NOTE: This service is currently using an in-memory store for prototype purposes.
-// For a production environment, this should be migrated to a persistent database (e.g., Firestore)
-// and a dedicated vector database (e.g., Pinecone, Vertex AI Vector Search).
+
+// NOTE: This service is now migrated to use Firestore for data persistence.
+// Vector search is still simulated in-memory for this prototype.
 
 export type DataSourceType = 'website' | 'document' | 'confluence' | 'sharepoint' | 'gdrive' | 'notion' | 'github' | 'dropbox';
 export type SyncStatus = 'Synced' | 'Syncing' | 'Error' | 'Pending';
 
-/**
- * Represents a connection to an external data source for a specific tenant.
- */
 export interface DataSource {
   id: string;
   tenantId: string;
@@ -22,7 +20,7 @@ export interface DataSource {
   status: SyncStatus;
   lastSynced: string;
   itemCount?: number;
-  uploader?: string; // For manually uploaded documents
+  uploader?: string; 
   auth?: {
     accessToken: string;
     refreshToken?: string;
@@ -37,35 +35,19 @@ export interface DataSource {
   };
 }
 
-/**
- * A chunk of content extracted from a data source, ready for embedding.
- */
 export interface DocumentChunk {
   id: string;
   tenantId: string;
-  sourceId: string; // Foreign key to DataSource
-  title: string; // e.g., page title or document name
+  sourceId: string;
+  title: string; 
   content: string;
-  embedding?: number[]; // Vector representation of the content
-  tags?: string[]; // Optional tags for enriched filtering
+  embedding?: number[];
+  tags?: string[]; 
   metadata: {
     sourceType: DataSourceType;
-    url?: string; // URL for websites or external sources
+    url?: string;
     [key: string]: any;
   };
-}
-
-/**
- * A log entry for a synchronization event.
- */
-export interface SyncLog {
-    id: string;
-    sourceId: string;
-    tenantId: string;
-    timestamp: string;
-    status: 'Success' | 'Failure' | 'InProgress';
-    message: string;
-    itemsProcessed: number;
 }
 
 export interface SearchFilters {
@@ -74,196 +56,130 @@ export interface SearchFilters {
     tags?: string[];
 }
 
-interface TenantData {
-    sources: DataSource[];
-    chunks: DocumentChunk[];
-    logs: SyncLog[];
+function sanitizeData<T>(data: T): T {
+  return JSON.parse(JSON.stringify(data));
 }
 
 class KnowledgeBaseService {
-  private tenantData: Record<string, TenantData> = {};
-
-  constructor() {
-    // Initialize with default data for tenants
-    this.tenantData['megacorp'] = {
-        sources: [
-            { id: 'megacorp-source-1', tenantId: 'megacorp', type: 'document', name: 'Initial Knowledge.docx', status: 'Synced', lastSynced: 'Initial Setup', uploader: 'System', itemCount: 2 },
-            { id: 'megacorp-source-2', tenantId: 'megacorp', type: 'website', name: 'https://en.wikipedia.org/wiki/Mega-corporation', status: 'Error', lastSynced: '1 day ago', itemCount: 87, config: { maxDepth: 1, maxPages: 1 } },
-        ],
-        chunks: [
-            { id: 'default-1', tenantId: 'megacorp', sourceId: 'megacorp-source-1', title: 'Initial Knowledge', content: "RFP CoPilot is an AI-powered platform designed to streamline the Request for Proposal (RFP) response process. Its core features include AI-driven document summarization, question extraction, and draft answer generation from an internal knowledge base.", metadata: { sourceType: 'document', chunkIndex: 0 }, tags: ['product', 'company'] },
-            { id: 'default-2', tenantId: 'megacorp', sourceId: 'megacorp-source-1', title: 'Initial Knowledge', content: "The platform supports various compliance standards like SOC 2 and ISO 27001. All customer data is encrypted at rest using AES-256 and in transit using TLS 1.2+.", metadata: { sourceType: 'document', chunkIndex: 1 }, tags: ['compliance', 'security'] },
-        ],
-        logs: [],
-    };
-    this.tenantData['acme'] = {
-        sources: [
-            { id: 'acme-source-1', tenantId: 'acme', type: 'document', name: 'Acme Inc. Onboarding.pdf', status: 'Synced', lastSynced: 'Initial Setup', uploader: 'System', itemCount: 1 }
-        ],
-        chunks: [
-            { id: 'default-3', tenantId: 'acme', sourceId: 'acme-source-1', title: 'Acme Inc. Onboarding', content: 'Acme Inc. provides enterprise solutions for supply chain management. Our flagship product, "LogiStream", optimizes logistics from end to end.', metadata: { sourceType: 'document', chunkIndex: 0 }, tags: ['company', 'product'] }
-        ],
-        logs: [],
-    };
+  private getSourcesCollection(tenantId: string) {
+    return collection(db, 'tenants', tenantId, 'knowledge_sources');
   }
 
-  private _ensureTenantData(tenantId: string) {
-    if (!this.tenantData[tenantId]) {
-      this.tenantData[tenantId] = {
-        sources: [],
-        chunks: [],
-        logs: [],
-      };
-    }
+  private getChunksCollection(tenantId: string) {
+    return collection(db, 'tenants', tenantId, 'knowledge_chunks');
   }
 
   // == SOURCE MANAGEMENT ==
-  public getAllDataSources(): DataSource[] {
-    return Object.values(this.tenantData).flatMap(data => data.sources);
-  }
-  
-  public getDataSources(tenantId: string): DataSource[] {
-    const sources = this.tenantData[tenantId]?.sources || [];
-    // Return a copy and sort it
-    return [...sources].sort((a, b) => a.name.localeCompare(b.name));
-  }
+  public async getAllDataSources(): Promise<DataSource[]> {
+    const tenantsCollection = collection(db, 'tenants');
+    const tenantsSnapshot = await getDocs(tenantsCollection);
+    let allSources: DataSource[] = [];
 
-  public getDataSource(tenantId: string, sourceId: string): DataSource | undefined {
-    return this.tenantData[tenantId]?.sources.find(s => s.id === sourceId);
-  }
-
-  public addDataSource(source: Omit<DataSource, 'id'>): DataSource {
-    this._ensureTenantData(source.tenantId);
-    const newSource: DataSource = {
-      ...source,
-      id: `${source.tenantId}-${source.type}-${Date.now()}`
-    };
-    this.tenantData[source.tenantId].sources.unshift(newSource);
-    return newSource;
-  }
-  
-  public updateDataSource(tenantId: string, sourceId: string, updates: Partial<DataSource>): DataSource | undefined {
-      this._ensureTenantData(tenantId);
-      const sources = this.tenantData[tenantId].sources;
-      const sourceIndex = sources.findIndex(s => s.id === sourceId);
-      if (sourceIndex > -1) {
-          sources[sourceIndex] = { ...sources[sourceIndex], ...updates };
-          return sources[sourceIndex];
-      }
-      return undefined;
-  }
-
-  public deleteDataSource(tenantId: string, sourceId: string): boolean {
-    const tenantData = this.tenantData[tenantId];
-    if (!tenantData?.sources) return false;
-
-    const initialLength = tenantData.sources.length;
-    tenantData.sources = tenantData.sources.filter(s => s.id !== sourceId);
-    
-    // Also delete associated chunks and logs
-    this.deleteChunksBySourceId(tenantId, sourceId);
-    if (tenantData.logs) {
-        tenantData.logs = tenantData.logs.filter(l => l.sourceId !== sourceId);
+    for (const tenantDoc of tenantsSnapshot.docs) {
+      const sourcesSnapshot = await getDocs(this.getSourcesCollection(tenantDoc.id));
+      const sources = sourcesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DataSource));
+      allSources = allSources.concat(sources);
     }
-
-    return tenantData.sources.length < initialLength;
+    return sanitizeData(allSources);
+  }
+  
+  public async getDataSources(tenantId: string): Promise<DataSource[]> {
+    const sourcesSnapshot = await getDocs(this.getSourcesCollection(tenantId));
+    const sources = sourcesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DataSource));
+    return sanitizeData(sources.sort((a, b) => a.name.localeCompare(b.name)));
   }
 
-  /**
-   * Calculates the cosine similarity between two vectors.
-   * Cosine similarity measures the cosine of the angle between two non-zero vectors,
-   * producing a value between -1 and 1. For text embeddings, a value closer to 1
-   * indicates higher semantic similarity.
-   * @param vecA The first vector.
-   * @param vecB The second vector.
-   * @returns The cosine similarity score (0 to 1 for positive vectors).
-   */
+  public async getDataSource(tenantId: string, sourceId: string): Promise<DataSource | undefined> {
+    const sourceDoc = await getDoc(doc(this.getSourcesCollection(tenantId), sourceId));
+    if (!sourceDoc.exists()) return undefined;
+    return sanitizeData({ id: sourceDoc.id, ...sourceDoc.data() } as DataSource);
+  }
+
+  public async addDataSource(sourceData: Omit<DataSource, 'id'>): Promise<DataSource> {
+    const { tenantId, ...rest } = sourceData;
+    const newSourceRef = await addDoc(this.getSourcesCollection(tenantId), rest);
+    return { id: newSourceRef.id, ...sourceData };
+  }
+  
+  public async updateDataSource(tenantId: string, sourceId: string, updates: Partial<DataSource>): Promise<DataSource | undefined> {
+    const sourceRef = doc(this.getSourcesCollection(tenantId), sourceId);
+    await updateDoc(sourceRef, updates);
+    return this.getDataSource(tenantId, sourceId);
+  }
+
+  public async deleteDataSource(tenantId: string, sourceId: string): Promise<boolean> {
+    await this.deleteChunksBySourceId(tenantId, sourceId);
+    await deleteDoc(doc(this.getSourcesCollection(tenantId), sourceId));
+    return true;
+  }
+
   private cosineSimilarity(vecA: number[], vecB: number[]): number {
-    if (!vecA || !vecB || vecA.length !== vecB.length) {
-        return 0;
-    }
-
-    let dotProduct = 0;
-    let normA = 0;
-    let normB = 0;
+    if (!vecA || !vecB || vecA.length !== vecB.length) return 0;
+    let dotProduct = 0, normA = 0, normB = 0;
     for (let i = 0; i < vecA.length; i++) {
         dotProduct += vecA[i] * vecB[i];
         normA += vecA[i] * vecA[i];
         normB += vecB[i] * vecB[i];
     }
-    
     const divisor = Math.sqrt(normA) * Math.sqrt(normB);
-    if (divisor === 0) {
-        return 0; // Avoid division by zero
-    }
-
-    return dotProduct / divisor;
+    return divisor === 0 ? 0 : dotProduct / divisor;
   }
 
 
   // == CHUNK MANAGEMENT ==
   public async addChunks(tenantId: string, sourceId: string, sourceType: DataSourceType, title: string, chunks: string[], url?: string, additionalMetadata: Record<string, any> = {}) {
-    this._ensureTenantData(tenantId);
-    
-    // Generate embeddings and tags for all chunks in parallel for efficiency
+    if (chunks.length === 0) return;
+    const chunksCollection = this.getChunksCollection(tenantId);
+
     const processingPromises = chunks.map(content => Promise.all([
         embeddingService.generateEmbedding(content),
         tagContent({ content })
     ]));
-
     const processedChunksData = await Promise.all(processingPromises);
       
-    const newChunks: DocumentChunk[] = chunks.map((content, index) => {
-      const [embedding, tagResult] = processedChunksData[index];
-      return {
-        id: `${sourceId}-chunk-${index}-${Date.now()}`,
-        tenantId,
-        sourceId,
-        title,
-        content,
-        embedding: embedding, // Store the generated embedding
-        tags: tagResult.tags, // Store the generated tags
-        metadata: {
-          sourceType,
-          url,
-          chunkIndex: index,
-          ...additionalMetadata,
-        }
-      };
+    const batch = writeBatch(db);
+    processedChunksData.forEach(([embedding, tagResult], index) => {
+        const newChunk: Omit<DocumentChunk, 'id'> = {
+            tenantId,
+            sourceId,
+            title,
+            content: chunks[index],
+            embedding: embedding,
+            tags: tagResult.tags,
+            metadata: { sourceType, url, chunkIndex: index, ...additionalMetadata }
+        };
+        const chunkRef = doc(chunksCollection);
+        batch.set(chunkRef, newChunk);
     });
-    this.tenantData[tenantId].chunks.unshift(...newChunks);
+    await batch.commit();
   }
 
-  public deleteChunksBySourceId(tenantId: string, sourceId:string): boolean {
-    const tenantChunks = this.tenantData[tenantId]?.chunks;
-    if (!tenantChunks) return false;
-    
-    const initialLength = tenantChunks.length;
-    this.tenantData[tenantId].chunks = tenantChunks.filter(c => c.sourceId !== sourceId);
-    return this.tenantData[tenantId].chunks.length < initialLength;
+  public async deleteChunksBySourceId(tenantId: string, sourceId:string): Promise<boolean> {
+    const q = query(this.getChunksCollection(tenantId), where('sourceId', '==', sourceId));
+    const snapshot = await getDocs(q);
+    if (snapshot.empty) return true;
+
+    const batch = writeBatch(db);
+    snapshot.docs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+    return true;
   }
 
-  public async searchChunks(tenantId: string, query: string, filters: SearchFilters = {}): Promise<DocumentChunk[]> {
+  public async searchChunks(tenantId: string, queryText: string, filters: SearchFilters = {}): Promise<DocumentChunk[]> {
     const { topK = 5, sourceTypes, tags } = filters;
+    const chunksCollection = this.getChunksCollection(tenantId);
 
-    // This function simulates a Vector Database search in memory.
-    // 1. Filter chunks based on metadata (e.g., source type, tags).
-    // 2. Generate an embedding for the user's search query.
-    // 3. Compare the query embedding with the embedding of each chunk using cosine similarity.
-    // 4. Return the "top K" most similar chunks.
-
-    // Start with all chunks for the tenant that have an embedding.
-    let potentialChunks = this.tenantData[tenantId]?.chunks.filter(chunk => chunk.embedding) || [];
+    // This is still a "fetch all then filter" approach due to Firestore's limitations for vector search.
+    // In a production app with a real vector DB, this query would be much more efficient.
+    const chunksSnapshot = await getDocs(chunksCollection);
+    let potentialChunks = chunksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DocumentChunk));
     
-    if (potentialChunks.length === 0 || !query) {
-        return [];
-    }
+    potentialChunks = potentialChunks.filter(chunk => chunk.embedding);
+    if (potentialChunks.length === 0 || !queryText) return [];
 
-    // Apply filters before the expensive embedding and similarity calculations
     if (sourceTypes && sourceTypes.length > 0) {
         potentialChunks = potentialChunks.filter(chunk => sourceTypes.includes(chunk.metadata.sourceType));
     }
-    
     if (tags && tags.length > 0) {
         const lowerCaseTags = tags.map(t => t.toLowerCase());
         potentialChunks = potentialChunks.filter(chunk => 
@@ -271,102 +187,29 @@ class KnowledgeBaseService {
         );
     }
     
-    // Generate an embedding for the user's query.
-    const queryEmbedding = await embeddingService.generateEmbedding(query);
-
-    if (queryEmbedding.length === 0) {
-        return [];
-    }
+    const queryEmbedding = await embeddingService.generateEmbedding(queryText);
+    if (queryEmbedding.length === 0) return [];
     
-    // Calculate the similarity score for each chunk by comparing its embedding to the query embedding.
     const scoredChunks = potentialChunks.map(chunk => ({
         ...chunk,
         score: this.cosineSimilarity(queryEmbedding, chunk.embedding!),
     }));
     
-    // Sort chunks by score in descending order to find the most relevant ones.
     scoredChunks.sort((a, b) => b.score - a.score);
-
-    // Return the top K most similar chunks, which will be used as context for the answer generation.
-    return scoredChunks.slice(0, topK);
+    return sanitizeData(scoredChunks.slice(0, topK));
   }
 
   // == SYNCING & LOGGING ==
-  
-  private async _addSyncLog(log: Omit<SyncLog, 'id' | 'timestamp'>) {
-    this._ensureTenantData(log.tenantId);
-    const newLog = {
-      ...log,
-      id: `${log.sourceId}-log-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-    };
-    this.tenantData[log.tenantId].logs.unshift(newLog);
-  }
-
-  private async _syncWebsiteSource(source: DataSource) {
-     // Clear old chunks before syncing
-     this.deleteChunksBySourceId(source.tenantId, source.id);
-
-     const ingestResult = await websiteCrawlerService.ingestPage(source.name); // source.name holds the URL
-     if (ingestResult.success) {
-         await this.addChunks(source.tenantId, source.id, 'website', ingestResult.title || source.name, ingestResult.chunks, ingestResult.url);
-         this.updateDataSource(source.tenantId, source.id, {
-             status: 'Synced',
-             lastSynced: new Date().toLocaleDateString(),
-             itemCount: ingestResult.chunks.length,
-             name: ingestResult.title || source.name,
-         });
-         return { itemsProcessed: ingestResult.chunks.length };
-     } else {
-          throw new Error(ingestResult.error || 'Unknown ingestion error');
-     }
-  }
-
   public async syncDataSource(tenantId: string, sourceId: string) {
-    const source = this.getDataSource(tenantId, sourceId);
+    const source = await this.getDataSource(tenantId, sourceId);
     if (!source) {
       console.error(`syncDataSource failed: Source not found for id ${sourceId}`);
       return;
     }
     
-    await this._addSyncLog({
-        tenantId,
-        sourceId,
-        status: 'InProgress',
-        message: `Sync started for ${source.name}`,
-        itemsProcessed: 0,
-    });
-
     try {
-        let result: { itemsProcessed: number } | undefined;
-        let finalMessage = 'Sync completed successfully.';
-        
-        // This is a simplified sync process. A real implementation would be more complex.
-        if (source.type === 'document') {
-             // Manual document uploads are processed on upload and don't have a separate "sync" step.
-            finalMessage = 'Manual document uploads do not require syncing.';
-            this.updateDataSource(tenantId, source.id, { status: 'Synced' });
-            result = { itemsProcessed: source.itemCount || 0 };
-        } else {
-            // For all other types, use the connector
-            const connector = getConnectorService(source.type);
-            await connector.sync(source); // In our prototype, these are mocked and resolve quickly.
-            
-            this.updateDataSource(tenantId, source.id, {
-                status: 'Synced',
-                lastSynced: new Date().toLocaleDateString(),
-            });
-            result = { itemsProcessed: source.itemCount || 0 }; // Assume no new items for mocks
-        }
-
-        await this._addSyncLog({
-            tenantId,
-            sourceId,
-            status: 'Success',
-            message: finalMessage,
-            itemsProcessed: result?.itemsProcessed || 0,
-        });
-
+        const connector = getConnectorService(source.type);
+        await connector.sync(source);
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error during sync';
         console.error(`Failed to sync source ${source.name}:`, error);
@@ -374,16 +217,8 @@ class KnowledgeBaseService {
             status: 'Error',
             lastSynced: 'Failed to sync',
         });
-        await this._addSyncLog({
-            tenantId,
-            sourceId,
-            status: 'Failure',
-            message: errorMessage,
-            itemsProcessed: 0,
-        });
     }
   }
-
 }
 
 export const knowledgeBaseService = new KnowledgeBaseService();

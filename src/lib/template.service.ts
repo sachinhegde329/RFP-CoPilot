@@ -1,9 +1,8 @@
 
+import { db } from './firebase';
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore';
 
-import type { Tenant } from './tenants';
-
-// NOTE: This service is currently using an in-memory store for prototype purposes.
-// For a production environment, this should be migrated to a persistent database (e.g., Firestore).
+// NOTE: This service is now migrated to use Firestore for data persistence.
 
 export type TemplateType = 'System' | 'Custom';
 export type TemplateIcon = 'FileText' | 'FileJson' | 'Blocks';
@@ -12,7 +11,7 @@ export type TemplateSectionType = 'title' | 'header' | 'qa_list_by_category' | '
 export interface TemplateSection {
   id: string; // unique ID for react keys
   type: TemplateSectionType;
-  content: string; // For text, titles, or category names. Can contain placeholders like {{version}}.
+  content: string; 
 }
 
 export interface Template {
@@ -25,12 +24,14 @@ export interface Template {
   structure: TemplateSection[];
 }
 
-interface TenantTemplateData {
-    templates: Template[];
+function sanitizeData<T>(data: T): T {
+    return JSON.parse(JSON.stringify(data));
 }
 
 class TemplateService {
-    private tenantData: Record<string, TenantTemplateData> = {};
+    private getTemplatesCollection(tenantId: string) {
+        return collection(db, 'tenants', tenantId, 'templates');
+    }
 
     private getSystemTemplates(tenantId: string): Template[] {
         return [
@@ -49,7 +50,7 @@ class TemplateService {
                     { id: 's5', type: 'qa_list_by_category', content: 'Product' },
                     { id: 's6', type: 'qa_list_by_category', content: 'Pricing' },
                     { id: 's7', type: 'qa_list_by_category', content: 'Company' },
-                    { id: 's8', type: 'qa_list_by_category', content: '*' }, // Catch-all for remaining questions
+                    { id: 's8', type: 'qa_list_by_category', content: '*' },
                     { id: 's9', type: 'acknowledgments', content: '' },
                 ]
             },
@@ -74,82 +75,70 @@ class TemplateService {
             }
         ];
     }
-    
-    private _ensureTenantData(tenantId: string) {
-        if (!this.tenantData[tenantId]) {
-            this.tenantData[tenantId] = { 
-                templates: [...this.getSystemTemplates(tenantId)] 
-            };
+
+    public async getTemplates(tenantId: string): Promise<Template[]> {
+        const systemTemplates = this.getSystemTemplates(tenantId);
+        const templatesSnapshot = await getDocs(this.getTemplatesCollection(tenantId));
+        const customTemplates = templatesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Template));
+        return sanitizeData([...systemTemplates, ...customTemplates]);
+    }
+
+    public async getTemplate(tenantId: string, templateId: string): Promise<Template | undefined> {
+        if (templateId.startsWith('system-')) {
+            return this.getSystemTemplates(tenantId).find(t => t.id === templateId);
         }
+        const templateDoc = await getDoc(doc(this.getTemplatesCollection(tenantId), templateId));
+        if (!templateDoc.exists()) return undefined;
+        return sanitizeData({ id: templateDoc.id, ...templateDoc.data() } as Template);
     }
 
-    public getTemplates(tenantId: string): Template[] {
-        this._ensureTenantData(tenantId);
-        return this.tenantData[tenantId].templates;
-    }
-
-    public getTemplate(tenantId: string, templateId: string): Template | undefined {
-        this._ensureTenantData(tenantId);
-        return this.tenantData[tenantId].templates.find(t => t.id === templateId);
-    }
-
-    public updateTemplate(tenantId: string, templateId: string, data: Partial<Pick<Template, 'name' | 'description' | 'structure'>>): Template | null {
-        this._ensureTenantData(tenantId);
-        const templates = this.tenantData[tenantId].templates;
-        const templateIndex = templates.findIndex(t => t.id === templateId);
-
-        if (templateIndex > -1) {
-            const template = templates[templateIndex];
-            if (template.type === 'System') {
-                return null;
-            }
-            templates[templateIndex] = { ...template, ...data };
-            return templates[templateIndex];
+    public async updateTemplate(tenantId: string, templateId: string, data: Partial<Pick<Template, 'name' | 'description' | 'structure'>>): Promise<Template | null> {
+        const templateRef = doc(this.getTemplatesCollection(tenantId), templateId);
+        const templateSnap = await getDoc(templateRef);
+        if (!templateSnap.exists() || (templateSnap.data() as Template).type === 'System') {
+            return null;
         }
-        return null;
+        await updateDoc(templateRef, data);
+        const updatedDoc = await getDoc(templateRef);
+        return sanitizeData({ id: updatedDoc.id, ...updatedDoc.data() } as Template);
     }
 
-    public createTemplate(tenantId: string, data: { name: string, description: string }): Template {
-        this._ensureTenantData(tenantId);
-        const newTemplate: Template = {
+    public async createTemplate(tenantId: string, data: { name: string, description: string }): Promise<Template> {
+        const newTemplateData: Omit<Template, 'id'> = {
             ...data,
-            id: `custom-${tenantId}-${Date.now()}`,
             tenantId,
             type: 'Custom',
             icon: 'Blocks',
-            structure: [ // Default structure for new custom templates
+            structure: [
                 { id: `c1-${Date.now()}`, type: 'title', content: 'RFP Response' },
                 { id: `c2-${Date.now()}`, type: 'qa_list_by_category', content: '*' },
             ],
         };
-        this.tenantData[tenantId].templates.push(newTemplate);
-        return newTemplate;
+        const newTemplateRef = await addDoc(this.getTemplatesCollection(tenantId), newTemplateData);
+        return { ...newTemplateData, id: newTemplateRef.id };
     }
 
     public async duplicateTemplate(tenantId: string, templateId: string): Promise<Template | null> {
-        this._ensureTenantData(tenantId);
-        const sourceTemplate = this.tenantData[tenantId].templates.find(t => t.id === templateId);
+        const sourceTemplate = await this.getTemplate(tenantId, templateId);
         if (!sourceTemplate) return null;
 
-        const newTemplate: Template = {
+        const newTemplateData: Omit<Template, 'id'> = {
             ...sourceTemplate,
-            id: `custom-${tenantId}-${Date.now()}`,
             name: `${sourceTemplate.name} (Copy)`,
             type: 'Custom',
             icon: 'Blocks',
-            // Ensure deep copy of structure with new IDs
             structure: sourceTemplate.structure.map(section => ({...section, id: `section-${Date.now()}-${Math.random()}`}))
         };
-        this.tenantData[tenantId].templates.push(newTemplate);
-        return newTemplate;
+        
+        const newTemplateRef = await addDoc(this.getTemplatesCollection(tenantId), newTemplateData);
+        return { ...newTemplateData, id: newTemplateRef.id };
     }
 
-    public deleteTemplate(tenantId: string, templateId: string): boolean {
-        this._ensureTenantData(tenantId);
-        const template = this.tenantData[tenantId].templates.find(t => t.id === templateId);
+    public async deleteTemplate(tenantId: string, templateId: string): Promise<boolean> {
+        const template = await this.getTemplate(tenantId, templateId);
         if (!template || template.type === 'System') return false;
 
-        this.tenantData[tenantId].templates = this.tenantData[tenantId].templates.filter(t => t.id !== templateId);
+        await deleteDoc(doc(this.getTemplatesCollection(tenantId), templateId));
         return true;
     }
 }

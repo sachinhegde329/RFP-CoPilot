@@ -1,19 +1,20 @@
 
-import { getTenantBySubdomain, type Role, type TeamMember } from './tenants';
-import { rfpService, type Question } from './rfp.service';
+import { collection, doc, addDoc, getDocs, query, orderBy } from 'firebase/firestore';
+import { db } from './firebase';
+import type { Role, TeamMember } from './tenants';
+import type { Question } from './rfp.service';
 
-// NOTE: This service is currently using an in-memory store for prototype purposes.
-// For a production environment, this should be migrated to a persistent database (e.g., Firestore).
+// NOTE: This service is now migrated to use Firestore for data persistence.
 
 export interface ExportRecord {
     id: string;
     tenantId: string;
-    rfpId: string; // To support multiple RFPs in the future
+    rfpId: string;
     version: string;
     format: 'pdf' | 'docx';
     exportedAt: string; // ISO string
     exportedBy: {
-        id: number;
+        id: string;
         name: string;
         role: Role;
     };
@@ -22,63 +23,33 @@ export interface ExportRecord {
     acknowledgments: { name:string; role: string; comment: string; }[];
 }
 
-interface TenantExportData {
-    history: ExportRecord[];
+function sanitizeData<T>(data: T): T {
+    return JSON.parse(JSON.stringify(data));
 }
 
 class ExportService {
-    private tenantData: Record<string, TenantExportData> = {};
-
-    constructor() {
-        // We cannot reliably call async functions in a constructor.
-        // Data seeding will need to happen on-demand when a service is called.
-    }
-    
-    private async _ensureTenantData(tenantId: string) {
-        if (!this.tenantData[tenantId]) {
-            this.tenantData[tenantId] = { history: [] };
-             // Seed data for megacorp demo tenant if it doesn't exist
-            if (tenantId === 'megacorp' && this.tenantData[tenantId].history.length === 0) {
-                const megacorpTenant = await getTenantBySubdomain('megacorp');
-                if (megacorpTenant) {
-                    const rfps = await rfpService.getRfps('megacorp');
-                    const sampleRfp = rfps.find((r: any) => r.id === 'rfp-3');
-                    if (sampleRfp) {
-                        this.tenantData['megacorp'].history.push({
-                            id: 'megacorp-main_rfp-1672531200000',
-                            tenantId: 'megacorp',
-                            rfpId: sampleRfp.id,
-                            version: 'v1.0 - Initial Draft',
-                            format: 'docx',
-                            exportedAt: new Date('2024-07-15T10:30:00Z').toISOString(),
-                            exportedBy: { id: 3, name: 'David Chen', role: 'Approver' },
-                            questionCount: sampleRfp.questions.length,
-                            questions: sampleRfp.questions,
-                            acknowledgments: [
-                                { name: 'Priya Patel', role: 'Editor', comment: 'Initial answers drafted for all sections.' },
-                                { name: 'David Chen', role: 'Approver', comment: 'Reviewed and approved product-related questions.' }
-                            ]
-                        });
-                    }
-                }
-            }
-        }
+    private getExportsCollection(tenantId: string, rfpId: string) {
+        return collection(db, 'tenants', tenantId, 'rfps', rfpId, 'exports');
     }
 
     public async addExportRecord(tenantId: string, record: Omit<ExportRecord, 'id' | 'tenantId'>): Promise<ExportRecord> {
-        await this._ensureTenantData(tenantId);
+        const exportsCollection = this.getExportsCollection(tenantId, record.rfpId);
+        const newRecordRef = await addDoc(exportsCollection, record);
+        
         const newRecord: ExportRecord = {
             ...record,
-            id: `${tenantId}-${record.rfpId}-${Date.now()}`,
+            id: newRecordRef.id,
             tenantId,
         };
-        this.tenantData[tenantId].history.unshift(newRecord);
         return newRecord;
     }
 
     public async getExportHistory(tenantId: string, rfpId: string): Promise<ExportRecord[]> {
-        await this._ensureTenantData(tenantId);
-        return this.tenantData[tenantId].history.filter(record => record.rfpId === rfpId).sort((a, b) => new Date(b.exportedAt).getTime() - new Date(a.exportedAt).getTime());
+        const exportsCollection = this.getExportsCollection(tenantId, rfpId);
+        const q = query(exportsCollection, orderBy('exportedAt', 'desc'));
+        const snapshot = await getDocs(q);
+        const history = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ExportRecord));
+        return sanitizeData(history);
     }
 }
 

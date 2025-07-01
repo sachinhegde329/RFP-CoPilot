@@ -9,10 +9,11 @@ import { knowledgeBaseService } from "@/lib/knowledge-base"
 import { rfpService, type Question, type RFP } from "@/lib/rfp.service"
 import {
     getTenantBySubdomain,
-    updateTenant as updateTenantData,
+    updateTenant,
     type Role,
     type TeamMember,
-    type Tenant
+    type Tenant,
+    plansConfig
 } from "@/lib/tenants"
 import { stripe } from "@/lib/stripe"
 import { hasFeatureAccess, canPerformAction, type Action } from "@/lib/access-control"
@@ -31,7 +32,6 @@ async function checkPermission(tenantId: string, currentUser: CurrentUser, actio
     const tenant = await getTenantBySubdomain(tenantId);
     if (!tenant) return { error: "Tenant not found." };
     
-    // In a real app, the user would be loaded from a secure session, not found in the tenant members list.
     const user = tenant.members.find(m => m.id === currentUser.id); 
     if (!user) return { error: "User not found." };
     
@@ -101,13 +101,11 @@ export async function generateAnswerAction(question: string, rfpId: string, tena
         tags: rfp.topics
     });
     
-    // The generateDraftAnswer flow now handles cases with and without knowledge base chunks.
     const result = await generateDraftAnswer({
       rfpQuestion: question,
-      // Pass chunks if available, otherwise the flow will use general knowledge.
       knowledgeBaseChunks: relevantChunks.length > 0 ? relevantChunks.map(chunk => ({
           content: chunk.content,
-          source: chunk.source
+          source: chunk.metadata.url || chunk.title
       })) : undefined,
       tone: tenant.defaultTone || "Formal",
     })
@@ -159,7 +157,6 @@ export async function extractQuestionsAction(rfpText: string, rfpName: string, t
   }
 
   try {
-    // Run question extraction and topic detection in parallel
     const [questionResult, topicResult] = await Promise.all([
         extractRfpQuestions({ documentText: rfpText }),
         detectRfpTopics({ documentText: rfpText })
@@ -173,7 +170,6 @@ export async function extractQuestionsAction(rfpText: string, rfpName: string, t
       status: "Unassigned" as const,
     }));
     
-    // Create a new RFP with the extracted questions and topics
     const newRfp = await rfpService.addRfp(tenantId, rfpName, questionsWithStatus, topicResult.topics);
     return { rfp: newRfp }
   } catch (e) {
@@ -190,7 +186,6 @@ export async function updateQuestionAction(tenantId: string, rfpId: string, ques
         return { error: "Missing question ID." };
     }
     
-    // If the update includes assigning a user, check for assign permission
     if (updates.assignee !== undefined) {
         if (!canPerformAction(currentUser.role, 'assignQuestions')) {
             return { error: "You do not have permission to assign questions." };
@@ -245,7 +240,7 @@ export async function getKnowledgeSourcesAction(tenantId: string) {
         return { error: "Tenant ID is missing." };
     }
     try {
-        const sources = knowledgeBaseService.getDataSources(tenantId);
+        const sources = await knowledgeBaseService.getDataSources(tenantId);
         return { sources };
     } catch (e) {
         console.error(e);
@@ -261,7 +256,7 @@ export async function addDocumentSourceAction(documentDataUri: string, tenantId:
         return { error: "Missing required parameters for adding document." };
     }
 
-    const newSource = knowledgeBaseService.addDataSource({
+    const newSource = await knowledgeBaseService.addDataSource({
         tenantId,
         type: 'document',
         name: fileName,
@@ -271,19 +266,18 @@ export async function addDocumentSourceAction(documentDataUri: string, tenantId:
         itemCount: 0
     });
     
-    // Don't await this, let it run in the background
     (async () => {
         try {
             const parseResult = await parseDocument({ documentDataUri });
             await knowledgeBaseService.addChunks(tenantId, newSource.id, 'document', fileName, parseResult.chunks);
-            knowledgeBaseService.updateDataSource(tenantId, newSource.id, {
+            await knowledgeBaseService.updateDataSource(tenantId, newSource.id, {
                 status: 'Synced',
                 lastSynced: new Date().toLocaleDateString(),
                 itemCount: parseResult.chunks.length,
             });
         } catch (error) {
             console.error(`Failed to parse and embed document ${fileName}:`, error);
-            knowledgeBaseService.updateDataSource(tenantId, newSource.id, {
+            await knowledgeBaseService.updateDataSource(tenantId, newSource.id, {
                 status: 'Error',
                 lastSynced: 'Failed to process',
             });
@@ -301,7 +295,7 @@ export async function addWebsiteSourceAction(url: string, tenantId: string, curr
         return { error: "Missing required parameters for adding website." };
     }
 
-    const newSource = knowledgeBaseService.addDataSource({
+    const newSource = await knowledgeBaseService.addDataSource({
         tenantId,
         type: 'website',
         name: url,
@@ -311,7 +305,6 @@ export async function addWebsiteSourceAction(url: string, tenantId: string, curr
         config,
     });
 
-    // Don't await this, let it run in the background
     knowledgeBaseService.syncDataSource(tenantId, newSource.id);
 
     return { source: newSource };
@@ -326,17 +319,16 @@ export async function resyncKnowledgeSourceAction(tenantId: string, sourceId: st
         return { error: "Missing required parameters." };
     }
     
-    const source = knowledgeBaseService.getDataSource(tenantId, sourceId);
+    const source = await knowledgeBaseService.getDataSource(tenantId, sourceId);
     if (!source) {
         return { error: "Source not found." };
     }
 
-    knowledgeBaseService.updateDataSource(tenantId, sourceId, {
+    await knowledgeBaseService.updateDataSource(tenantId, sourceId, {
         status: 'Syncing',
         lastSynced: 'In progress...',
     });
 
-    // Don't await this, let it run in the background
     knowledgeBaseService.syncDataSource(tenantId, sourceId);
 
     return { success: true };
@@ -350,7 +342,7 @@ export async function deleteKnowledgeSourceAction(tenantId: string, sourceId: st
         return { error: "Missing required parameters for deleting source." };
     }
     try {
-        const success = knowledgeBaseService.deleteDataSource(tenantId, sourceId);
+        const success = await knowledgeBaseService.deleteDataSource(tenantId, sourceId);
         if (!success) {
             return { error: "Source not found or could not be deleted." };
         }
@@ -366,8 +358,7 @@ export async function checkSourceStatusAction(tenantId: string, sourceId: string
         return { error: "Missing parameters" };
     }
     try {
-        const sources = knowledgeBaseService.getDataSources(tenantId);
-        const source = sources.find(s => s.id === sourceId);
+        const source = await knowledgeBaseService.getDataSource(tenantId, sourceId);
         return { source };
     } catch (e) {
         console.error(e);
@@ -378,8 +369,6 @@ export async function checkSourceStatusAction(tenantId: string, sourceId: string
 // == BILLING ACTIONS ==
 
 const STRIPE_PRICE_IDS = {
-    // IMPORTANT: Replace these with your actual Price IDs from your Stripe dashboard
-    // These prices should be configured in Stripe as "per unit" for per-seat billing.
     starter: 'price_1Ph_SAMPLE_STARTER', 
     team: 'price_1Ph_SAMPLE_TEAM',
     business: 'price_1Ph_SAMPLE_BUSINESS',
@@ -417,8 +406,8 @@ export async function createCheckoutSessionAction(plan: 'starter' | 'team' | 'bu
             mode: 'subscription',
             success_url: successUrl,
             cancel_url: cancelUrl,
-            // In a real app, you would associate the checkout session with your user/tenant
-            // using `client_reference_id` or `metadata`. We use metadata here.
+            customer: tenant.stripeCustomerId || undefined,
+            customer_creation: tenant.stripeCustomerId ? undefined : 'always',
             metadata: {
                 tenantId: tenant.id,
                 plan: plan,
@@ -473,19 +462,17 @@ export async function createCustomerPortalSessionAction(tenantId: string) {
 export async function inviteMemberAction(tenantId: string, email: string, role: Role, currentUser: CurrentUser) {
     const permCheck = await checkPermission(tenantId, currentUser, 'manageTeam');
     if (permCheck.error) return { error: permCheck.error };
-    const { tenant } = permCheck;
-
+    
     if (!email || !role) {
       return { error: "Missing required parameters." };
     }
-    // In a real app, you would send an invitation email here.
-    // For now, we add them directly. In Firestore, you'd add a pending member.
-    const updatedTenant = await updateTenantData(tenant.id, {
-        members: [...tenant.members, { id: Date.now().toString(), name: email, email, role, status: 'Pending' }]
+
+    const updatedTenant = await updateTenant(tenantId, {
+        members: arrayUnion({ id: Date.now().toString(), name: email, email, role, status: 'Pending' })
     });
 
     if (updatedTenant) {
-        return { success: true, member: updatedTenant.members[updatedTenant.members.length - 1] };
+        return { success: true, member: updatedTenant.members.find(m => m.email === email && m.status === 'Pending') };
     }
     return { error: "Failed to invite member" };
 }
@@ -505,7 +492,7 @@ export async function removeMemberAction(tenantId: string, memberId: string, cur
     }
 
     const updatedMembers = tenant.members.filter(m => m.id !== memberId);
-    const updatedTenant = await updateTenantData(tenantId, { members: updatedMembers });
+    const updatedTenant = await updateTenant(tenantId, { members: updatedMembers });
 
     return { success: !!updatedTenant };
 }
@@ -525,7 +512,7 @@ export async function updateMemberRoleAction(tenantId: string, memberId: string,
     }
 
     const updatedMembers = tenant.members.map(m => m.id === memberId ? { ...m, role: newRole } : m);
-    const updatedTenant = await updateTenantData(tenantId, { members: updatedMembers });
+    const updatedTenant = await updateTenant(tenantId, { members: updatedMembers });
     const updatedMember = updatedTenant?.members.find(m => m.id === memberId);
     
     return { success: !!updatedTenant, member: updatedMember };
@@ -533,7 +520,6 @@ export async function updateMemberRoleAction(tenantId: string, memberId: string,
 
 // == SETTINGS ACTIONS ==
 export async function updateProfileSettingsAction(tenantId: string, userId: string, data: { name: string }, currentUser: CurrentUser) {
-    // A user can always update their own profile
     if (currentUser.id !== userId) {
         return { error: "You can only update your own profile." };
     }
@@ -541,7 +527,7 @@ export async function updateProfileSettingsAction(tenantId: string, userId: stri
     if (!tenant) return { error: "Tenant not found." };
     
     const updatedMembers = tenant.members.map(m => m.id === userId ? { ...m, ...data } : m);
-    const updatedTenant = await updateTenantData(tenantId, { members: updatedMembers });
+    const updatedTenant = await updateTenant(tenantId, { members: updatedMembers });
     
     return { member: updatedTenant?.members.find(m => m.id === userId) };
 }
@@ -551,7 +537,7 @@ export async function updateWorkspaceSettingsAction(tenantId: string, data: Part
     if (permCheck.error) return { error: permCheck.error };
     
     try {
-        const updatedTenant = await updateTenantData(tenantId, data);
+        const updatedTenant = await updateTenant(tenantId, data);
         if (!updatedTenant) return { error: "Tenant not found." };
         return { tenant: updatedTenant };
     } catch (e) {
@@ -565,7 +551,7 @@ export async function updateSecuritySettingsAction(tenantId: string, data: Parti
     if (permCheck.error) return { error: permCheck.error };
 
     try {
-        const updatedTenant = await updateTenantData(tenantId, data);
+        const updatedTenant = await updateTenant(tenantId, data);
         if (!updatedTenant) return { error: "Tenant not found." };
         return { tenant: updatedTenant };
     } catch (e) {
@@ -577,12 +563,12 @@ export async function updateSecuritySettingsAction(tenantId: string, data: Parti
 
 // == NOTIFICATION ACTIONS ==
 
-export async function getNotificationsAction(tenantId: string, userId: number) {
+export async function getNotificationsAction(tenantId: string, userId: string) {
     if (!tenantId || !userId) {
         return { error: "Missing required parameters." };
     }
     try {
-        const notifications = notificationService.getNotifications(tenantId, userId);
+        const notifications = await notificationService.getNotifications(tenantId, userId);
         return { success: true, notifications };
     } catch (e) {
         console.error(e);
@@ -590,12 +576,12 @@ export async function getNotificationsAction(tenantId: string, userId: number) {
     }
 }
 
-export async function markNotificationsAsReadAction(tenantId: string, userId: number) {
+export async function markNotificationsAsReadAction(tenantId: string, userId: string) {
     if (!tenantId || !userId) {
         return { error: "Missing required parameters." };
     }
     try {
-        const notifications = notificationService.markAllAsRead(tenantId, userId);
+        const notifications = await notificationService.markAllAsRead(tenantId, userId);
         return { success: true, notifications };
     } catch (e) {
         console.error(e);
@@ -605,9 +591,6 @@ export async function markNotificationsAsReadAction(tenantId: string, userId: nu
 
 // == EXPORT ACTION ==
 
-/**
- * Helper function to convert a PDFKit document stream to a buffer.
- */
 async function generatePdfBuffer(doc: InstanceType<typeof PDFDocument>): Promise<Buffer> {
     return new Promise((resolve, reject) => {
         const buffers: Buffer[] = [];
@@ -681,7 +664,7 @@ export async function exportRfpAction(payload: {
     if (permCheck.error) return { error: permCheck.error };
     const { user, tenant } = permCheck;
 
-    const template = templateService.getTemplate(tenantId, templateId);
+    const template = await templateService.getTemplate(tenantId, templateId);
     if (!template) {
         return { error: "Template not found." };
     }
@@ -746,7 +729,6 @@ export async function exportRfpAction(payload: {
                         let questionsToRender: Question[] = [];
 
                         if (category === '*') {
-                            // Render all questions not yet rendered
                              questionsToRender = questions.filter(q => !renderedQuestionIds.has(q.id));
                         } else {
                             questionsToRender = (questionsByCategory[category] || []).filter(q => !renderedQuestionIds.has(q.id));
@@ -869,7 +851,7 @@ export async function getTemplatesAction(tenantId: string, currentUser: CurrentU
     if (permCheck.error) return { error: permCheck.error };
     
     try {
-        const templates = templateService.getTemplates(tenantId);
+        const templates = await templateService.getTemplates(tenantId);
         return { templates };
     } catch (e) {
         return { error: 'Failed to retrieve templates.' };
@@ -881,7 +863,7 @@ export async function getTemplateAction(tenantId: string, templateId: string, cu
     if (permCheck.error) return { error: permCheck.error };
     
     try {
-        const template = templateService.getTemplate(tenantId, templateId);
+        const template = await templateService.getTemplate(tenantId, templateId);
         if (!template) return { error: 'Template not found.' };
         return { template };
     } catch (e) {
@@ -894,7 +876,7 @@ export async function createTemplateAction(tenantId: string, data: { name: strin
     if (permCheck.error) return { error: permCheck.error };
     
     try {
-        const template = templateService.createTemplate(tenantId, data);
+        const template = await templateService.createTemplate(tenantId, data);
         return { template };
     } catch (e) {
         return { error: 'Failed to create template.' };
@@ -906,7 +888,7 @@ export async function updateTemplateAction(tenantId: string, templateId: string,
     if (permCheck.error) return { error: permCheck.error };
 
     try {
-        const template = templateService.updateTemplate(tenantId, templateId, data);
+        const template = await templateService.updateTemplate(tenantId, templateId, data);
         if (!template) return { error: 'Could not update template. System templates are protected or template not found.' };
         return { template };
     } catch (e) {
@@ -932,7 +914,7 @@ export async function deleteTemplateAction(tenantId: string, templateId: string,
     if (permCheck.error) return { error: permCheck.error };
 
     try {
-        const success = templateService.deleteTemplate(tenantId, templateId);
+        const success = await templateService.deleteTemplate(tenantId, templateId);
         if (!success) return { error: 'Could not delete template. System templates are protected.' };
         return { success };
     } catch (e) {
