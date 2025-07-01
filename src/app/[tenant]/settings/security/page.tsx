@@ -31,9 +31,8 @@ export default function SecuritySettingsPage({ params }: { params: { tenant: str
   const isOktaSsoConfigured = tenant.ssoProvider === 'okta';
 
   return (
-    <>
-      <SecurityClient tenantSubdomain={tenant.subdomain} />
       <Card className="flex flex-col flex-1">
+        <SecurityClient tenantSubdomain={tenant.subdomain} />
         <CardHeader>
           <CardTitle>Security</CardTitle>
           <CardDescription>
@@ -170,6 +169,5 @@ export default function SecuritySettingsPage({ params }: { params: { tenant: str
 
         </CardContent>
       </Card>
-    </>
   )
 }
