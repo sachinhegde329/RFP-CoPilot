@@ -17,7 +17,7 @@ import Link from "next/link"
 import { useToast } from "@/hooks/use-toast"
 import { loadStripe } from "@stripe/stripe-js"
 import { createCheckoutSessionAction } from "@/app/actions"
-import { addOnsConfig } from "@/lib/tenants"
+import { addOnsConfig } from "@/lib/tenant-types"
 
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 

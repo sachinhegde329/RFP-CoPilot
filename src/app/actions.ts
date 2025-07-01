@@ -7,14 +7,8 @@ import { extractRfpQuestions } from "@/ai/flows/extract-rfp-questions"
 import { parseDocument } from "@/ai/flows/parse-document"
 import { knowledgeBaseService } from "@/lib/knowledge-base"
 import { rfpService, type Question, type RFP } from "@/lib/rfp.service"
-import {
-    getTenantBySubdomain,
-    updateTenant,
-    type Role,
-    type TeamMember,
-    type Tenant,
-    plansConfig
-} from "@/lib/tenants"
+import { getTenantBySubdomain, updateTenant } from "@/lib/tenants"
+import { type Role, type TeamMember, type Tenant, plansConfig } from "@/lib/tenant-types"
 import { stripe } from "@/lib/stripe"
 import { hasFeatureAccess, canPerformAction, type Action } from "@/lib/access-control"
 import { notificationService } from "@/lib/notifications.service"

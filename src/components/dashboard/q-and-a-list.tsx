@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from "react"
 import { QAndAItem } from "./q-and-a-item"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import type { TeamMember } from "@/lib/tenants"
+import type { TeamMember } from "@/lib/tenant-types"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { PlusCircle, ChevronDown, Loader2, Download, AlertTriangle, UserCheck, ShieldAlert } from "lucide-react"
 import { Accordion } from "@/components/ui/accordion"
@@ -42,7 +42,7 @@ import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { canPerformAction } from "@/lib/access-control"
 
-type Acknowledgments = Record<number, { acknowledged: boolean; comment: string }>;
+type Acknowledgments = Record<string, { acknowledged: boolean; comment: string }>;
 
 function ExportDialog({ rfpId, questions, members }: { rfpId: string, questions: Question[], members: TeamMember[] }) {
     const { tenant } = useTenant()
@@ -97,7 +97,7 @@ function ExportDialog({ rfpId, questions, members }: { rfpId: string, questions:
         setChecklist(prev => ({ ...prev, [key]: !prev[key] }));
     };
 
-    const handleAcknowledgeChange = (memberId: number, checked: boolean | 'indeterminate') => {
+    const handleAcknowledgeChange = (memberId: string, checked: boolean | 'indeterminate') => {
         if (typeof checked !== 'boolean') return;
         setAcknowledgments(prev => ({
             ...prev,
@@ -105,7 +105,7 @@ function ExportDialog({ rfpId, questions, members }: { rfpId: string, questions:
         }));
     };
 
-    const handleCommentChange = (memberId: number, comment: string) => {
+    const handleCommentChange = (memberId: string, comment: string) => {
         setAcknowledgments(prev => ({
             ...prev,
             [memberId]: { ...(prev[memberId] || { acknowledged: false }), comment: comment }

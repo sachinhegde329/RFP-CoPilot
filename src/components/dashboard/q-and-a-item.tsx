@@ -14,7 +14,7 @@ import { hasFeatureAccess, canPerformAction } from "@/lib/access-control"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import type { TeamMember } from "@/lib/tenants"
+import type { TeamMember } from "@/lib/tenant-types"
 import { Input } from "../ui/input"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -71,7 +71,7 @@ export function QAndAItem({ questionData, tenantId, rfpId, members, onUpdateQues
   const [newComment, setNewComment] = useState("");
 
   const contributors = useMemo(() => {
-    const contributorIds = new Set<number>();
+    const contributorIds = new Set<string>();
     if (assignee) {
         contributorIds.add(assignee.id);
     }

@@ -4,7 +4,7 @@ import Stripe from 'stripe';
 import { headers } from 'next/headers';
 import { stripe } from '@/lib/stripe';
 import { updateTenant } from '@/lib/tenants';
-import type { Tenant } from '@/lib/tenants';
+import type { Tenant } from '@/lib/tenant-types';
 
 export async function POST(req: NextRequest) {
   const body = await req.text();

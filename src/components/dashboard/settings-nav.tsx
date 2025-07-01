@@ -1,3 +1,4 @@
+
 'use client'
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -6,7 +7,7 @@ import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
 import { User, Users, Building, CreditCard, Shield, Gift } from "lucide-react"
 import { canPerformAction, type Action } from "@/lib/access-control"
-import type { Tenant } from "@/lib/tenants"
+import type { Tenant } from "@/lib/tenant-types"
 
 export function SettingsNav() {
     const pathname = usePathname();

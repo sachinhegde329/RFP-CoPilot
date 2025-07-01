@@ -1,5 +1,6 @@
 
-import { getTenantBySubdomain, type TeamMember } from './tenants';
+import { getTenantBySubdomain } from './tenants';
+import type { TeamMember } from './tenant-types';
 import { db } from './firebase';
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, type DocumentSnapshot } from 'firebase/firestore';
 

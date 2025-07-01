@@ -26,7 +26,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useTenant } from '@/components/providers/tenant-provider';
 import Link from "next/link";
-import { type Role, type TeamMember } from '@/lib/tenants';
+import { type Role, type TeamMember } from '@/lib/tenant-types';
 import { useToast } from '@/hooks/use-toast';
 import { inviteMemberAction, removeMemberAction, updateMemberRoleAction } from '@/app/actions';
 import { canPerformAction } from '@/lib/access-control';

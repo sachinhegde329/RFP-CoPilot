@@ -1,7 +1,7 @@
 
 'use client';
 
-import { type Tenant } from '@/lib/tenants';
+import { type Tenant } from '@/lib/tenant-types';
 import React, { createContext, useContext, useState, Dispatch, SetStateAction } from 'react';
 
 type TenantContextType = {

@@ -1,9 +1,7 @@
 
-import type { Tenant, Role } from "./tenants";
-import type { addOnsConfig } from "./tenants";
+import type { Tenant, Role, Feature } from "./tenant-types";
+import { addOnsConfig } from "./tenant-types";
 
-// Features controlled by plans and add-ons
-export type Feature = keyof typeof addOnsConfig | 'aiExpertReview' | 'complianceValidation' | 'sso' | 'analytics' | 'customTemplates';
 
 // Granular actions based on user roles, mapped from the provided matrix
 export type Action =
