@@ -57,6 +57,7 @@ class DropboxService {
         if (ext === 'docx') mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
         if (ext === 'xlsx') mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
         if (ext === 'md' || ext === 'txt') mimeType = 'text/plain';
+        if (ext === 'html') mimeType = 'text/html';
 
         return { fileBinary, mimeType };
     }

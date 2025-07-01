@@ -68,6 +68,8 @@ class GoogleDriveService {
                 exportMimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
             } else if (file.mimeType === 'application/vnd.google-apps.spreadsheet') {
                 exportMimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+            } else if (file.mimeType === 'application/vnd.google-apps.presentation') {
+                exportMimeType = 'application/pdf'; // Export presentations as PDF
             }
             
             const res = await drive.files.export({ fileId: file.id, mimeType: exportMimeType }, { responseType: 'arraybuffer' });

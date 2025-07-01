@@ -8,11 +8,15 @@ import { marked } from 'marked';
 import { Octokit } from '@octokit/rest';
 import type { DataSource } from '@/lib/knowledge-base';
 import { knowledgeBaseService } from '@/lib/knowledge-base';
+import * as cheerio from 'cheerio';
 
 class GitHubService {
 
     private getClient(): Octokit {
         const { GITHUB_TOKEN } = process.env;
+        if (!GITHUB_TOKEN) {
+            throw new Error("GITHUB_TOKEN is not configured in .env file.");
+        }
         return new Octokit({ auth: GITHUB_TOKEN });
     }
 
@@ -70,7 +74,8 @@ class GitHubService {
     async parseContent(rawContent: { content: string }): Promise<{ text: string, chunks: string[] }> {
         const markdownContent = Buffer.from(rawContent.content, 'base64').toString('utf-8');
         const html = await marked.parse(markdownContent);
-        const text = html.replace(/<[^>]*>?/gm, ''); // Basic HTML stripping
+        const $ = cheerio.load(html);
+        const text = $('body').text().replace(/\s\s+/g, ' ').trim();
         const chunks = this.chunkText(text);
         return { text, chunks };
     }
