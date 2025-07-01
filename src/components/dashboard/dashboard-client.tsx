@@ -106,7 +106,8 @@ export function HomepageClient({ rfps, selectedRfp }: HomepageClientProps) {
       return
     }
     setIsLoading(true);
-    setQuestions([]);
+    // Removing the setQuestions([]) call to prevent the list from flashing empty.
+    // The loading indicator will show, and then the list will update with the new questions.
 
     const rfpName = file ? file.name : `Pasted RFP - ${new Date().toLocaleDateString()}`;
 
@@ -120,9 +121,12 @@ export function HomepageClient({ rfps, selectedRfp }: HomepageClientProps) {
           description: result.error || "Could not process RFP",
         });
       } else {
-        const newRfpId = result.rfp.id;
+        const newRfp = result.rfp;
+        const newRfpId = newRfp.id;
         
-        // Now that we have the new RFP's ID, we can associate the attachment with it.
+        // Directly update the questions in the state to ensure the UI refreshes immediately
+        setQuestions(newRfp.questions);
+
         if (file) {
           const newAttachment: Attachment = {
             id: Date.now(),
@@ -136,7 +140,9 @@ export function HomepageClient({ rfps, selectedRfp }: HomepageClientProps) {
           setRfpAttachments(prev => ({ ...prev, [newRfpId]: [newAttachment] }));
         }
         
-        toast({ title: "RFP Processed", description: `Created new RFP: ${result.rfp.name}` });
+        toast({ title: "RFP Processed", description: `Created new RFP: ${newRfp.name}` });
+        
+        // Navigate to the new RFP's URL to update the rest of the app state (like the selector)
         router.push(`${pathname}?rfpId=${newRfpId}`);
       }
     } catch (e) {
