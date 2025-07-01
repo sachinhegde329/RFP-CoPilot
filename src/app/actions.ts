@@ -223,6 +223,16 @@ export async function addQuestionAction(tenantId: string, rfpId: string, questio
     }
 }
 
+export async function getRfpsAction(tenantId: string): Promise<{ rfps?: RFP[] }> {
+    try {
+        const rfps = rfpService.getRfps(tenantId);
+        return { rfps };
+    } catch (e) {
+        console.error(e);
+        return {};
+    }
+}
+
 
 // == KNOWLEDGE BASE ACTIONS ==
 
