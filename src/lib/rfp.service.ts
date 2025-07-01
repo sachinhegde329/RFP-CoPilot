@@ -1,7 +1,7 @@
 
 import { getTenantBySubdomain, type TeamMember } from './tenants';
 import { db } from './firebase';
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, type DocumentSnapshot } from 'firebase/firestore';
 
 export type QuestionStatus = 'Unassigned' | 'In Progress' | 'Completed';
 export type ComplianceStatus = "passed" | "failed" | "pending";
@@ -25,17 +25,46 @@ export interface RFP {
     topics?: string[];
 }
 
-// NOTE: This service has been refactored to use Firestore for data persistence.
+// NOTE: This service is now migrated to use Firestore for data persistence.
+
+/**
+ * Manually reconstructs an RFP object from a Firestore document snapshot.
+ * This ensures the returned object is a plain JavaScript object, free of any
+ * non-serializable types like Firestore Timestamps.
+ * @param doc The Firestore document snapshot.
+ * @returns A clean, serializable RFP object.
+ */
+function cleanRfp(doc: DocumentSnapshot): RFP {
+    const data = doc.data()!;
+    return {
+        id: doc.id,
+        name: data.name,
+        status: data.status,
+        topics: data.topics || [],
+        questions: (data.questions || []).map((q: any) => ({
+            id: q.id,
+            question: q.question,
+            category: q.category,
+            answer: q.answer,
+            compliance: q.compliance,
+            status: q.status,
+            assignee: q.assignee ? {
+                id: q.assignee.id,
+                name: q.assignee.name,
+                email: q.assignee.email,
+                role: q.assignee.role,
+                status: q.assignee.status,
+                avatar: q.assignee.avatar || null,
+            } : null,
+        })),
+    };
+}
+
 
 class RfpService {
 
     private getRfpsCollection(tenantId: string) {
         return collection(db, 'tenants', tenantId, 'rfps');
-    }
-
-    private sanitizeData<T>(data: T): T {
-        // A simple but effective way to convert Firestore-specific types to plain JSON
-        return JSON.parse(JSON.stringify(data));
     }
 
     public async getRfps(tenantId: string): Promise<RFP[]> {
@@ -55,19 +84,18 @@ class RfpService {
                 for (const rfp of rfpsToSeed) {
                     await setDoc(doc(rfpsCollection, rfp.id), rfp);
                 }
-                return this.sanitizeData(rfpsToSeed);
+                // Seeded data is already clean as it's constructed in memory
+                return rfpsToSeed;
             }
             return [];
         }
-        const rfps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as RFP);
-        return this.sanitizeData(rfps);
+        return snapshot.docs.map(cleanRfp);
     }
     
     public async getRfp(tenantId: string, rfpId: string): Promise<RFP | undefined> {
         const rfpDoc = await getDoc(doc(this.getRfpsCollection(tenantId), rfpId));
         if (!rfpDoc.exists()) return undefined;
-        const rfpData = rfpDoc.data() as RFP;
-        return this.sanitizeData({ ...rfpData, id: rfpDoc.id });
+        return cleanRfp(rfpDoc);
     }
 
     public async updateQuestion(tenantId: string, rfpId: string, questionId: number, updates: Partial<Question>): Promise<Question | null> {
@@ -76,9 +104,10 @@ class RfpService {
         
         const questionIndex = rfp.questions.findIndex(q => q.id === questionId);
         if (questionIndex > -1) {
-            rfp.questions[questionIndex] = { ...rfp.questions[questionIndex], ...updates };
+            const updatedQuestion = { ...rfp.questions[questionIndex], ...updates };
+            rfp.questions[questionIndex] = updatedQuestion;
             await updateDoc(doc(this.getRfpsCollection(tenantId), rfpId), { questions: rfp.questions });
-            return this.sanitizeData(rfp.questions[questionIndex]);
+            return updatedQuestion;
         }
         return null;
     }
@@ -93,7 +122,7 @@ class RfpService {
             topics,
         };
         await setDoc(doc(this.getRfpsCollection(tenantId), newRfpId), newRfp);
-        return this.sanitizeData(newRfp);
+        return newRfp;
     }
 
     public async addQuestion(tenantId: string, rfpId: string, questionData: Omit<Question, 'id'>): Promise<Question> {
@@ -108,7 +137,7 @@ class RfpService {
         };
         questions.push(newQuestion);
         await updateDoc(doc(this.getRfpsCollection(tenantId), rfpId), { questions: questions });
-        return this.sanitizeData(newQuestion);
+        return newQuestion;
     }
 }
 
