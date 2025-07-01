@@ -1,3 +1,4 @@
+
 import { type NextRequest, NextResponse } from 'next/server';
 import { getTenantBySubdomain, updateTenant } from '@/lib/tenants';
 
