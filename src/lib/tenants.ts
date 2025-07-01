@@ -63,6 +63,12 @@ function getLimitsForTenant(tenantData: Omit<Tenant, 'limits'>): Tenant['limits'
     return plansConfig[tenantData.plan];
 }
 
+function sanitizeData<T>(data: T): T {
+    // A simple but effective way to convert Firestore-specific types (like Timestamps) to plain JSON
+    return JSON.parse(JSON.stringify(data));
+}
+
+
 async function createFreeTenant(user: User, subdomain?: string): Promise<Tenant> {
   const emailDomain = user.email!.split('@')[1];
   const derivedSubdomain = subdomain || (freeEmailProviders.has(emailDomain) ? user.email!.split('@')[0] : emailDomain.split('.')[0]).toLowerCase().replace(/[^a-z0-9-]/g, '-');
@@ -121,7 +127,7 @@ export async function findOrCreateTenantForUser(user: User): Promise<Tenant | nu
             await updateDoc(tenantDoc.ref, { members: arrayUnion(newMember) });
             tenantWithLimits.members.push(newMember);
         }
-        return tenantWithLimits;
+        return sanitizeData(tenantWithLimits);
     }
 
     // No corporate tenant found, create a new personal one
@@ -141,14 +147,14 @@ export async function getTenantBySubdomain(subdomain: string): Promise<Tenant | 
              await updateDoc(demoDocRef, { name: 'MegaCorp (Demo)', plan: 'team' });
              const finalTenant = await getDoc(demoDocRef);
              const tenantData = finalTenant.data() as Omit<Tenant, 'limits'>;
-             return { ...tenantData, id: finalTenant.id, limits: getLimitsForTenant(tenantData) };
+             return sanitizeData({ ...tenantData, id: finalTenant.id, limits: getLimitsForTenant(tenantData) });
         }
         return null;
     }
     
     const tenantData = tenantDoc.data() as Omit<Tenant, 'limits'>;
     const tenantWithData = { ...tenantData, id: tenantDoc.id, limits: getLimitsForTenant(tenantData) };
-    return tenantWithData;
+    return sanitizeData(tenantWithData);
 }
 
 export async function updateTenant(tenantId: string, updates: Partial<Tenant>): Promise<Tenant | null> {
