@@ -31,7 +31,7 @@ export default function ReferralsPage() {
     ]
 
     return (
-        <Card>
+        <Card className="h-full">
             <CardHeader>
                 <div className="flex items-center gap-2">
                     <Gift className="text-primary" />

@@ -95,7 +95,7 @@ export default function WorkspaceSettingsPage() {
     };
 
     return (
-        <Card>
+        <Card className="flex flex-col h-full">
             <CardHeader>
                 <CardTitle>Workspace</CardTitle>
                 <CardDescription>
@@ -103,8 +103,8 @@ export default function WorkspaceSettingsPage() {
                 </CardDescription>
             </CardHeader>
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)}>
-                    <CardContent className="space-y-6">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1">
+                    <CardContent className="space-y-6 flex-1">
                         <fieldset className="space-y-6" disabled={!canEditWorkspace}>
                              <input
                                 type="file"

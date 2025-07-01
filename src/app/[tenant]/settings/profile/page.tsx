@@ -1,3 +1,4 @@
+
 'use client'
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -59,7 +60,7 @@ export default function ProfileSettingsPage() {
     }
 
     return (
-        <Card>
+        <Card className="flex flex-col h-full">
             <CardHeader>
                 <CardTitle>My Profile</CardTitle>
                 <CardDescription>
@@ -67,8 +68,8 @@ export default function ProfileSettingsPage() {
                 </CardDescription>
             </CardHeader>
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)}>
-                    <CardContent className="space-y-6">
+                <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col flex-1">
+                    <CardContent className="space-y-6 flex-1">
                         <div className="flex items-center gap-4">
                             <Avatar className="h-20 w-20">
                                 <AvatarImage src={currentUser.avatar} alt={currentUser.name} />

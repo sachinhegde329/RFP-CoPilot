@@ -35,14 +35,14 @@ export default function BillingSettingsPage() {
     }
 
   return (
-    <Card>
+    <Card className="flex flex-col h-full">
       <CardHeader>
         <CardTitle>Billing</CardTitle>
         <CardDescription>
           Manage your subscription, payment methods, and view invoices.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4 flex-1">
         <div className="p-4 border rounded-lg space-y-2">
             <div className="flex justify-between items-center">
                 <h3 className="font-medium">Current Plan</h3>

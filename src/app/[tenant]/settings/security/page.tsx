@@ -54,7 +54,7 @@ export default function SecuritySettingsPage() {
   const isOktaSsoConfigured = tenant.ssoProvider === 'okta';
 
   return (
-    <Card>
+    <Card className="h-full">
       <CardHeader>
         <CardTitle>Security</CardTitle>
         <CardDescription>
