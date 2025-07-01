@@ -97,9 +97,9 @@ export function RfpSummaryCard({ isLoading, onProcessRfp }: RfpSummaryCardProps)
   return (
     <Card>
       <CardHeader>
-        <CardTitle>RFP Ingestion &amp; Question Extraction</CardTitle>
+        <CardTitle>Start a New RFP</CardTitle>
         <CardDescription>
-          Upload or paste your RFP document. We'll use AI to find and list all the questions for you.
+          Upload a new RFP document or paste its content below. We'll use AI to extract all the questions.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

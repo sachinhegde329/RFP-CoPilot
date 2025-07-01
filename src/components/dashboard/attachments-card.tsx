@@ -90,10 +90,10 @@ export function AttachmentsCard({ attachments, onUpdateAttachments }: Attachment
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
             <Paperclip className="h-5 w-5" />
-            Attachments
+            Supporting Documents
         </CardTitle>
         <CardDescription>
-          Manage all supporting documents for this RFP. (Max 3)
+          Add supplementary files like appendices or diagrams for the selected RFP. (Max 3)
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-0">
@@ -151,8 +151,8 @@ export function AttachmentsCard({ attachments, onUpdateAttachments }: Attachment
         ) : (
            <div className="flex flex-col items-center justify-center gap-4 text-center p-8 border-2 border-dashed border-muted rounded-lg">
               <Paperclip className="size-12 text-muted-foreground" />
-              <h3 className="font-semibold">No Attachments Yet</h3>
-              <p className="text-sm text-muted-foreground">Upload an RFP or add supporting documents.</p>
+              <h3 className="font-semibold">No Supporting Documents</h3>
+              <p className="text-sm text-muted-foreground">Add supplementary files for this RFP.</p>
             </div>
         )}
       </CardContent>
@@ -164,7 +164,7 @@ export function AttachmentsCard({ attachments, onUpdateAttachments }: Attachment
             disabled={attachments.length >= 3}
         >
           <PlusCircle className="mr-2" />
-          Add Attachment
+          Add Supporting Document
         </Button>
       </CardFooter>
     </Card>
