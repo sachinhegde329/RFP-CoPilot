@@ -106,18 +106,14 @@ export async function generateAnswerAction(question: string, rfpId: string, tena
         tags: rfp.topics
     });
     
-    if (relevantChunks.length === 0) {
-        return {
-            error: "I could not find any relevant information in the knowledge base to answer this question. Please add more documents or try rewording the question."
-        };
-    }
-
+    // The generateDraftAnswer flow now handles cases with and without knowledge base chunks.
     const result = await generateDraftAnswer({
       rfpQuestion: question,
-      knowledgeBaseChunks: relevantChunks.map(chunk => ({
+      // Pass chunks if available, otherwise the flow will use general knowledge.
+      knowledgeBaseChunks: relevantChunks.length > 0 ? relevantChunks.map(chunk => ({
           content: chunk.content,
           source: chunk.source
-      })),
+      })) : undefined,
       tone: tenant.defaultTone || "Formal",
     })
     return { answer: result.draftAnswer, sources: result.sources, confidenceScore: result.confidenceScore }
