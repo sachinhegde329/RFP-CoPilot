@@ -1,29 +1,18 @@
-
-'use client'
-
-import { useTenant } from '@/components/providers/tenant-provider'
+import { getTenantBySubdomain } from "@/lib/tenants"
+import { notFound } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Copy, Gift } from 'lucide-react'
-import { useToast } from "@/hooks/use-toast"
+import { Gift } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Badge } from '@/components/ui/badge'
-import Image from 'next/image'
 import { Separator } from '@/components/ui/separator'
+import { ReferralsClient } from "./referrals-client"
 
-export default function ReferralsPage() {
-    const { tenant } = useTenant()
-    const { toast } = useToast()
-    const referralLink = `https://rfpcopilot.com/join?ref=${tenant.subdomain}` // Example link
-
-    const handleCopyLink = () => {
-        navigator.clipboard.writeText(referralLink)
-        toast({
-            title: "Link Copied!",
-            description: "Your referral link has been copied to the clipboard.",
-        })
+export default function ReferralsPage({ params }: { params: { tenant: string }}) {
+    const tenant = getTenantBySubdomain(params.tenant);
+    if (!tenant) {
+      notFound();
     }
+    const referralLink = `https://rfpcopilot.com/join?ref=${tenant.subdomain}` // Example link
 
     const mockReferrals = [
         { id: 1, email: 'friend1@example.com', date: '2024-06-15', status: 'Signed Up', reward: '$10 Credit' },
@@ -48,30 +37,8 @@ export default function ReferralsPage() {
                     <p className="text-muted-foreground">They get 20% off their first bill, and you get a 20% credit.</p>
                 </div>
 
-                <div className="space-y-2">
-                    <p className="text-sm font-medium">Your Personal Referral Link</p>
-                    <div className="flex gap-2">
-                        <Input value={referralLink} readOnly />
-                        <Button onClick={handleCopyLink} variant="outline" size="icon">
-                            <Copy className="h-4 w-4" />
-                            <span className="sr-only">Copy link</span>
-                        </Button>
-                    </div>
-                </div>
+                <ReferralsClient referralLink={referralLink} />
                 
-                <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium">Share on:</p>
-                    <Button variant="outline" size="icon">
-                        <Image src="https://placehold.co/20x20.png" alt="Twitter logo" width={16} height={16} data-ai-hint="twitter logo" />
-                    </Button>
-                    <Button variant="outline" size="icon">
-                            <Image src="https://placehold.co/20x20.png" alt="LinkedIn logo" width={16} height={16} data-ai-hint="linkedin logo" />
-                    </Button>
-                    <Button variant="outline" size="icon">
-                            <Image src="https://placehold.co/20x20.png" alt="Facebook logo" width={16} height={16} data-ai-hint="facebook logo" />
-                    </Button>
-                </div>
-
                 <Separator />
 
                 <div className="space-y-2">
