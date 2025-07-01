@@ -166,9 +166,12 @@ class KnowledgeBaseService {
 
   /**
    * Calculates the cosine similarity between two vectors.
+   * Cosine similarity measures the cosine of the angle between two non-zero vectors,
+   * producing a value between -1 and 1. For text embeddings, a value closer to 1
+   * indicates higher semantic similarity.
    * @param vecA The first vector.
    * @param vecB The second vector.
-   * @returns The cosine similarity score (0 to 1).
+   * @returns The cosine similarity score (0 to 1 for positive vectors).
    */
   private cosineSimilarity(vecA: number[], vecB: number[]): number {
     if (!vecA || !vecB || vecA.length !== vecB.length) {
@@ -186,7 +189,7 @@ class KnowledgeBaseService {
     
     const divisor = Math.sqrt(normA) * Math.sqrt(normB);
     if (divisor === 0) {
-        return 0;
+        return 0; // Avoid division by zero
     }
 
     return dotProduct / divisor;
@@ -238,6 +241,12 @@ class KnowledgeBaseService {
   public async searchChunks(tenantId: string, query: string, filters: SearchFilters = {}): Promise<DocumentChunk[]> {
     const { topK = 5, sourceTypes } = filters;
 
+    // This function simulates a Vector Database search in memory.
+    // 1. Filter chunks based on metadata (e.g., source type).
+    // 2. Generate an embedding for the user's search query.
+    // 3. Compare the query embedding with the embedding of each chunk using cosine similarity.
+    // 4. Return the "top K" most similar chunks.
+
     // Start with all chunks for the tenant that have an embedding.
     let potentialChunks = this.tenantData[tenantId]?.chunks.filter(chunk => chunk.embedding) || [];
     
@@ -257,16 +266,16 @@ class KnowledgeBaseService {
         return [];
     }
     
-    // Calculate the similarity score for each chunk.
+    // Calculate the similarity score for each chunk by comparing its embedding to the query embedding.
     const scoredChunks = potentialChunks.map(chunk => ({
         ...chunk,
         score: this.cosineSimilarity(queryEmbedding, chunk.embedding!),
     }));
     
-    // Sort chunks by score in descending order.
+    // Sort chunks by score in descending order to find the most relevant ones.
     scoredChunks.sort((a, b) => b.score - a.score);
 
-    // Return the top K most similar chunks.
+    // Return the top K most similar chunks, which will be used as context for the answer generation.
     return scoredChunks.slice(0, topK);
   }
 
