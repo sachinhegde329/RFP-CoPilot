@@ -24,6 +24,7 @@ import { hasFeatureAccess, canPerformAction, type Action } from "@/lib/access-co
 import { notificationService } from "@/lib/notifications.service"
 import { exportService } from "@/lib/export.service";
 import { templateService, type Template, type TemplateSection } from "@/lib/template.service"
+import { detectRfpTopics } from "@/ai/flows/detect-rfp-topics"
 
 import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType, PageBreak } from 'docx';
 import PDFDocument from 'pdfkit';
@@ -77,7 +78,7 @@ export async function parseDocumentAction(documentDataUri: string, tenantId: str
     }
 }
 
-export async function generateAnswerAction(question: string, tenantId: string, currentUser: CurrentUser) {
+export async function generateAnswerAction(question: string, rfpId: string, tenantId: string, currentUser: CurrentUser) {
   const permCheck = checkPermission(tenantId, currentUser, 'editContent');
   if (permCheck.error) return { error: permCheck.error };
   const { tenant } = permCheck;
@@ -89,6 +90,11 @@ export async function generateAnswerAction(question: string, tenantId: string, c
       return { error: "You have no AI answers remaining this month. Please upgrade your plan or purchase an AI Answer Pack." };
   }
 
+  const rfp = rfpService.getRfp(tenantId, rfpId);
+  if (!rfp) {
+      return { error: "RFP not found." };
+  }
+
   if (!question) {
     return { error: "Question cannot be empty." }
   }
@@ -97,6 +103,7 @@ export async function generateAnswerAction(question: string, tenantId: string, c
     const relevantChunks = await knowledgeBaseService.searchChunks(tenantId, question, {
         topK: 5,
         sourceTypes: ['document', 'website'],
+        tags: rfp.topics
     });
     
     if (relevantChunks.length === 0) {
@@ -161,17 +168,22 @@ export async function extractQuestionsAction(rfpText: string, rfpName: string, t
   }
 
   try {
-    const result = await extractRfpQuestions({ documentText: rfpText })
-    const questionsWithStatus = result.questions.map(q => ({
+    // Run question extraction and topic detection in parallel
+    const [questionResult, topicResult] = await Promise.all([
+        extractRfpQuestions({ documentText: rfpText }),
+        detectRfpTopics({ documentText: rfpText })
+    ]);
+    
+    const questionsWithStatus = questionResult.questions.map(q => ({
       ...q,
       answer: "",
       compliance: "pending" as const,
       assignee: null,
       status: "Unassigned" as const,
-    }))
+    }));
     
-    // Create a new RFP with the extracted questions
-    const newRfp = rfpService.addRfp(tenantId, rfpName, questionsWithStatus);
+    // Create a new RFP with the extracted questions and topics
+    const newRfp = rfpService.addRfp(tenantId, rfpName, questionsWithStatus, topicResult.topics);
     return { rfp: newRfp }
   } catch (e) {
     console.error(e)

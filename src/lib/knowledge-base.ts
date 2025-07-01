@@ -66,7 +66,7 @@ export interface SyncLog {
 export interface SearchFilters {
     topK?: number;
     sourceTypes?: DataSourceType[];
-    // We can add more filters here later, like tags or date ranges
+    tags?: string[];
 }
 
 interface TenantData {
@@ -239,10 +239,10 @@ class KnowledgeBaseService {
   }
 
   public async searchChunks(tenantId: string, query: string, filters: SearchFilters = {}): Promise<DocumentChunk[]> {
-    const { topK = 5, sourceTypes } = filters;
+    const { topK = 5, sourceTypes, tags } = filters;
 
     // This function simulates a Vector Database search in memory.
-    // 1. Filter chunks based on metadata (e.g., source type).
+    // 1. Filter chunks based on metadata (e.g., source type, tags).
     // 2. Generate an embedding for the user's search query.
     // 3. Compare the query embedding with the embedding of each chunk using cosine similarity.
     // 4. Return the "top K" most similar chunks.
@@ -257,6 +257,13 @@ class KnowledgeBaseService {
     // Apply filters before the expensive embedding and similarity calculations
     if (sourceTypes && sourceTypes.length > 0) {
         potentialChunks = potentialChunks.filter(chunk => sourceTypes.includes(chunk.metadata.sourceType));
+    }
+    
+    if (tags && tags.length > 0) {
+        const lowerCaseTags = tags.map(t => t.toLowerCase());
+        potentialChunks = potentialChunks.filter(chunk => 
+            chunk.tags?.some(tag => lowerCaseTags.includes(tag.toLowerCase()))
+        );
     }
     
     // Generate an embedding for the user's query.

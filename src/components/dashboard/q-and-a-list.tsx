@@ -493,6 +493,7 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
                 key={q.id}
                 questionData={q}
                 tenantId={tenantId}
+                rfpId={rfpId}
                 members={members}
                 onUpdateQuestion={onUpdateQuestion}
             />

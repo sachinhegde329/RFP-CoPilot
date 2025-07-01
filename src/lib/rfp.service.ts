@@ -20,6 +20,7 @@ export interface RFP {
     name: string;
     status: RfpStatus;
     questions: Question[];
+    topics?: string[];
 }
 
 interface RfpData {
@@ -82,9 +83,9 @@ class RfpService {
              const sampleQuestions = getSampleQuestions(members);
             this.tenantData[tenantId] = {
                 rfps: [
-                    { id: 'rfp-1', name: 'Q3 Enterprise Security RFP', status: 'Open', questions: sampleQuestions },
-                    { id: 'rfp-2', name: 'Project Titan Proposal', status: 'Draft', questions: [sampleQuestions[3], sampleQuestions[2]] },
-                    { id: 'rfp-3', name: '2023 Compliance Audit', status: 'Completed', questions: [sampleQuestions[0], sampleQuestions[1]] },
+                    { id: 'rfp-1', name: 'Q3 Enterprise Security RFP', status: 'Open', questions: sampleQuestions, topics: ['security', 'compliance', 'enterprise'] },
+                    { id: 'rfp-2', name: 'Project Titan Proposal', status: 'Draft', questions: [sampleQuestions[3], sampleQuestions[2]], topics: ['product', 'pricing'] },
+                    { id: 'rfp-3', name: '2023 Compliance Audit', status: 'Completed', questions: [sampleQuestions[0], sampleQuestions[1]], topics: ['security', 'legal', 'audit'] },
                 ]
             };
         }
@@ -130,13 +131,14 @@ class RfpService {
         return [];
     }
     
-    public addRfp(tenantId: string, name: string, questions: Question[]): RFP {
+    public addRfp(tenantId: string, name: string, questions: Question[], topics: string[] = []): RFP {
         this._ensureTenantData(tenantId);
         const newRfp: RFP = {
             id: `rfp-${Date.now()}`,
             name,
             questions,
             status: 'Draft',
+            topics,
         };
         this.tenantData[tenantId].rfps.unshift(newRfp);
         return newRfp;

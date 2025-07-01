@@ -39,11 +39,12 @@ type Question = {
 type QAndAItemProps = {
   questionData: Question
   tenantId: string
+  rfpId: string
   members: TeamMember[]
   onUpdateQuestion: (questionId: number, updates: Partial<Question>) => void
 }
 
-export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }: QAndAItemProps) {
+export function QAndAItem({ questionData, tenantId, rfpId, members, onUpdateQuestion }: QAndAItemProps) {
   const { id, question, category, compliance, assignee, status, answer } = questionData;
   const { tenant } = useTenant();
   const { toast } = useToast();
@@ -87,7 +88,7 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
     setSources([])
     setConfidence(null);
     
-    const result = await generateAnswerAction(question, tenantId, currentUser)
+    const result = await generateAnswerAction(question, rfpId, tenantId, currentUser)
     if (result.error) {
         const isInfo = result.error.includes("knowledge base");
         toast({
