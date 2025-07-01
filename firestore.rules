@@ -1,18 +1,20 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
     // Allow public read-only access to the main tenant documents.
-    // This is necessary for the application's layout to load correctly,
-    // fetching public info like tenant name and branding.
+    // This is required for the application layout to render correctly for any visitor,
+    // as it needs to fetch the tenant's name and branding information before a user is logged in.
     match /tenants/{tenantId} {
-      allow get, list: if true;
+      allow read: if true;
 
-      // Secure all sub-collections (e.g., RFPs, knowledge_chunks).
-      // Only authenticated users can access data within a tenant.
-      // For production, a more granular rule would check for tenant membership.
-      match /{subcollection}/{document=**} {
+      // Disallow any public writes to the tenant documents.
+      allow write: if false;
+
+      // Secure all sub-collections (e.g., rfps, knowledge_sources, notifications)
+      // by requiring that the user is authenticated to read or write any data within them.
+      match /{subcollection}/{docId=**} {
         allow read, write: if request.auth != null;
       }
     }
