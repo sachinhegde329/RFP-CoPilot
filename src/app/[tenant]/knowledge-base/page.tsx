@@ -1,5 +1,5 @@
 import { SidebarInset } from "@/components/ui/sidebar"
-import { DashboardHeader } from "@/components/dashboard/dashboard-header"
+import { HomepageHeader } from "@/components/dashboard/dashboard-header"
 import { KnowledgeBaseClient } from "@/components/knowledge-base/knowledge-base-client"
 import { getKnowledgeSourcesAction } from "@/app/actions"
 import { getTenantBySubdomain } from "@/lib/tenants"
@@ -18,7 +18,7 @@ export default async function KnowledgeBasePage({ params }: { params: { tenant: 
   
   return (
     <SidebarInset className="flex-1 flex flex-col">
-      <DashboardHeader />
+      <HomepageHeader />
       <main className="p-4 sm:p-6 lg:p-8 flex-1 overflow-y-auto">
         <KnowledgeBaseClient initialSources={initialSources} />
       </main>

@@ -4,11 +4,11 @@ import { useSearchParams } from "next/navigation"
 import { rfpService, type RFP } from "@/lib/rfp.service"
 
 import { SidebarInset } from "@/components/ui/sidebar"
-import { DashboardHeader } from "@/components/dashboard/dashboard-header"
-import { DashboardClient } from "@/components/dashboard/dashboard-client"
+import { HomepageHeader } from "@/components/dashboard/dashboard-header"
+import { HomepageClient } from "@/components/dashboard/dashboard-client"
 import { useTenant } from "@/components/providers/tenant-provider"
 
-export default function DashboardPage() {
+export default function Homepage() {
   const { tenant } = useTenant();
   const searchParams = useSearchParams();
   
@@ -20,9 +20,9 @@ export default function DashboardPage() {
 
   return (
     <SidebarInset className="flex-1">
-      <DashboardHeader rfpName={selectedRfp?.name} />
+      <HomepageHeader rfpName={selectedRfp?.name} />
       <main className="p-4 sm:p-6 lg:p-8">
-        <DashboardClient 
+        <HomepageClient 
           rfps={rfps}
           selectedRfp={selectedRfp}
         />

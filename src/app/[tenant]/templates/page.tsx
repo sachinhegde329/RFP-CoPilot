@@ -10,7 +10,7 @@ import { canPerformAction } from "@/lib/access-control"
 import { useToast } from "@/hooks/use-toast"
 
 import { SidebarInset } from "@/components/ui/sidebar"
-import { DashboardHeader } from "@/components/dashboard/dashboard-header"
+import { HomepageHeader } from "@/components/dashboard/dashboard-header"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -221,7 +221,7 @@ export default function TemplatesPage() {
 
   return (
     <SidebarInset className="flex-1 flex flex-col">
-      <DashboardHeader />
+      <HomepageHeader />
       <main className="p-4 sm:p-6 lg:p-8 flex-1">
         <div className="flex items-center justify-between mb-6">
             <div>

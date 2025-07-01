@@ -24,12 +24,12 @@ type Attachment = {
   url: string;
 };
 
-type DashboardClientProps = {
+type HomepageClientProps = {
   rfps: RFP[];
   selectedRfp: RFP;
 }
 
-export function DashboardClient({ rfps, selectedRfp }: DashboardClientProps) {
+export function HomepageClient({ rfps, selectedRfp }: HomepageClientProps) {
   const { tenant } = useTenant();
   const router = useRouter();
   const pathname = usePathname();

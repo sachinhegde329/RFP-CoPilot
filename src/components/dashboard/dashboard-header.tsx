@@ -45,7 +45,7 @@ function getNotificationIcon(type: string) {
 }
 
 
-export function DashboardHeader({ rfpName }: { rfpName?: string }) {
+export function HomepageHeader({ rfpName }: { rfpName?: string }) {
   const { tenant } = useTenant()
   const { toast } = useToast()
   const { setTheme } = useTheme()
@@ -109,7 +109,7 @@ export function DashboardHeader({ rfpName }: { rfpName?: string }) {
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbPage>{ rfpName ? rfpName : 'Dashboard'}</BreadcrumbPage>
+              <BreadcrumbPage>{ rfpName ? rfpName : 'Home'}</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>

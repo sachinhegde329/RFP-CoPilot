@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast"
 import { canPerformAction } from "@/lib/access-control"
 
 import { SidebarInset } from "@/components/ui/sidebar"
-import { DashboardHeader } from "@/components/dashboard/dashboard-header"
+import { HomepageHeader } from "@/components/dashboard/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -241,7 +241,7 @@ export default function ConfigureTemplatePage({ params }: { params: { tenant: st
   if (isLoading) {
     return (
       <SidebarInset className="flex-1 flex flex-col">
-        <DashboardHeader />
+        <HomepageHeader />
         <main className="p-4 sm:p-6 lg:p-8 flex-1">
           <Skeleton className="h-8 w-48 mb-6" />
           <Card>
@@ -268,7 +268,7 @@ export default function ConfigureTemplatePage({ params }: { params: { tenant: st
 
   return (
     <SidebarInset className="flex-1 flex flex-col">
-      <DashboardHeader />
+      <HomepageHeader />
       <main className="p-4 sm:p-6 lg:p-8 flex-1">
         <div className="mb-6">
           <Button variant="ghost" asChild>

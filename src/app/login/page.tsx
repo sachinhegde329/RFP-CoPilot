@@ -43,12 +43,12 @@ export default function LoginPage() {
       // For now, we'll just navigate to the tenant's page.
       router.push(`/${tenant.subdomain}`);
     } else {
-      // This path is taken if the email format is invalid or it's a free email provider
+      // This path should ideally not be hit with the new logic, but as a fallback.
       toast({
         variant: 'destructive',
-        title: 'Unsupported Email Provider',
+        title: 'Login Failed',
         description:
-          "Please use a valid work email to create a workspace. Personal email addresses are not supported.",
+          "Could not create an account. Please try a different email.",
       });
       setIsLoading(false);
     }
@@ -56,7 +56,7 @@ export default function LoginPage() {
 
   const handleGuestLogin = () => {
     setIsGuestLoading(true);
-    // Hardcode the free tenant 'megacorp' for testing and navigate to its page
+    // Hardcode the demo tenant 'megacorp' for testing and navigate to its page
     router.push('/megacorp');
   };
 
@@ -69,9 +69,9 @@ export default function LoginPage() {
         </div>
         <Card className="w-full">
           <CardHeader>
-            <CardTitle>Sign In or Sign Up</CardTitle>
+            <CardTitle>Get started</CardTitle>
             <CardDescription>
-              Enter your work email to access your workspace or start a free trial.
+              Enter your email to start your free trial. No credit card required.
             </CardDescription>
           </CardHeader>
           <form onSubmit={handleSubmit}>
@@ -101,7 +101,7 @@ export default function LoginPage() {
                 disabled={isLoading || isGuestLoading}
               >
                 {isGuestLoading ? <Loader2 className="animate-spin" /> : null}
-                {isGuestLoading ? 'Redirecting...' : 'Continue without login (for testing)'}
+                {isGuestLoading ? 'Redirecting...' : 'View Live Demo'}
               </Button>
             </CardFooter>
           </form>

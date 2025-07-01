@@ -86,7 +86,7 @@ const tenants: Omit<Tenant, 'limits'>[] = [
   },
   {
     id: 'megacorp',
-    name: 'MegaCorp',
+    name: 'MegaCorp (Demo)',
     subdomain: 'megacorp',
     domains: ['megacorp.com'],
     plan: 'team', // Updated from free to show seat limits
@@ -126,19 +126,17 @@ const freeEmailProviders = new Set([
   'msn.com',
 ]);
 
-function createFreeTenant(subdomain: string): Tenant {
+function createFreeTenant(subdomain: string, email: string): Tenant {
   // Sanitize subdomain to be URL-friendly
   const sanitizedSubdomain = subdomain.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-  const name = sanitizedSubdomain.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
-
-  const ownerEmail = `${sanitizedSubdomain}-owner@example.com`;
+  const name = sanitizedSubdomain.split(/[-._]/).map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 
   return {
     id: sanitizedSubdomain,
-    name: `${name}`,
+    name: `${name}'s Workspace`,
     subdomain: sanitizedSubdomain,
-    domains: [`${sanitizedSubdomain}.com`], // Best guess for domain
-    plan: 'free',
+    domains: [], // Personal emails don't have a shared corporate domain
+    plan: 'starter', // Auto-start free trial on Starter plan
     ssoProvider: null,
     addOns: [],
     stripeCustomerId: `cus_sample_${sanitizedSubdomain}`, // Placeholder
@@ -147,9 +145,9 @@ function createFreeTenant(subdomain: string): Tenant {
       logoUrl: 'https://placehold.co/128x32.png',
       logoDataAiHint: 'generic logo',
     },
-    limits: plansConfig.free,
+    limits: plansConfig.starter,
     members: [
-        { id: 1, name: 'Workspace Owner', email: ownerEmail, role: 'Owner', avatar: null, status: 'Active' }
+        { id: 1, name: name, email: email, role: 'Owner', avatar: null, status: 'Active' }
     ]
   };
 }
@@ -232,8 +230,9 @@ export function getTenantBySubdomain(subdomain: string): Tenant | null {
         limits: getLimitsForTenant(tenantData)
     };
   }
-  // If no hardcoded tenant, assume it's a new free tenant being accessed.
-  return createFreeTenant(subdomain);
+  // This case should ideally not be hit directly if all access is via email login first.
+  // It's a fallback to create a tenant from a subdomain.
+  return createFreeTenant(subdomain, `${subdomain}@example.com`);
 }
 
 export function getTenantByEmail(email: string): Tenant | null {
@@ -243,17 +242,7 @@ export function getTenantByEmail(email: string): Tenant | null {
   const [localPart, domain] = parts;
   const domainLower = domain.toLowerCase();
 
-  // For testing purposes, treat gmail.com as a special case where the user's name is the subdomain
-  if (domainLower === 'gmail.com') {
-    return createFreeTenant(localPart);
-  }
-
-  // Block other free email providers
-  if (freeEmailProviders.has(domainLower)) {
-    return null;
-  }
-
-  // Check for existing corporate tenants
+  // Check for existing corporate tenants first
   const existingTenantData = tenants.find((t) => t.domains.includes(domainLower));
   if (existingTenantData) {
     return {
@@ -262,9 +251,10 @@ export function getTenantByEmail(email: string): Tenant | null {
     };
   }
 
-  // For a new corporate domain, create a tenant from the domain name
-  const subdomain = domainLower.split('.')[0];
-  return createFreeTenant(subdomain);
+  // If not a known corporate domain, create a new personal tenant
+  // regardless of the email provider.
+  const subdomain = freeEmailProviders.has(domainLower) ? localPart : domainLower.split('.')[0];
+  return createFreeTenant(subdomain, email);
 }
 
 

@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
-  LayoutDashboard,
+  Home,
   FileText,
   Database,
   Blocks,
@@ -29,13 +29,13 @@ export function AppSidebar() {
   const { tenant } = useTenant();
   const pathname = usePathname();
 
-  const dashboardPath = `/${tenant.subdomain}`;
+  const homepagePath = `/${tenant.subdomain}`;
   const settingsPath = `/${tenant.subdomain}/settings`;
-  const isDashboardActive = pathname === dashboardPath;
+  const isHomepageActive = pathname === homepagePath;
   const isSettingsActive = pathname.startsWith(settingsPath);
 
   const navItems = [
-    { href: `/${tenant.subdomain}`, label: "Dashboard", icon: LayoutDashboard, exact: true },
+    { href: `/${tenant.subdomain}`, label: "Home", icon: Home, exact: true },
     { href: `/${tenant.subdomain}/rfps`, label: "RFPs", icon: FileText },
     { href: `/${tenant.subdomain}/knowledge-base`, label: "Knowledge Base", icon: Database },
     { href: `/${tenant.subdomain}/templates`, label: "Templates", icon: Blocks },

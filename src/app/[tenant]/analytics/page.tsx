@@ -2,7 +2,7 @@
 'use client'
 
 import { SidebarInset } from "@/components/ui/sidebar"
-import { DashboardHeader } from "@/components/dashboard/dashboard-header"
+import { HomepageHeader } from "@/components/dashboard/dashboard-header"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { BarChartHorizontalBig, Lock } from "lucide-react"
 import { useTenant } from "@/components/providers/tenant-provider"
@@ -17,7 +17,7 @@ export default function AnalyticsPage() {
   if (!canAccess) {
     return (
       <SidebarInset className="flex-1">
-        <DashboardHeader />
+        <HomepageHeader />
         <main className="p-4 sm:p-6 lg:p-8">
           <Card className="relative overflow-hidden">
             <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10" />
@@ -52,7 +52,7 @@ export default function AnalyticsPage() {
 
   return (
     <SidebarInset className="flex-1">
-      <DashboardHeader />
+      <HomepageHeader />
       <main className="p-4 sm:p-6 lg:p-8">
         <Card>
           <CardHeader>
