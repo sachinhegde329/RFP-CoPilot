@@ -141,14 +141,14 @@ export async function getTenantBySubdomain(subdomain: string): Promise<Tenant | 
              await updateDoc(demoDocRef, { name: 'MegaCorp (Demo)', plan: 'team' });
              const finalTenant = await getDoc(demoDocRef);
              const tenantData = finalTenant.data() as Omit<Tenant, 'limits'>;
-             return JSON.parse(JSON.stringify({ ...tenantData, id: finalTenant.id, limits: getLimitsForTenant(tenantData) }));
+             return { ...tenantData, id: finalTenant.id, limits: getLimitsForTenant(tenantData) };
         }
         return null;
     }
     
     const tenantData = tenantDoc.data() as Omit<Tenant, 'limits'>;
     const tenantWithData = { ...tenantData, id: tenantDoc.id, limits: getLimitsForTenant(tenantData) };
-    return JSON.parse(JSON.stringify(tenantWithData));
+    return tenantWithData;
 }
 
 export async function updateTenant(tenantId: string, updates: Partial<Tenant>): Promise<Tenant | null> {

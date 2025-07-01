@@ -40,6 +40,7 @@ class RfpService {
             // Seed data for megacorp demo tenant
             if (tenantId === 'megacorp') {
                 const tenant = await getTenantBySubdomain('megacorp');
+                if (!tenant) return [];
                 const sampleQuestions = getSampleQuestions(tenant.members);
                 const rfpsToSeed: RFP[] = [
                     { id: 'rfp-1', name: 'Q3 Enterprise Security RFP', status: 'Open', questions: sampleQuestions, topics: ['security', 'compliance', 'enterprise'] },
@@ -49,19 +50,19 @@ class RfpService {
                 for (const rfp of rfpsToSeed) {
                     await setDoc(doc(rfpsCollection, rfp.id), rfp);
                 }
-                return JSON.parse(JSON.stringify(rfpsToSeed));
+                return rfpsToSeed;
             }
             return [];
         }
         const rfps = snapshot.docs.map(doc => doc.data() as RFP);
-        return JSON.parse(JSON.stringify(rfps));
+        return rfps;
     }
     
     public async getRfp(tenantId: string, rfpId: string): Promise<RFP | undefined> {
         const rfpDoc = await getDoc(doc(this.getRfpsCollection(tenantId), rfpId));
         if (!rfpDoc.exists()) return undefined;
         const rfpData = rfpDoc.data() as RFP;
-        return JSON.parse(JSON.stringify(rfpData));
+        return rfpData;
     }
 
     public async updateQuestion(tenantId: string, rfpId: string, questionId: number, updates: Partial<Question>): Promise<Question | null> {
