@@ -29,14 +29,20 @@ const prompt = ai.definePrompt({
   name: 'tagContentPrompt',
   input: {schema: TagContentInputSchema},
   output: {schema: TagContentOutputSchema},
-  prompt: `You are an expert at analyzing and categorizing text. Your task is to generate a list of relevant tags for the provided content chunk.
+  prompt: `You are an expert at analyzing and categorizing technical and business documentation. Your task is to generate a list of relevant tags for the provided content chunk.
 
-  The tags should be simple, lowercase keywords. Consider categories like: security, pricing, legal, product, company, compliance, technical, sla.
+  The tags should be simple, lowercase keywords that capture the main topics of the text.
+
+  Here are some examples of good tags based on content categories:
+  - For ITSM content, use tags like: "incident", "change", "problem", "cmdb", "itil", "service management".
+  - For GRC content, use tags like: "policy", "compliance", "risk", "sox", "audit".
+  - For Security content, use tags like: "encryption", "iso", "authentication", "firewall", "soc 2".
+  - For general business content, use tags like: "pricing", "legal", "sla", "support", "company overview".
+  
+  Analyze the following content and generate a list of the most relevant tags based on these principles. If no specific tags apply, return an empty array.
 
   Content to tag:
-  {{{content}}}
-
-  Please provide the output as a list of tags. If no specific tags apply, return an empty array.`,
+  {{{content}}}`,
 });
 
 const tagContentFlow = ai.defineFlow(
