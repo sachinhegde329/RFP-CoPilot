@@ -54,14 +54,14 @@ export default function SecuritySettingsPage() {
   const isOktaSsoConfigured = tenant.ssoProvider === 'okta';
 
   return (
-    <Card className="h-full">
+    <Card className="flex flex-col h-full">
       <CardHeader>
         <CardTitle>Security</CardTitle>
         <CardDescription>
           Manage your workspace's security settings, including authentication methods and access policies.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-8">
+      <CardContent className="flex-1 space-y-8">
         
         {/* 2FA Section */}
         <div>

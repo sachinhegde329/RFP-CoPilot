@@ -93,7 +93,7 @@ export default function TeamSettingsPage() {
 
 
     return (
-        <Card className="h-full">
+        <Card className="flex flex-col h-full">
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                     <CardTitle>Team Members</CardTitle>
@@ -163,9 +163,9 @@ export default function TeamSettingsPage() {
                     </DialogContent>
                 </Dialog>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex-1 flex flex-col gap-4">
                 {availableSeats > 0 ? (
-                    <div className="border rounded-lg mb-4 p-4 flex justify-between items-center">
+                    <div className="border rounded-lg p-4 flex justify-between items-center">
                         <div>
                             <p className="font-medium">{usedSeats} of {totalSeats} seats used</p>
                             <p className="text-sm text-muted-foreground">
@@ -178,7 +178,7 @@ export default function TeamSettingsPage() {
                         </Button>
                     </div>
                 ) : (
-                    <Alert variant="destructive" className="mb-4">
+                    <Alert variant="destructive">
                         <AlertTriangle className="h-4 w-4" />
                         <AlertTitle>You've reached your seat limit!</AlertTitle>
                         <AlertDescription>
@@ -189,80 +189,84 @@ export default function TeamSettingsPage() {
                         </AlertDescription>
                     </Alert>
                 )}
-                <Table>
-                    <TableHeader>
-                        <TableRow>
-                            <TableHead>Member</TableHead>
-                            <TableHead>Role</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                        </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                        {teamMembers.map(member => (
-                            <TableRow key={member.id}>
-                                <TableCell>
-                                    <div className="flex items-center gap-3">
-                                        <Avatar>
-                                            {member.avatar && <AvatarImage src={member.avatar} alt={member.name}/>}
-                                            <AvatarFallback>{member.name.charAt(0).toUpperCase()}</AvatarFallback>
-                                        </Avatar>
-                                        <div>
-                                            <div className="font-medium">{member.name}</div>
-                                            <div className="text-sm text-muted-foreground">{member.email}</div>
-                                        </div>
-                                    </div>
-                                </TableCell>
-                                <TableCell>
-                                    <Badge variant="outline">{member.role}</Badge>
-                                </TableCell>
-                                <TableCell>
-                                    <Badge variant={member.status === 'Active' ? 'secondary' : 'outline'}>{member.status}</Badge>
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" disabled={member.role === 'Owner' || !canManageTeam}>
-                                                <MoreHorizontal className="h-4 w-4" />
-                                                <span className="sr-only">Member actions</span>
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent>
-                                            <DropdownMenuSub>
-                                                <DropdownMenuSubTrigger>
-                                                    <Edit className="mr-2 h-4 w-4" />
-                                                    Change Role
-                                                </DropdownMenuSubTrigger>
-                                                <DropdownMenuPortal>
-                                                    <DropdownMenuSubContent>
-                                                        <DropdownMenuRadioGroup 
-                                                            value={member.role}
-                                                            onValueChange={(value) => handleRoleChange(member.id, value as Role)}
-                                                        >
-                                                            <DropdownMenuRadioItem value="Viewer">Viewer</DropdownMenuRadioItem>
-                                                            <DropdownMenuRadioItem value="Editor">Editor</DropdownMenuRadioItem>
-                                                            <DropdownMenuRadioItem value="Approver">Approver</DropdownMenuRadioItem>
-                                                            <DropdownMenuRadioItem value="Admin">Admin</DropdownMenuRadioItem>
-                                                        </DropdownMenuRadioGroup>
-                                                    </DropdownMenuSubContent>
-                                                </DropdownMenuPortal>
-                                            </DropdownMenuSub>
-                                            
-                                            {member.status === 'Pending' && <DropdownMenuItem><Mail className="mr-2 h-4 w-4"/> Resend Invitation</DropdownMenuItem>}
-                                            
-                                            <DropdownMenuSeparator />
+                <div className="relative flex-1">
+                    <div className="absolute inset-0 overflow-y-auto">
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>Member</TableHead>
+                                    <TableHead>Role</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
+                                </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                                {teamMembers.map(member => (
+                                    <TableRow key={member.id}>
+                                        <TableCell>
+                                            <div className="flex items-center gap-3">
+                                                <Avatar>
+                                                    {member.avatar && <AvatarImage src={member.avatar} alt={member.name}/>}
+                                                    <AvatarFallback>{member.name.charAt(0).toUpperCase()}</AvatarFallback>
+                                                </Avatar>
+                                                <div>
+                                                    <div className="font-medium">{member.name}</div>
+                                                    <div className="text-sm text-muted-foreground">{member.email}</div>
+                                                </div>
+                                            </div>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant="outline">{member.role}</Badge>
+                                        </TableCell>
+                                        <TableCell>
+                                            <Badge variant={member.status === 'Active' ? 'secondary' : 'outline'}>{member.status}</Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" disabled={member.role === 'Owner' || !canManageTeam}>
+                                                        <MoreHorizontal className="h-4 w-4" />
+                                                        <span className="sr-only">Member actions</span>
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent>
+                                                    <DropdownMenuSub>
+                                                        <DropdownMenuSubTrigger>
+                                                            <Edit className="mr-2 h-4 w-4" />
+                                                            Change Role
+                                                        </DropdownMenuSubTrigger>
+                                                        <DropdownMenuPortal>
+                                                            <DropdownMenuSubContent>
+                                                                <DropdownMenuRadioGroup 
+                                                                    value={member.role}
+                                                                    onValueChange={(value) => handleRoleChange(member.id, value as Role)}
+                                                                >
+                                                                    <DropdownMenuRadioItem value="Viewer">Viewer</DropdownMenuRadioItem>
+                                                                    <DropdownMenuRadioItem value="Editor">Editor</DropdownMenuRadioItem>
+                                                                    <DropdownMenuRadioItem value="Approver">Approver</DropdownMenuRadioItem>
+                                                                    <DropdownMenuRadioItem value="Admin">Admin</DropdownMenuRadioItem>
+                                                                </DropdownMenuRadioGroup>
+                                                            </DropdownMenuSubContent>
+                                                        </DropdownMenuPortal>
+                                                    </DropdownMenuSub>
+                                                    
+                                                    {member.status === 'Pending' && <DropdownMenuItem><Mail className="mr-2 h-4 w-4"/> Resend Invitation</DropdownMenuItem>}
+                                                    
+                                                    <DropdownMenuSeparator />
 
-                                            <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive" onSelect={() => handleRemoveMember(member)}>
-                                                <Trash2 className="mr-2 h-4 w-4" /> 
-                                                Remove Member
-                                            </DropdownMenuItem>
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </TableCell>
-                            </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
+                                                    <DropdownMenuItem className="text-destructive focus:bg-destructive/10 focus:text-destructive" onSelect={() => handleRemoveMember(member)}>
+                                                        <Trash2 className="mr-2 h-4 w-4" /> 
+                                                        Remove Member
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </div>
+                </div>
             </CardContent>
         </Card>
     )

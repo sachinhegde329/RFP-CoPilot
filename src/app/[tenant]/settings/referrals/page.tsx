@@ -31,7 +31,7 @@ export default function ReferralsPage() {
     ]
 
     return (
-        <Card className="h-full">
+        <Card className="flex flex-col h-full">
             <CardHeader>
                 <div className="flex items-center gap-2">
                     <Gift className="text-primary" />
@@ -41,7 +41,7 @@ export default function ReferralsPage() {
                     Share your unique referral link with your network. When they sign up, you both get a discount on your subscription.
                 </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="flex-1 space-y-6">
                 <div className="p-6 text-center bg-muted rounded-lg">
                     <h3 className="text-lg font-semibold">Share the love</h3>
                     <p className="text-2xl md:text-4xl font-extrabold text-primary my-2">Give 20%, Get 20%</p>
