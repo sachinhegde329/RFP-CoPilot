@@ -65,14 +65,35 @@ class RfpService {
             }
             return [];
         }
-        const rfps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RFP));
+        
+        // Manually reconstruct objects to guarantee they are plain data and avoid serialization issues.
+        const rfps = snapshot.docs.map(docSnap => {
+            const data = docSnap.data();
+            return {
+                id: docSnap.id,
+                name: data.name,
+                status: data.status,
+                questions: data.questions || [],
+                topics: data.topics || [],
+            } as RFP;
+        });
+
         return sanitizeData(rfps);
     }
     
     public async getRfp(tenantId: string, rfpId: string): Promise<RFP | undefined> {
         const rfpDoc = await getDoc(doc(this.getRfpsCollection(tenantId), rfpId));
         if (!rfpDoc.exists()) return undefined;
-        const rfp = { id: rfpDoc.id, ...rfpDoc.data() } as RFP;
+
+        const data = rfpDoc.data();
+        const rfp = {
+            id: rfpDoc.id,
+            name: data.name,
+            status: data.status,
+            questions: data.questions || [],
+            topics: data.topics || [],
+        } as RFP;
+        
         return sanitizeData(rfp);
     }
 
