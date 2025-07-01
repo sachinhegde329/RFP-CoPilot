@@ -1,18 +1,21 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow public read access to the main tenant documents for page layout
-    // and branding, but prevent anonymous writes.
+    // Allow public read of tenant documents for branding, layout, and domain routing.
+    // Writes are restricted to authenticated users. This should be further locked down
+    // to tenant members in a production environment.
     match /tenants/{tenantId} {
       allow read: if true;
       allow write: if request.auth != null;
-
-      // Secure all sub-collections (e.g., rfps, knowledge_chunks) within a tenant.
-      // Full read/write access to this sensitive data requires authentication.
-      match /{allChildren=**} {
-        allow read, write: if request.auth != null;
-      }
+    }
+    
+    // Secure all subcollections (like rfps, knowledge_chunks, etc.) under a tenant.
+    // This rule allows any authenticated user to read/write to any document within any subcollection.
+    // For production, you would add role-based checks here.
+    match /tenants/{tenantId}/{path=**} {
+      allow read, write: if request.auth != null;
     }
   }
 }
