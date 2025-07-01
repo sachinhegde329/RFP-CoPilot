@@ -290,7 +290,7 @@ export async function addDocumentSourceAction(documentDataUri: string, tenantId:
     return { source: newSource };
 }
 
-export async function addWebsiteSourceAction(url: string, tenantId: string, currentUser: CurrentUser, config: { maxDepth: number, maxPages: number }) {
+export async function addWebsiteSourceAction(url: string, tenantId: string, currentUser: CurrentUser, config: { maxDepth: number, maxPages: number, filterKeywords?: string[] }) {
     const permCheck = checkPermission(tenantId, currentUser, 'manageIntegrations');
     if (permCheck.error) return { error: permCheck.error };
 
@@ -939,3 +939,5 @@ export async function deleteTemplateAction(tenantId: string, templateId: string,
         return { error: 'Failed to delete template.' };
     }
 }
+
+    

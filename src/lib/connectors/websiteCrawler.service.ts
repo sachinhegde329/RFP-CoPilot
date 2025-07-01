@@ -131,7 +131,7 @@ class WebsiteCrawlerService {
     console.log(`Starting sync for website source: ${source.name}`);
     await knowledgeBaseService.deleteChunksBySourceId(source.tenantId, source.id);
 
-    const { maxDepth = 2, maxPages = 10 } = source.config || {};
+    const { maxDepth = 2, maxPages = 10, filterKeywords = [] } = source.config || {};
     const rateLimitMs = 1000; // 1 req/sec
 
     // Fetch and parse robots.txt
@@ -156,6 +156,13 @@ class WebsiteCrawlerService {
     let pagesCrawled = 0;
     let totalItems = 0;
 
+    const hasKeywords = filterKeywords.length > 0;
+    
+    const matchesKeywords = (text: string): boolean => {
+        if (!hasKeywords) return true; // If no keywords, everything matches
+        return filterKeywords.some(keyword => text.toLowerCase().includes(keyword.toLowerCase()));
+    };
+
     while (queue.length > 0 && pagesCrawled < maxPages) {
         const { url, depth } = queue.shift()!;
 
@@ -174,6 +181,13 @@ class WebsiteCrawlerService {
         try {
             console.log(`Crawling (${pagesCrawled + 1}/${maxPages}): ${url} at depth ${depth}`);
             const pageData = await this._fetchAndParsePage(url);
+            
+            // Check if the current page (URL or title) matches keywords
+            if (hasKeywords && !matchesKeywords(pageData.url) && !matchesKeywords(pageData.title)) {
+                console.log(`Skipping page (no keyword match): ${url}`);
+                continue; // Don't process this page or its links
+            }
+
             pagesCrawled++;
 
             const chunks = this.chunkText(pageData.content);
@@ -186,7 +200,10 @@ class WebsiteCrawlerService {
             if (depth < maxDepth) {
                 for (const link of pageData.links) {
                     if (!visited.has(link)) {
-                        queue.push({ url: link, depth: depth + 1 });
+                        // Only add links to the queue if they match the keywords
+                        if (matchesKeywords(link)) {
+                           queue.push({ url: link, depth: depth + 1 });
+                        }
                     }
                 }
             }
@@ -210,3 +227,5 @@ class WebsiteCrawlerService {
 }
 
 export const websiteCrawlerService = new WebsiteCrawlerService();
+
+    

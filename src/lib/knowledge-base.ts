@@ -29,6 +29,7 @@ export interface DataSource {
   config?: {
     maxDepth?: number;
     maxPages?: number;
+    filterKeywords?: string[];
   };
 }
 
@@ -365,3 +366,5 @@ class KnowledgeBaseService {
 }
 
 export const knowledgeBaseService = new KnowledgeBaseService();
+
+    

@@ -103,6 +103,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [maxDepth, setMaxDepth] = useState(2);
   const [maxPages, setMaxPages] = useState(10);
+  const [filterKeywords, setFilterKeywords] = useState('');
 
   const currentUser = tenant.members[0];
   const canManageIntegrations = canPerformAction(currentUser.role, 'manageIntegrations');
@@ -163,7 +164,11 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
     
     setIsDialogOpen(false);
     
-    const result = await addWebsiteSourceAction(websiteUrl, tenant.id, currentUser, { maxDepth, maxPages });
+    const result = await addWebsiteSourceAction(websiteUrl, tenant.id, currentUser, { 
+        maxDepth, 
+        maxPages,
+        filterKeywords: filterKeywords.split(',').map(k => k.trim()).filter(Boolean)
+    });
 
     if(result.error || !result.source) {
         toast({ variant: "destructive", title: "Sync Failed", description: result.error });
@@ -229,6 +234,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
         setWebsiteUrl('');
         setMaxDepth(2);
         setMaxPages(10);
+        setFilterKeywords('');
       }, 300);
     }
   }, [isDialogOpen]);
@@ -384,6 +390,11 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
                                                 <Label htmlFor="website-url">Root URL</Label>
                                                 <Input id="website-url" placeholder="https://www.example.com" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} />
                                             </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="filter-keywords">Topic Keywords (optional)</Label>
+                                                <Input id="filter-keywords" placeholder="e.g., ITSM, incident, compliance" value={filterKeywords} onChange={(e) => setFilterKeywords(e.target.value)} />
+                                                <p className="text-xs text-muted-foreground">Comma-separated keywords. Only pages with a keyword in the URL or title will be crawled.</p>
+                                            </div>
                                             <div className="grid grid-cols-2 gap-4">
                                                 <div className="space-y-2">
                                                     <Label htmlFor="max-depth">Max Depth</Label>
@@ -452,3 +463,5 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
     </>
   )
 }
+
+    
