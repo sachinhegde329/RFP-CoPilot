@@ -1,11 +1,10 @@
-
 'use client'
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { cn } from "@/lib/utils"
 import { buttonVariants } from "@/components/ui/button"
-import { User, Building, CreditCard, Settings as SettingsIcon, Shield, Gift } from "lucide-react"
+import { User, Users, Building, CreditCard, Shield, Gift } from "lucide-react"
 import { canPerformAction, type Action } from "@/lib/access-control"
 
 export function SettingsNav() {
