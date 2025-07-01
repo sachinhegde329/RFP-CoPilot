@@ -98,7 +98,7 @@ async function createFreeTenant(user: User, subdomain?: string): Promise<Tenant>
   const tenantWithLimits: Tenant = { ...newTenant, limits: getLimitsForTenant(newTenant) };
   
   await setDoc(doc(tenantsCollection, newTenant.id), tenantWithLimits);
-  return tenantWithLimits;
+  return sanitizeData(tenantWithLimits);
 }
 
 export async function findOrCreateTenantForUser(user: User): Promise<Tenant | null> {
