@@ -27,7 +27,7 @@ type Attachment = {
 
 type HomepageClientProps = {
   rfps: RFP[];
-  selectedRfp: RFP;
+  selectedRfp?: RFP;
 }
 
 export function HomepageClient({ rfps, selectedRfp }: HomepageClientProps) {
@@ -41,9 +41,6 @@ export function HomepageClient({ rfps, selectedRfp }: HomepageClientProps) {
   const { toast } = useToast();
 
   const currentUser = tenant.members[0];
-  
-  // Derive attachments for the currently selected RFP
-  const attachments = selectedRfp ? rfpAttachments[selectedRfp.id] || [] : [];
   
   // This effect ensures the questions displayed are always in sync with the selected RFP
   // when the user navigates using the browser's back/forward buttons.
@@ -106,8 +103,6 @@ export function HomepageClient({ rfps, selectedRfp }: HomepageClientProps) {
       return
     }
     setIsLoading(true);
-    // Removing the setQuestions([]) call to prevent the list from flashing empty.
-    // The loading indicator will show, and then the list will update with the new questions.
 
     const rfpName = file ? file.name : `Pasted RFP - ${new Date().toLocaleDateString()}`;
 
@@ -124,7 +119,6 @@ export function HomepageClient({ rfps, selectedRfp }: HomepageClientProps) {
         const newRfp = result.rfp;
         const newRfpId = newRfp.id;
         
-        // Directly update the questions in the state to ensure the UI refreshes immediately
         setQuestions(newRfp.questions);
 
         if (file) {
@@ -142,7 +136,6 @@ export function HomepageClient({ rfps, selectedRfp }: HomepageClientProps) {
         
         toast({ title: "RFP Processed", description: `Created new RFP: ${newRfp.name}` });
         
-        // Navigate to the new RFP's URL to update the rest of the app state (like the selector)
         router.push(`${pathname}?rfpId=${newRfpId}`);
       }
     } catch (e) {
@@ -173,6 +166,37 @@ export function HomepageClient({ rfps, selectedRfp }: HomepageClientProps) {
     }));
   };
 
+  if (!selectedRfp) {
+    return (
+      <div className="space-y-6">
+        <RfpSummaryCard
+          isLoading={isLoading}
+          onProcessRfp={handleProcessRfp}
+        />
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+           <div className="lg:col-span-3">
+            <Card>
+              <CardHeader>
+                  <CardTitle>Extracted Questions</CardTitle>
+                  <CardDescription>
+                      Filter, assign, and answer the questions for this RFP.
+                  </CardDescription>
+              </CardHeader>
+              <CardContent>
+                  <div className="flex flex-col items-center justify-center gap-4 text-center p-8 border-2 border-dashed border-muted rounded-lg min-h-[200px]">
+                    <FileText className="size-12 text-muted-foreground" />
+                    <h3 className="font-semibold">Your Questions Will Appear Here</h3>
+                    <p className="text-sm text-muted-foreground max-w-md">Once you provide an RFP in the card above, we'll use AI to extract and list all the questions for you to answer.</p>
+                  </div>
+              </CardContent>
+            </Card>
+           </div>
+        </div>
+      </div>
+    )
+  }
+
+  const attachments = rfpAttachments[selectedRfp.id] || [];
 
   return (
     <div className="space-y-6">
