@@ -6,8 +6,10 @@
 import * as cheerio from 'cheerio';
 import type { DataSource } from '@/lib/knowledge-base';
 import { knowledgeBaseService } from '@/lib/knowledge-base';
+import robotsParser from 'robots-parser';
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const USER_AGENT = "RFPCoPilot-Crawler/1.0";
 
 class WebsiteCrawlerService {
 
@@ -116,6 +118,23 @@ class WebsiteCrawlerService {
     const { maxDepth = 2, maxPages = 10 } = source.config || {};
     const rateLimitMs = 1000; // 1 req/sec
 
+    // Fetch and parse robots.txt
+    const rootUrl = new URL(source.name);
+    const robotsTxtUrl = new URL('/robots.txt', rootUrl.origin).href;
+    let robots;
+    try {
+        const robotsTxtResponse = await fetch(robotsTxtUrl);
+        if (robotsTxtResponse.ok) {
+            const robotsTxtContent = await robotsTxtResponse.text();
+            robots = robotsParser(robotsTxtUrl, robotsTxtContent);
+            console.log(`Successfully parsed robots.txt for ${rootUrl.origin}`);
+        } else {
+             console.log(`No robots.txt found or accessible for ${rootUrl.origin}, proceeding without restrictions.`);
+        }
+    } catch (error) {
+        console.warn(`Could not fetch or parse robots.txt for ${rootUrl.origin}:`, error);
+    }
+
     const queue: { url: string; depth: number }[] = [{ url: source.name, depth: 0 }];
     const visited = new Set<string>();
     let pagesCrawled = 0;
@@ -129,6 +148,12 @@ class WebsiteCrawlerService {
         }
 
         visited.add(url);
+
+        // Respect robots.txt
+        if (robots && !robots.isAllowed(url, USER_AGENT)) {
+            console.log(`Skipping disallowed URL by robots.txt: ${url}`);
+            continue;
+        }
         
         try {
             console.log(`Crawling (${pagesCrawled + 1}/${maxPages}): ${url} at depth ${depth}`);
