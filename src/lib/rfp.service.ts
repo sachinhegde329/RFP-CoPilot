@@ -59,7 +59,7 @@ class RfpService {
             }
             return [];
         }
-        const rfps = snapshot.docs.map(doc => doc.data() as RFP);
+        const rfps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }) as RFP);
         return this.sanitizeData(rfps);
     }
     
@@ -67,7 +67,7 @@ class RfpService {
         const rfpDoc = await getDoc(doc(this.getRfpsCollection(tenantId), rfpId));
         if (!rfpDoc.exists()) return undefined;
         const rfpData = rfpDoc.data() as RFP;
-        return this.sanitizeData(rfpData);
+        return this.sanitizeData({ ...rfpData, id: rfpDoc.id });
     }
 
     public async updateQuestion(tenantId: string, rfpId: string, questionId: number, updates: Partial<Question>): Promise<Question | null> {
