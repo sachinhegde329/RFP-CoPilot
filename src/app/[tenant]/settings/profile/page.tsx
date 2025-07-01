@@ -1,9 +1,9 @@
-
 'use client'
 
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import * as z from "zod"
+import { useRouter } from "next/navigation"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -39,6 +39,7 @@ type ProfileFormValues = z.infer<typeof profileFormSchema>
 
 export default function ProfileSettingsPage() {
     const { toast } = useToast()
+    const router = useRouter()
 
     const form = useForm<ProfileFormValues>({
         resolver: zodResolver(profileFormSchema),
@@ -105,8 +106,9 @@ export default function ProfileSettingsPage() {
                          </div>
 
                     </CardContent>
-                    <CardFooter>
+                    <CardFooter className="gap-2">
                         <Button type="submit">Save Changes</Button>
+                        <Button type="button" variant="outline" onClick={() => router.back()}>Cancel</Button>
                     </CardFooter>
                 </form>
             </Form>
