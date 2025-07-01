@@ -9,6 +9,8 @@ import { knowledgeBaseService } from "@/lib/knowledge-base"
 import { rfpService, type Question, type RFP } from "@/lib/rfp.service"
 import {
     getTenantBySubdomain,
+    updateTenant as updateTenantData,
+    updateMemberProfile as updateMemberData,
     plansConfig,
     inviteMember as inviteMemberToTenant,
     removeMember as removeMemberFromTenant,
@@ -524,6 +526,53 @@ export async function updateMemberRoleAction(tenantId: string, memberId: number,
     return { error: `Failed to update member role: ${errorMessage}` };
   }
 }
+
+// == SETTINGS ACTIONS ==
+export async function updateProfileSettingsAction(tenantId: string, userId: number, data: { name: string }, currentUser: CurrentUser) {
+    // A user can always update their own profile
+    if (currentUser.id !== userId) {
+        return { error: "You can only update your own profile." };
+    }
+    const tenant = getTenantBySubdomain(tenantId);
+    if (!tenant) return { error: "Tenant not found." };
+
+    try {
+        const updatedMember = updateMemberData(tenantId, userId, data);
+        return { member: updatedMember };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
+        return { error: `Failed to update profile: ${errorMessage}` };
+    }
+}
+
+export async function updateWorkspaceSettingsAction(tenantId: string, data: Partial<Pick<Tenant, 'name' | 'defaultTone'>>, currentUser: CurrentUser) {
+    const permCheck = checkPermission(tenantId, currentUser, 'editWorkspace');
+    if (permCheck.error) return { error: permCheck.error };
+    
+    try {
+        const updatedTenant = updateTenantData(tenantId, data);
+        if (!updatedTenant) return { error: "Tenant not found." };
+        return { tenant: updatedTenant };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
+        return { error: `Failed to update workspace: ${errorMessage}` };
+    }
+}
+
+export async function updateSecuritySettingsAction(tenantId: string, data: Partial<Pick<Tenant, 'domains'>>, currentUser: CurrentUser) {
+    const permCheck = checkPermission(tenantId, currentUser, 'manageSecurity');
+    if (permCheck.error) return { error: permCheck.error };
+
+    try {
+        const updatedTenant = updateTenantData(tenantId, data);
+        if (!updatedTenant) return { error: "Tenant not found." };
+        return { tenant: updatedTenant };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
+        return { error: `Failed to update security settings: ${errorMessage}` };
+    }
+}
+
 
 // == NOTIFICATION ACTIONS ==
 

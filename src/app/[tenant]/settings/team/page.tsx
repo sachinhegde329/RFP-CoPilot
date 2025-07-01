@@ -80,6 +80,13 @@ export default function TeamSettingsPage() {
             toast({ title: 'Member Removed', description: `${member.name} has been removed from the workspace.` });
         }
     }
+    
+    const handleResendInvitation = (email: string) => {
+        toast({
+            title: "Invitation Resent",
+            description: `A new invitation link has been sent to ${email}.`,
+        });
+    }
 
     const handleRoleChange = async (memberId: number, newRole: Role) => {
         const result = await updateMemberRoleAction(tenant.id, memberId, newRole, currentUser);
@@ -250,7 +257,7 @@ export default function TeamSettingsPage() {
                                                         </DropdownMenuPortal>
                                                     </DropdownMenuSub>
                                                     
-                                                    {member.status === 'Pending' && <DropdownMenuItem><Mail className="mr-2 h-4 w-4"/> Resend Invitation</DropdownMenuItem>}
+                                                    {member.status === 'Pending' && <DropdownMenuItem onSelect={() => handleResendInvitation(member.email)}><Mail className="mr-2 h-4 w-4"/> Resend Invitation</DropdownMenuItem>}
                                                     
                                                     <DropdownMenuSeparator />
 

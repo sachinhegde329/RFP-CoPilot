@@ -1,38 +1,109 @@
 
+'use client'
+
 import Link from "next/link";
 import Image from "next/image"
+import { useEffect, useState } from "react";
+import { useSearchParams, useRouter } from 'next/navigation';
 
 import { getTenantBySubdomain } from "@/lib/tenants";
-import { notFound } from "next/navigation";
 import { canPerformAction, hasFeatureAccess } from '@/lib/access-control';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { LockKeyhole, FileText, ExternalLink, CheckCircle, ShieldAlert } from "lucide-react"
+import { LockKeyhole, FileText, ExternalLink, CheckCircle, ShieldAlert, X, Loader2 } from "lucide-react"
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
-import { SecurityClient } from "./security-client";
+import { useToast } from "@/hooks/use-toast";
+import { useTenant } from "@/components/providers/tenant-provider";
+import { updateSecuritySettingsAction } from "@/app/actions";
 
 export default function SecuritySettingsPage({ params }: { params: { tenant: string }}) {
-  const tenant = getTenantBySubdomain(params.tenant);
-  if (!tenant) {
-      notFound();
-  }
+  const { tenant, setTenant } = useTenant();
+  const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const [is2faEnabled, setIs2faEnabled] = useState(false); // Mock state
+  const [newDomain, setNewDomain] = useState("");
+  const [isUpdatingDomains, setIsUpdatingDomains] = useState(false);
+
+  useEffect(() => {
+    const ssoSuccess = searchParams.get('sso_success');
+    const ssoError = searchParams.get('sso_error');
+    if (ssoSuccess) {
+      toast({
+        title: "SSO Configured Successfully",
+        description: `Your workspace is now configured for Single Sign-On with ${ssoSuccess}.`,
+      });
+      // Clean the URL
+      router.replace(`/${tenant.subdomain}/settings/security`);
+    } else if (ssoError) {
+       toast({
+        variant: "destructive",
+        title: "SSO Configuration Failed",
+        description: `Could not configure Single Sign-On with ${ssoError}. Please try again.`,
+      });
+      // Clean the URL
+      router.replace(`/${tenant.subdomain}/settings/security`);
+    }
+  }, [searchParams, router, toast, tenant.subdomain]);
+
 
   const currentUser = tenant.members[0];
   const canManageSecurity = canPerformAction(currentUser.role, 'manageSecurity');
   const canManageSso = hasFeatureAccess(tenant, 'sso');
 
-
   const isMicrosoftSsoConfigured = tenant.ssoProvider === 'microsoft';
   const isOktaSsoConfigured = tenant.ssoProvider === 'okta';
+  
+  const handleToggle2FA = (enabled: boolean) => {
+      setIs2faEnabled(enabled);
+      toast({
+          title: `Two-Factor Authentication ${enabled ? 'Enabled' : 'Disabled'}`,
+          description: `All users will be ${enabled ? 'required' : 'prompted'} to set up 2FA on their next login.`,
+      });
+  };
+
+  const handleAddDomain = async () => {
+    if (!newDomain.trim() || !newDomain.includes('.')) {
+        toast({ variant: 'destructive', title: 'Invalid Domain' });
+        return;
+    }
+    setIsUpdatingDomains(true);
+    const newDomains = [...tenant.domains, newDomain.trim().toLowerCase()];
+    const result = await updateSecuritySettingsAction(tenant.id, { domains: newDomains }, currentUser);
+    
+    if (result.error || !result.tenant) {
+      toast({ variant: 'destructive', title: 'Error', description: result.error });
+    } else {
+      setTenant(prev => ({ ...prev, domains: result.tenant!.domains }));
+      toast({ title: 'Domain Added' });
+      setNewDomain('');
+    }
+    setIsUpdatingDomains(false);
+  };
+  
+  const handleRemoveDomain = async (domainToRemove: string) => {
+    setIsUpdatingDomains(true);
+    const newDomains = tenant.domains.filter(d => d !== domainToRemove);
+    const result = await updateSecuritySettingsAction(tenant.id, { domains: newDomains }, currentUser);
+    
+    if (result.error || !result.tenant) {
+      toast({ variant: 'destructive', title: 'Error', description: result.error });
+    } else {
+      setTenant(prev => ({ ...prev, domains: result.tenant!.domains }));
+      toast({ title: 'Domain Removed' });
+    }
+    setIsUpdatingDomains(false);
+  };
+
 
   return (
       <Card className="flex flex-col flex-1">
-        <SecurityClient tenantSubdomain={tenant.subdomain} />
         <CardHeader>
           <CardTitle>Security</CardTitle>
           <CardDescription>
@@ -49,12 +120,12 @@ export default function SecuritySettingsPage({ params }: { params: { tenant: str
               <fieldset disabled={!canManageSecurity}>
                   <div className="flex items-center justify-between p-4 border rounded-lg">
                       <div>
-                      <Label htmlFor="2fa-switch" className="font-medium">Enable 2FA</Label>
+                      <Label htmlFor="2fa-switch" className="font-medium">Enable 2FA for all members</Label>
                       <p className="text-sm text-muted-foreground">
-                          Once enabled, you'll be prompted to set up 2FA using an authenticator app.
+                          Once enabled, members will be prompted to set up 2FA on their next login.
                       </p>
                       </div>
-                      <Switch id="2fa-switch" />
+                      <Switch id="2fa-switch" checked={is2faEnabled} onCheckedChange={handleToggle2FA} />
                   </div>
               </fieldset>
             </div>
@@ -133,16 +204,27 @@ export default function SecuritySettingsPage({ params }: { params: { tenant: str
               Restrict new member invitations to specific email domains.
             </p>
             <div className="pt-4">
-              <fieldset disabled={!canManageSecurity}>
+              <fieldset disabled={!canManageSecurity || isUpdatingDomains}>
                   <div className="flex gap-2">
-                      <Input placeholder="example.com" />
-                      <Button>Add Domain</Button>
+                      <Input placeholder="example.com" value={newDomain} onChange={e => setNewDomain(e.target.value)} />
+                      <Button onClick={handleAddDomain} disabled={!newDomain.trim()}>
+                        {isUpdatingDomains && <Loader2 className="animate-spin" />}
+                        Add Domain
+                      </Button>
                   </div>
                   <div className="mt-4 space-y-2">
-                      <div className="flex items-center justify-between p-2 bg-muted rounded-md">
-                          <span className="text-sm font-mono">megacorp.com</span>
-                          <Button variant="ghost" size="sm">Remove</Button>
-                      </div>
+                      {tenant.domains.map(domain => (
+                        <div key={domain} className="flex items-center justify-between p-2 bg-muted rounded-md">
+                            <span className="text-sm font-mono">{domain}</span>
+                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemoveDomain(domain)}>
+                              <X className="h-4 w-4" />
+                              <span className="sr-only">Remove domain</span>
+                            </Button>
+                        </div>
+                      ))}
+                      {tenant.domains.length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-4">No domain restrictions. Anyone can be invited.</p>
+                      )}
                   </div>
               </fieldset>
             </div>

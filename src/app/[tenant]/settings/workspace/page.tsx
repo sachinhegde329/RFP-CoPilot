@@ -20,12 +20,13 @@ import {
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
 import { useToast } from "@/hooks/use-toast"
-import { Upload } from "lucide-react"
+import { Upload, Loader2 } from "lucide-react"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { Label } from "@/components/ui/label"
 import { type BrandTone } from "@/lib/tenants"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { canPerformAction } from "@/lib/access-control"
+import { updateWorkspaceSettingsAction } from "@/app/actions"
 
 
 const workspaceFormSchema = z.object({
@@ -55,16 +56,24 @@ export default function WorkspaceSettingsPage() {
         mode: "onChange",
     })
 
-    function onSubmit(data: WorkspaceFormValues) {
-        console.log(data)
+    async function onSubmit(data: WorkspaceFormValues) {
+        const result = await updateWorkspaceSettingsAction(tenant.id, data, currentUser);
 
-        // Optimistically update the tenant context
-        setTenant(prev => ({ ...prev, name: data.name, defaultTone: data.defaultTone as BrandTone }))
-        
-        toast({
-            title: "Workspace Updated",
-            description: "Your workspace settings have been saved.",
-        })
+        if (result.error || !result.tenant) {
+            toast({
+                variant: 'destructive',
+                title: "Update Failed",
+                description: result.error || "Could not update workspace settings.",
+            });
+        } else {
+            // Optimistically update the tenant context
+            setTenant(prev => ({ ...prev, name: data.name, defaultTone: data.defaultTone as BrandTone }))
+            
+            toast({
+                title: "Workspace Updated",
+                description: "Your workspace settings have been saved.",
+            })
+        }
     }
     
     const handleLogoUploadClick = () => {
@@ -90,7 +99,7 @@ export default function WorkspaceSettingsPage() {
 
         toast({
             title: "Logo Updated",
-            description: "Your new logo is being previewed. Save changes to make it permanent.",
+            description: "Your new logo is being previewed. Save changes to make it permanent (not implemented).",
         });
     };
 
@@ -187,7 +196,10 @@ export default function WorkspaceSettingsPage() {
 
                     </CardContent>
                     <CardFooter>
-                        <Button type="submit" disabled={!canEditWorkspace}>Save Changes</Button>
+                        <Button type="submit" disabled={!canEditWorkspace || form.formState.isSubmitting}>
+                             {form.formState.isSubmitting && <Loader2 className="mr-2 animate-spin" />}
+                             Save Changes
+                        </Button>
                     </CardFooter>
                 </form>
             </Form>

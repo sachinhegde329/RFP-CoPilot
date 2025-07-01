@@ -1,4 +1,5 @@
 
+
 export type AddOn = 'analytics' | 'customTemplates' | 'complianceValidation' | 'aiAnswerPack';
 export type Role = 'Owner' | 'Admin' | 'Approver' | 'Editor' | 'Viewer';
 export type MemberStatus = 'Active' | 'Pending';
@@ -224,6 +225,20 @@ export function updateMemberRole(tenantId: string, memberId: number, newRole: Ro
 
     if (memberIndex > -1 && tenant.members[memberIndex].role !== 'Owner') {
         tenant.members[memberIndex].role = newRole;
+        return tenant.members[memberIndex];
+    }
+    return null;
+}
+
+export function updateMemberProfile(tenantId: string, memberId: number, data: Partial<Pick<TeamMember, 'name'>>): TeamMember | null {
+    const tenantIndex = tenants.findIndex(t => t.id === tenantId);
+    if (tenantIndex === -1) return null;
+
+    const tenant = tenants[tenantIndex];
+    const memberIndex = tenant.members.findIndex(m => m.id === memberId);
+
+    if (memberIndex > -1) {
+        tenant.members[memberIndex] = { ...tenant.members[memberIndex], ...data };
         return tenant.members[memberIndex];
     }
     return null;
