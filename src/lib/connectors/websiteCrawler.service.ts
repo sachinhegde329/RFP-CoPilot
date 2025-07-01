@@ -14,7 +14,7 @@ const USER_AGENT = "RFPCoPilot-Crawler/1.0";
 class WebsiteCrawlerService {
 
   /**
-   * Simple chunking function to split text into smaller pieces.
+   * Simple text-based chunking for sections that are too long.
    */
   private chunkText(text: string, chunkSize = 500, overlap = 50): string[] {
       const chunks: string[] = [];
@@ -24,6 +24,61 @@ class WebsiteCrawlerService {
           chunks.push(text.substring(i, i + chunkSize));
       }
       return chunks;
+  }
+
+  /**
+   * Performs semantic chunking on HTML content by grouping text under headings.
+   * @param contentRoot A Cheerio element representing the main content area of the page.
+   * @param pageTitle The title of the page, used as a fallback heading.
+   * @returns An array of context-rich text chunks.
+   */
+  private _htmlToSemanticChunks(contentRoot: cheerio.Cheerio<cheerio.Element>, pageTitle: string): string[] {
+    const finalChunks: string[] = [];
+    let currentHeading = pageTitle;
+    let currentContent = '';
+
+    // Function to process the accumulated content for a section
+    const processCurrentSection = () => {
+      if (currentContent.trim()) {
+        // For large sections, split them but maintain the heading context for each sub-chunk
+        const sectionChunks = this.chunkText(currentContent.trim(), 450, 50); // Use a smaller size to leave room for the heading
+        sectionChunks.forEach(chunk => {
+            finalChunks.push(`## ${currentHeading}\n\n${chunk}`);
+        });
+      }
+      currentContent = '';
+    };
+
+    contentRoot.children().each((i, el) => {
+        const element = cheerio(el);
+        const tagName = el.tagName.toLowerCase();
+
+        if (['h1', 'h2', 'h3', 'h4'].includes(tagName)) {
+            processCurrentSection(); // Process the content gathered for the previous section
+            currentHeading = element.text().trim(); // Start a new section with the new heading
+        } else if (['p', 'li', 'pre', 'code'].includes(tagName)) {
+             currentContent += element.text().trim() + '\n';
+        } else if (tagName === 'table') {
+            let tableText = '';
+            element.find('tr').each((j, rowEl) => {
+                const rowTexts: string[] = [];
+                cheerio(rowEl).find('th, td').each((k, cellEl) => {
+                    rowTexts.push(cheerio(cellEl).text().trim());
+                });
+                tableText += rowTexts.join(' | ') + '\n';
+            });
+            currentContent += `\n--- Table ---\n${tableText}--- End Table ---\n\n`;
+        }
+    });
+
+    processCurrentSection(); // Process the last section after the loop finishes
+
+    // If the page has no headings at all, fall back to simple chunking
+    if (finalChunks.length === 0 && currentContent.trim()) {
+      finalChunks.push(...this.chunkText(currentContent.trim()));
+    }
+
+    return finalChunks;
   }
 
   /**
@@ -43,26 +98,19 @@ class WebsiteCrawlerService {
       const html = await response.text();
       
       const $ = cheerio.load(html);
-
-      // Remove common non-content elements
-      $('script, style, nav, footer, header, aside, .navbar, .footer, #sidebar').remove();
-
+      const contentRoot = $('main, article, #content, #main, .main-content').first().length > 0
+        ? $('main, article, #content, #main, .main-content').first()
+        : $('body');
+        
       const title = $('title').text() || $('h1').first().text();
       
-      // Replace block elements with newlines for better formatting
-      $('br, p, h1, h2, h3, h4, h5, h6, li, blockquote, pre').after('\n');
-
-      const content = $('body').text();
-
-      // Clean up whitespace
-      const cleanedContent = content.replace(/\s\s+/g, ' ').trim();
-
-      const chunks = this.chunkText(cleanedContent);
+      const chunks = this._htmlToSemanticChunks(contentRoot, title);
+      const content = chunks.join('\n\n'); // Re-join for backward compatibility
 
       return {
         success: true,
         title: title || 'Untitled',
-        content: cleanedContent,
+        content,
         chunks,
         url,
       };
@@ -76,7 +124,7 @@ class WebsiteCrawlerService {
   /**
    * Private helper to fetch and parse a page for the new sync method.
    */
-  private async _fetchAndParsePage(url: string): Promise<{ title: string; content: string; links: string[]; url: string, section: string }> {
+  private async _fetchAndParsePage(url: string): Promise<{ title: string; chunks: string[]; links: string[]; url: string, section: string }> {
       const response = await fetch(url, { headers: { 'User-Agent': USER_AGENT }});
       if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) {
         throw new Error(`Skipping non-HTML page: ${url}`);
@@ -84,7 +132,7 @@ class WebsiteCrawlerService {
       const html = await response.text();
       const $ = cheerio.load(html);
 
-      const title = $('title').text().trim() || $('h1').first().text().trim() || url;
+      const pageTitle = $('title').text().trim() || $('h1').first().text().trim() || url;
       
       // Try to find the main content area to avoid boilerplate
       let contentRoot = $('main, article, #content, #main, .main-content').first();
@@ -103,26 +151,8 @@ class WebsiteCrawlerService {
       // Remove elements that are typically not part of the main content
       contentRoot.find('script, style, nav, footer, header, aside, form, .navbar, .footer, #sidebar, [role="navigation"], [role="banner"], [role="contentinfo"], [role="complementary"]').remove();
       
-      // Selective content extraction
-      let extractedText = '';
-      contentRoot.find('h1, h2, h3, h4, p, li, pre, code').each((i, el) => {
-          extractedText += $(el).text() + '\n\n';
-      });
+      const chunks = this._htmlToSemanticChunks(contentRoot, pageTitle);
       
-      // Simple table to text conversion
-      contentRoot.find('table').each((i, tableEl) => {
-          let tableText = '';
-          $(tableEl).find('tr').each((j, rowEl) => {
-              const rowTexts: string[] = [];
-              $(rowEl).find('th, td').each((k, cellEl) => {
-                  rowTexts.push($(cellEl).text().trim());
-              });
-              tableText += rowTexts.join(' | ') + '\n';
-          });
-          extractedText += `\n--- Table ---\n${tableText}--- End Table ---\n\n`;
-      });
-      const content = extractedText.replace(/\n{3,}/g, '\n\n').trim();
-
       const links: string[] = [];
       const baseOrigin = new URL(url).origin;
 
@@ -139,7 +169,7 @@ class WebsiteCrawlerService {
       });
       const uniqueLinks = [...new Set(links)];
 
-      return { title, content, links: uniqueLinks, url, section };
+      return { title: pageTitle, chunks, links: uniqueLinks, url, section };
   }
 
 
@@ -209,12 +239,10 @@ class WebsiteCrawlerService {
             }
 
             pagesCrawled++;
-
-            const chunks = this.chunkText(pageData.content);
             
-            if (chunks.length > 0) {
-                await knowledgeBaseService.addChunks(source.tenantId, source.id, 'website', pageData.title, chunks, pageData.url, { section: pageData.section });
-                totalItems += chunks.length;
+            if (pageData.chunks.length > 0) {
+                await knowledgeBaseService.addChunks(source.tenantId, source.id, 'website', pageData.title, pageData.chunks, pageData.url, { section: pageData.section });
+                totalItems += pageData.chunks.length;
             }
 
             if (depth < maxDepth) {
