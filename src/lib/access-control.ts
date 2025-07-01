@@ -43,13 +43,32 @@ const rolePermissions: Record<Role, Action[]> = {
     Owner: ['viewContent', 'editContent', 'assignQuestions', 'uploadRfps', 'finalizeExport', 'manageTeam', 'editWorkspace', 'manageIntegrations', 'manageSecurity'],
     
     // Admin (Team Admin, IT Admin) has broad permissions across the application.
-    Admin: ['viewContent', 'editContent', 'assignQuestions', 'uploadRfps', 'finalizeExport', 'manageTeam', 'editWorkspace', 'manageIntegrations', 'manageSecurity'],
+    Admin: [
+        'viewContent', 
+        'editContent', 
+        'assignQuestions', 
+        'uploadRfps', 
+        'finalizeExport', 
+        'manageTeam', 
+        'editWorkspace', 
+        'manageIntegrations', 
+        'manageSecurity'
+    ],
     
     // Approver (Reviewer/Legal, Security/Compliance) can view, comment, and make final approvals.
-    Approver: ['viewContent', 'editContent', 'finalizeExport'],
+    Approver: [
+        'viewContent', 
+        'editContent' // Allows answering/editing questions in their area of expertise and commenting
+    ],
     
     // Editor (Sales Exec, Pre-Sales, Product Manager) handles the primary RFP and knowledge base work.
-    Editor: ['viewContent', 'editContent', 'assignQuestions', 'uploadRfps', 'manageIntegrations'],
+    Editor: [
+        'viewContent', 
+        'editContent', // Answering questions, tagging, acknowledging
+        'uploadRfps', 
+        'finalizeExport', // Sales Exec can finalize and export
+        'manageIntegrations' // Pre-sales/SA/PM can upload docs to KB
+    ],
     
     // Viewer has read-only access to all content.
     Viewer: ['viewContent'],
