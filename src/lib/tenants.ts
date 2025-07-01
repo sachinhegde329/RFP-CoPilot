@@ -1,5 +1,5 @@
 
-export type AddOn = 'analytics' | 'customTemplates' | 'complianceValidation';
+export type AddOn = 'analytics' | 'customTemplates' | 'complianceValidation' | 'aiAnswerPack';
 export type Role = 'Owner' | 'Admin' | 'Approver' | 'Editor' | 'Viewer';
 export type MemberStatus = 'Active' | 'Pending';
 export type BrandTone = 'Formal' | 'Consultative' | 'Technical';
@@ -30,6 +30,8 @@ export interface Tenant {
   limits: {
     fileSizeMb: number;
     seats: number;
+    rfps: number;
+    aiAnswers: number;
   };
   members: TeamMember[];
 }
@@ -52,16 +54,22 @@ export const addOnsConfig: Record<AddOn, { id: AddOn; name: string; description:
     name: 'Compliance Validation',
     description: 'Automatically check answers against compliance standards like SOC 2 and ISO 27001.',
     price: 99,
+  },
+  aiAnswerPack: {
+    id: 'aiAnswerPack' as const,
+    name: 'AI Answer Pack',
+    description: 'Get an additional 100 AI-generated answers for your RFPs.',
+    price: 9,
   }
 };
 
 
 export const plansConfig = {
-  free: { seats: 1, fileSizeMb: 2 },
-  starter: { seats: 1, fileSizeMb: 5 },
-  team: { seats: 5, fileSizeMb: 10 },
-  business: { seats: 25, fileSizeMb: 25 },
-  enterprise: { seats: 50, fileSizeMb: 50 },
+  free: { seats: 1, fileSizeMb: 2, rfps: 1, aiAnswers: 10 },
+  starter: { seats: 1, fileSizeMb: 5, rfps: 5, aiAnswers: 100 },
+  team: { seats: 5, fileSizeMb: 10, rfps: 25, aiAnswers: 500 },
+  business: { seats: 25, fileSizeMb: 25, rfps: Infinity, aiAnswers: 2500 },
+  enterprise: { seats: 50, fileSizeMb: 50, rfps: Infinity, aiAnswers: Infinity },
 };
 
 const tenants: Omit<Tenant, 'limits'>[] = [
@@ -110,8 +118,8 @@ const tenants: Omit<Tenant, 'limits'>[] = [
 ];
 
 // Special case for specific enterprise tenants with custom limits
-const customEnterpriseLimits: Record<string, { seats: number; fileSizeMb: number; }> = {
-    'acme': { seats: 75, fileSizeMb: 100 }
+const customEnterpriseLimits: Record<string, { seats: number; fileSizeMb: number; rfps: number; aiAnswers: number; }> = {
+    'acme': { seats: 75, fileSizeMb: 100, rfps: Infinity, aiAnswers: Infinity }
 };
 
 
@@ -152,7 +160,7 @@ function createFreeTenant(subdomain: string, email: string): Tenant {
   };
 }
 
-function getLimitsForTenant(tenantData: Omit<Tenant, 'limits'>): { seats: number; fileSizeMb: number; } {
+function getLimitsForTenant(tenantData: Omit<Tenant, 'limits'>): { seats: number; fileSizeMb: number; rfps: number; aiAnswers: number; } {
     if (tenantData.plan === 'enterprise') {
         // Use custom limits if they exist, otherwise fall back to the default enterprise plan config
         return customEnterpriseLimits[tenantData.id] || plansConfig.enterprise;
