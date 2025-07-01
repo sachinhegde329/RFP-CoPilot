@@ -1,6 +1,6 @@
 
-import type { Role, TeamMember } from './tenants';
-import type { Question } from './rfp.service';
+import { getTenantBySubdomain, type Role, type TeamMember } from './tenants';
+import { rfpService, type Question } from './rfp.service';
 
 // NOTE: This service is currently using an in-memory store for prototype purposes.
 // For a production environment, this should be migrated to a persistent database (e.g., Firestore).
@@ -30,8 +30,6 @@ class ExportService {
     private tenantData: Record<string, TenantExportData> = {};
 
     constructor() {
-        const { getTenantBySubdomain } = require('./tenants');
-        const { rfpService } = require('./rfp.service');
         // We cannot reliably call async functions in a constructor.
         // Data seeding will need to happen on-demand when a service is called.
     }
@@ -41,8 +39,6 @@ class ExportService {
             this.tenantData[tenantId] = { history: [] };
              // Seed data for megacorp demo tenant if it doesn't exist
             if (tenantId === 'megacorp' && this.tenantData[tenantId].history.length === 0) {
-                const { getTenantBySubdomain } = require('./tenants');
-                const { rfpService } = require('./rfp.service');
                 const megacorpTenant = await getTenantBySubdomain('megacorp');
                 if (megacorpTenant) {
                     const rfps = await rfpService.getRfps('megacorp');

@@ -1,5 +1,5 @@
 
-import type { TeamMember } from './tenants';
+import { getTenantBySubdomain, type TeamMember } from './tenants';
 import { db } from './firebase';
 import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query } from 'firebase/firestore';
 
@@ -39,7 +39,6 @@ class RfpService {
         if (snapshot.empty) {
             // Seed data for megacorp demo tenant
             if (tenantId === 'megacorp') {
-                const { getTenantBySubdomain } = require('./tenants'); 
                 const tenant = await getTenantBySubdomain('megacorp');
                 const sampleQuestions = getSampleQuestions(tenant.members);
                 const rfpsToSeed: RFP[] = [
