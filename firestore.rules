@@ -2,18 +2,21 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Allow public read on the tenants collection so that
-    // the app can resolve a subdomain to a tenant and display branding
-    // before the user logs in. Writes are restricted.
+
+    // Allow public read-only access to individual tenant documents.
+    // This is required for subdomain routing and initial page loads where the
+    // app needs to fetch public branding information before a user is authenticated.
+    // Listing all tenants is disallowed for security.
     match /tenants/{tenantId} {
       allow get: if true;
-      allow list: if false; // Don't allow listing all tenants for security.
-      allow create, update, delete: if request.auth != null;
+      allow list: if false; // Prevent anyone from listing all tenants
+      allow write: if request.auth != null; // Generic rule for writes, can be tightened
     }
 
-    // For all documents nested under a tenant (e.g., RFPs, knowledge chunks),
-    // require the user to be authenticated.
-    match /tenants/{tenantId}/{collectionId}/{docId=**} {
+    // Secure all sub-collections within a tenant.
+    // This rule ensures that all data like RFPs, knowledge base chunks, etc.,
+    // can only be accessed by authenticated users.
+    match /tenants/{tenantId}/{subcollection}/{docId=**} {
       allow read, write: if request.auth != null;
     }
   }
