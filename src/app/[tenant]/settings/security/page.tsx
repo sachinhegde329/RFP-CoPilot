@@ -6,7 +6,6 @@ import Image from "next/image"
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from 'next/navigation';
 
-import { getTenantBySubdomain } from "@/lib/tenants";
 import { canPerformAction, hasFeatureAccess } from '@/lib/access-control';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"

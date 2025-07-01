@@ -8,7 +8,7 @@ import { parseDocument } from "@/ai/flows/parse-document"
 import { knowledgeBaseService } from "@/lib/knowledge-base"
 import { rfpService } from "@/lib/rfp.service"
 import type { Question, RFP } from "@/lib/rfp-types"
-import { getTenantBySubdomain, updateTenant } from "@/lib/tenants"
+import { getTenantBySubdomain, updateTenant, findOrCreateTenantForUser as findOrCreateTenantForUserSvc } from "@/lib/tenants"
 import { type Role, type TeamMember, type Tenant, plansConfig } from "@/lib/tenant-types"
 import { stripe } from "@/lib/stripe"
 import { hasFeatureAccess, canPerformAction, type Action } from "@/lib/access-control"
@@ -16,6 +16,7 @@ import { notificationService } from "@/lib/notifications.service"
 import { exportService } from "@/lib/export.service";
 import { templateService, type Template, type TemplateSection } from "@/lib/template.service"
 import { detectRfpTopics } from "@/ai/flows/detect-rfp-topics"
+import type { User as FirebaseUser } from 'firebase/auth';
 
 import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType, PageBreak } from 'docx';
 import PDFDocument from 'pdfkit';
@@ -582,6 +583,29 @@ export async function markNotificationsAsReadAction(tenantId: string, userId: st
     } catch (e) {
         console.error(e);
         return { error: "Failed to update notifications." };
+    }
+}
+
+// == AUTH/TENANT ACTIONS ==
+
+interface SerializableUser {
+    uid: string;
+    email: string | null;
+    displayName: string | null;
+    photoURL: string | null;
+}
+
+export async function findOrCreateTenantForUserAction(user: SerializableUser) {
+    try {
+        const tenant = await findOrCreateTenantForUserSvc(user as FirebaseUser);
+        if (!tenant) {
+            return { error: "Could not find or create a workspace." };
+        }
+        return { tenant: JSON.parse(JSON.stringify(tenant)) };
+    } catch(e) {
+        console.error("Error in findOrCreateTenantForUserAction:", e);
+        const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred during login.";
+        return { error: errorMessage };
     }
 }
 

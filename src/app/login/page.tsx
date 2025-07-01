@@ -17,7 +17,7 @@ import Image from 'next/image';
 
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
-import { findOrCreateTenantForUser } from '@/lib/tenants';
+import { findOrCreateTenantForUserAction } from '@/app/actions';
 
 
 export default function LoginPage() {
@@ -33,15 +33,22 @@ export default function LoginPage() {
       const user = result.user;
 
       if(user) {
-        const tenant = await findOrCreateTenantForUser(user);
-        if (tenant) {
-            router.push(`/${tenant.subdomain}`);
-        } else {
-             toast({
+        const actionResult = await findOrCreateTenantForUserAction({
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+        });
+        
+        if (actionResult.error || !actionResult.tenant) {
+            toast({
                 variant: 'destructive',
                 title: 'Login Failed',
-                description: "Could not find or create a workspace for your account.",
-             });
+                description: actionResult.error || "Could not find or create a workspace for your account.",
+            });
+             setIsLoading(false);
+        } else {
+            router.push(`/${actionResult.tenant.subdomain}`);
         }
       }
     } catch (error: any) {
@@ -50,7 +57,6 @@ export default function LoginPage() {
         title: 'Sign-in Error',
         description: error.message || 'An unknown error occurred during sign-in.',
       });
-    } finally {
       setIsLoading(false);
     }
   };
