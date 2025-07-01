@@ -36,7 +36,7 @@ class WebsiteCrawlerService {
    */
   async ingestPage(url: string) {
     try {
-      const response = await fetch(url);
+      const response = await fetch(url, { headers: { 'User-Agent': USER_AGENT } });
       if (!response.ok) {
         throw new Error(`Failed to fetch URL: ${response.statusText}`);
       }
@@ -77,26 +77,41 @@ class WebsiteCrawlerService {
    * Private helper to fetch and parse a page for the new sync method.
    */
   private async _fetchAndParsePage(url: string): Promise<{ title: string, content: string, links: string[], url: string }> {
-      const response = await fetch(url);
+      const response = await fetch(url, { headers: { 'User-Agent': USER_AGENT }});
       if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) {
         throw new Error(`Skipping non-HTML page: ${url}`);
       }
       const html = await response.text();
       const $ = cheerio.load(html);
 
-      const title = $('title').text() || $('h1').first().text() || url;
-      $('script, style, nav, footer, header, aside, .navbar, .footer, #sidebar').remove();
-      $('br, p, h1, h2, h3, h4, h5, h6, li, blockquote, pre').after('\n');
-      const content = $('body').text().replace(/\s\s+/g, ' ').trim();
+      const title = $('title').text().trim() || $('h1').first().text().trim() || url;
+      
+      // Try to find the main content area to avoid boilerplate
+      let contentRoot = $('main');
+      if (contentRoot.length === 0) contentRoot = $('article');
+      if (contentRoot.length === 0) contentRoot = $('#content');
+      if (contentRoot.length === 0) contentRoot = $('#main');
+      if (contentRoot.length === 0) contentRoot = $('.main-content');
+      if (contentRoot.length === 0) contentRoot = $('body'); // Fallback to the whole body
+
+      // Remove elements that are typically not part of the main content
+      contentRoot.find('script, style, nav, footer, header, aside, form, .navbar, .footer, #sidebar, [role="navigation"], [role="banner"], [role="contentinfo"], [role="complementary"]').remove();
+
+      // Add newlines after block elements to preserve some structure
+      contentRoot.find('br, p, h1, h2, h3, h4, h5, h6, li, blockquote, pre, div').after('\n');
+
+      const content = contentRoot.text().replace(/\s\s+/g, ' ').trim();
       
       const links: string[] = [];
       const baseOrigin = new URL(url).origin;
+
       $('a[href]').each((i, el) => {
           const href = $(el).attr('href');
-          if (href) {
+          if (href && !href.startsWith('mailto:') && !href.startsWith('tel:')) { // Filter out mailto/tel links
               try {
-                  const absoluteUrl = new URL(href, url).href.split('#')[0];
-                  if (new URL(absoluteUrl).origin === baseOrigin) {
+                  const absoluteUrl = new URL(href, url).href.split('#')[0].split('?')[0]; // Also remove query params and fragments
+                  // Filter out links to common file types and ensure it's the same domain
+                  if (new URL(absoluteUrl).origin === baseOrigin && !/\.(jpg|jpeg|png|gif|pdf|zip|css|js|svg|ico)$/i.test(absoluteUrl)) {
                       links.push(absoluteUrl);
                   }
               } catch (e) { /* ignore invalid URLs */ }
@@ -106,6 +121,7 @@ class WebsiteCrawlerService {
 
       return { title, content, links: uniqueLinks, url };
   }
+
 
   /**
    * Performs a multi-page crawl of a website based on the source configuration.
@@ -123,7 +139,7 @@ class WebsiteCrawlerService {
     const robotsTxtUrl = new URL('/robots.txt', rootUrl.origin).href;
     let robots;
     try {
-        const robotsTxtResponse = await fetch(robotsTxtUrl);
+        const robotsTxtResponse = await fetch(robotsTxtUrl, { headers: { 'User-Agent': USER_AGENT }});
         if (robotsTxtResponse.ok) {
             const robotsTxtContent = await robotsTxtResponse.text();
             robots = robotsParser(robotsTxtUrl, robotsTxtContent);
