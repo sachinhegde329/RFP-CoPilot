@@ -149,7 +149,7 @@ export function AttachmentsCard({ attachments, onUpdateAttachments }: Attachment
             </TableBody>
           </Table>
         ) : (
-           <div className="flex h-full flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed border-muted p-8 text-center">
+           <div className="flex h-full min-h-[13rem] flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed border-muted p-8 text-center">
               <Paperclip className="size-12 text-muted-foreground" />
               <h3 className="font-semibold">No Supporting Documents</h3>
               <p className="text-sm text-muted-foreground">Add supplementary files for this RFP.</p>
@@ -159,7 +159,7 @@ export function AttachmentsCard({ attachments, onUpdateAttachments }: Attachment
       <CardFooter>
         <Button 
             variant="outline" 
-            className="w-full"
+            className="w-full whitespace-normal h-auto"
             onClick={handleAddClick}
             disabled={attachments.length >= 3}
         >
