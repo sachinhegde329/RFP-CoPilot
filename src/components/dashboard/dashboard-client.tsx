@@ -35,12 +35,15 @@ export function HomepageClient({ rfps, selectedRfp }: HomepageClientProps) {
   const router = useRouter();
   const pathname = usePathname();
 
-  const [questions, setQuestions] = useState<Question[]>(selectedRfp?.questions || [])
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
-  const [isLoading, setIsLoading] = useState(false)
-  const { toast } = useToast()
+  const [questions, setQuestions] = useState<Question[]>(selectedRfp?.questions || []);
+  const [rfpAttachments, setRfpAttachments] = useState<Record<string, Attachment[]>>({});
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
 
   const currentUser = tenant.members[0];
+  
+  // Derive attachments for the currently selected RFP
+  const attachments = selectedRfp ? rfpAttachments[selectedRfp.id] || [] : [];
   
   // This effect ensures the questions displayed are always in sync with the selected RFP
   // when the user navigates using the browser's back/forward buttons.
@@ -48,12 +51,12 @@ export function HomepageClient({ rfps, selectedRfp }: HomepageClientProps) {
     setQuestions(selectedRfp?.questions || []);
   }, [selectedRfp]);
 
-  // Clean up Object URLs when the component unmounts to prevent memory leaks
+  // Clean up ALL Object URLs when the component unmounts to prevent memory leaks
   useEffect(() => {
     return () => {
-      attachments.forEach(att => URL.revokeObjectURL(att.url));
+      Object.values(rfpAttachments).flat().forEach(att => URL.revokeObjectURL(att.url));
     }
-  }, [attachments]);
+  }, [rfpAttachments]);
 
 
   const handleUpdateQuestion = async (questionId: number, updates: Partial<Question>) => {
@@ -102,60 +105,66 @@ export function HomepageClient({ rfps, selectedRfp }: HomepageClientProps) {
       })
       return
     }
-    setIsLoading(true)
-    setQuestions([])
+    setIsLoading(true);
+    setQuestions([]);
 
     const rfpName = file ? file.name : `Pasted RFP - ${new Date().toLocaleDateString()}`;
 
-    if (file) {
-      const newAttachment: Attachment = {
-        id: Date.now(),
-        name: file.name,
-        size: file.size > 1024 * 1024 
-            ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
-            : `${(file.size / 1024).toFixed(0)} KB`,
-        type: file.type,
-        url: URL.createObjectURL(file),
-      };
-      setAttachments([newAttachment]);
-    } else {
-      setAttachments([]); // Clear attachments if it's pasted text
-    }
-
-
     try {
-      const result = await extractQuestionsAction(rfpText, rfpName, tenant.id, currentUser)
+      const result = await extractQuestionsAction(rfpText, rfpName, tenant.id, currentUser);
 
       if (result.error || !result.rfp) {
         toast({
           variant: "destructive",
           title: "Extraction Error",
           description: result.error || "Could not process RFP",
-        })
+        });
       } else {
+        const newRfpId = result.rfp.id;
+        
+        // Now that we have the new RFP's ID, we can associate the attachment with it.
+        if (file) {
+          const newAttachment: Attachment = {
+            id: Date.now(),
+            name: file.name,
+            size: file.size > 1024 * 1024 
+                ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+                : `${(file.size / 1024).toFixed(0)} KB`,
+            type: file.type,
+            url: URL.createObjectURL(file),
+          };
+          setRfpAttachments(prev => ({ ...prev, [newRfpId]: [newAttachment] }));
+        }
+        
         toast({ title: "RFP Processed", description: `Created new RFP: ${result.rfp.name}` });
-        // Navigate to the newly created RFP
-        router.push(`${pathname}?rfpId=${result.rfp.id}`);
+        router.push(`${pathname}?rfpId=${newRfpId}`);
       }
     } catch (e) {
       toast({
         variant: "destructive",
         title: "An Unexpected Error Occurred",
         description: "Failed to process the RFP. Please try again.",
-      })
+      });
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
   const handleUpdateAttachments = (updatedAttachments: Attachment[]) => {
+    if (!selectedRfp) return;
+
     // Revoke URLs for attachments that are being removed to prevent memory leaks
-    attachments.forEach(att => {
+    const currentAttachments = rfpAttachments[selectedRfp.id] || [];
+    currentAttachments.forEach(att => {
         if (!updatedAttachments.some(updatedAtt => updatedAtt.id === att.id)) {
             URL.revokeObjectURL(att.url);
         }
     });
-    setAttachments(updatedAttachments);
+
+    setRfpAttachments(prev => ({
+      ...prev,
+      [selectedRfp.id]: updatedAttachments,
+    }));
   };
 
 
