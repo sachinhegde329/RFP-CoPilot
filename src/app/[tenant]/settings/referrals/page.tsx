@@ -1,6 +1,6 @@
 
 import { getTenantBySubdomain } from "@/lib/tenants"
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Gift } from 'lucide-react'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -13,6 +13,12 @@ export default function ReferralsPage({ params }: { params: { tenant: string }})
     if (!tenant) {
       notFound();
     }
+
+    // Only show referrals page for free and starter plans
+    if (tenant.plan !== 'free' && tenant.plan !== 'starter') {
+        redirect(`/${tenant.subdomain}/settings`);
+    }
+
     const referralLink = `https://rfpcopilot.com/join?ref=${tenant.subdomain}` // Example link
 
     const mockReferrals = [
