@@ -13,7 +13,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { FileText, Bot, PlusCircle, Download } from "lucide-react"
 import type { TeamMember } from "@/lib/tenant-types"
-import type { Question, RFP } from "@/lib/rfp.service"
+import type { Question, RFP } from "@/lib/rfp-types"
 import { AttachmentsCard } from "./attachments-card"
 import { RfpSelector } from "./rfp-selector"
 

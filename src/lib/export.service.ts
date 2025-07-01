@@ -2,7 +2,7 @@
 import { collection, doc, addDoc, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Role } from './tenant-types';
-import type { Question } from './rfp.service';
+import type { Question } from './rfp-types';
 
 // NOTE: This service is now migrated to use Firestore for data persistence.
 

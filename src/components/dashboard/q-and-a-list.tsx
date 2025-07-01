@@ -30,7 +30,7 @@ import {
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
-import type { Question } from "@/lib/rfp.service"
+import type { Question } from "@/lib/rfp-types"
 import type { Template } from "@/lib/template.service"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
 import { exportRfpAction, getTemplatesAction } from "@/app/actions"

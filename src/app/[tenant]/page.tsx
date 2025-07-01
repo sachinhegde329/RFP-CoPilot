@@ -3,7 +3,7 @@ import { getRfpsAction } from "@/app/actions";
 import { HomepageClient } from "@/components/dashboard/dashboard-client";
 import { HomepageHeader } from "@/components/dashboard/dashboard-header";
 import { SidebarInset } from "@/components/ui/sidebar";
-import type { RFP } from "@/lib/rfp.service";
+import type { RFP } from "@/lib/rfp-types";
 
 export default async function Homepage({ params, searchParams }: { params: { tenant: string }, searchParams: { [key: string]: string | string[] | undefined }}) {
     const rfpsResult = await getRfpsAction(params.tenant);

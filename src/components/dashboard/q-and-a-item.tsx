@@ -24,17 +24,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { cn } from "@/lib/utils"
-
-
-type Question = {
-  id: number
-  question: string
-  category: string
-  answer: string
-  compliance: "passed" | "failed" | "pending"
-  assignee?: TeamMember | null
-  status: 'Unassigned' | 'In Progress' | 'Completed'
-}
+import type { Question } from "@/lib/rfp-types";
 
 type QAndAItemProps = {
   questionData: Question
