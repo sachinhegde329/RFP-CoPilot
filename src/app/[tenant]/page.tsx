@@ -7,8 +7,8 @@ import type { RFP } from "@/lib/rfp.service";
 
 export default async function Homepage({ params, searchParams }: { params: { tenant: string }, searchParams: { [key: string]: string | string[] | undefined }}) {
     const rfpsResult = await getRfpsAction(params.tenant);
-    // Sanitize data at the boundary between server and client to prevent serialization errors.
-    const rfps: RFP[] = JSON.parse(JSON.stringify(rfpsResult.rfps || []));
+    // Data is sanitized in the service layer (rfp.service.ts).
+    const rfps: RFP[] = rfpsResult.rfps || [];
     
     const rfpId = typeof searchParams.rfpId === 'string' ? searchParams.rfpId : rfps[0]?.id;
     const selectedRfp = rfps.find(r => r.id === rfpId) || rfps[0];
