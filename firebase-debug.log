@@ -222,3 +222,12 @@ INFO: Detected non-HTTP/2 connection.
 [debug] [2025-07-01T14:25:52.461Z] <<< [apiv2][status] PUT http://127.0.0.1:8080/emulator/v1/projects/demo-app:securityRules 200
 [debug] [2025-07-01T14:25:52.464Z] <<< [apiv2][body] PUT http://127.0.0.1:8080/emulator/v1/projects/demo-app:securityRules {}
 [info] ✔  firestore: Rules updated. 
+[info] i  firestore: Change detected, updating rules... 
+[debug] [2025-07-01T14:41:58.877Z] >>> [apiv2][query] PUT http://127.0.0.1:8080/emulator/v1/projects/demo-app:securityRules [none]
+[debug] [2025-07-01T14:41:58.879Z] >>> [apiv2][body] PUT http://127.0.0.1:8080/emulator/v1/projects/demo-app:securityRules {"ignore_errors":true,"rules":{"files":[{"name":"security.rules","content":"rules_version = '2';\n\nservice cloud.firestore {\n  match /databases/{database}/documents {\n\n    // Allow public read-only access to the main tenant document.\n    // This is required for the application layout to load correctly for any visitor\n    // before they have logged in. It only exposes public information like the tenant name and branding.\n    match /tenants/{tenantId} {\n      allow read: if true;\n      \n      // Allow writes only by authenticated users.\n      // A more secure rule would check for membership, but this requires a different data structure (e.g., a map of UIDs).\n      // This rule is sufficient for the demo and ensures the rules file is valid.\n      allow write: if request.auth != null;\n    }\n\n    // Secure all sub-collections within a tenant (e.g., rfps, knowledge_sources).\n    // Allow read/write access only to authenticated users.\n    // Again, a more robust rule would check for membership in the specific tenant.\n    match /tenants/{tenantId}/{collection}/{docId=**} {\n      allow read, write: if request.auth != null;\n    }\n  }\n}\n"}]}}
+[debug] [2025-07-01T14:41:58.904Z] Jul 01, 2025 2:41:58 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead
+INFO: Detected non-HTTP/2 connection.
+ {"metadata":{"emulator":{"name":"firestore"},"message":"Jul 01, 2025 2:41:58 PM io.gapi.emulators.netty.HttpVersionRoutingHandler channelRead\nINFO: Detected non-HTTP/2 connection.\n"}}
+[debug] [2025-07-01T14:41:58.988Z] <<< [apiv2][status] PUT http://127.0.0.1:8080/emulator/v1/projects/demo-app:securityRules 200
+[debug] [2025-07-01T14:41:58.988Z] <<< [apiv2][body] PUT http://127.0.0.1:8080/emulator/v1/projects/demo-app:securityRules {}
+[info] ✔  firestore: Rules updated. 
