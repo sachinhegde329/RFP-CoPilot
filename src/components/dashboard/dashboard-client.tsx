@@ -9,8 +9,9 @@ import { QAndAList } from "@/components/dashboard/q-and-a-list"
 import { ComplianceCard } from "@/components/dashboard/compliance-card"
 import { extractQuestionsAction, updateQuestionAction, addQuestionAction } from "@/app/actions"
 import { useToast } from "@/hooks/use-toast"
-import { Card, CardContent } from "@/components/ui/card"
-import { FileText, Bot } from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { FileText, Bot, PlusCircle, Download } from "lucide-react"
 import type { TeamMember } from "@/lib/tenants"
 import type { Question, RFP } from "@/lib/rfp.service"
 import { AttachmentsCard } from "./attachments-card"
@@ -171,13 +172,33 @@ export function HomepageClient({ rfps, selectedRfp }: HomepageClientProps) {
         <div className="lg:col-span-2">
           {isLoading && questions.length === 0 ? (
             <Card>
-              <CardContent className="pt-6">
-                  <div className="flex flex-col items-center justify-center gap-4 text-center p-8">
-                    <Bot className="size-12 animate-pulse text-primary" />
-                    <p className="font-medium">AI is extracting questions...</p>
-                    <p className="text-sm text-muted-foreground">This may take a moment. The questions will appear here once ready.</p>
-                  </div>
-              </CardContent>
+                <CardHeader>
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                        <div>
+                            <CardTitle>Extracted Questions</CardTitle>
+                            <CardDescription>
+                                Filter, assign, and answer the questions for this RFP.
+                            </CardDescription>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button variant="outline" disabled>
+                                <PlusCircle className="mr-2" />
+                                Add Question
+                            </Button>
+                            <Button variant="default" disabled>
+                                <Download className="mr-2" />
+                                Export RFP
+                            </Button>
+                        </div>
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    <div className="flex flex-col items-center justify-center gap-4 text-center p-8 border-2 border-dashed border-muted rounded-lg min-h-[200px]">
+                        <Bot className="size-12 animate-pulse text-primary" />
+                        <p className="font-medium">AI is extracting questions...</p>
+                        <p className="text-sm text-muted-foreground max-w-md">This may take a moment. The questions will appear here once ready.</p>
+                    </div>
+                </CardContent>
             </Card>
           ) : questions.length > 0 ? (
             <QAndAList 
@@ -190,11 +211,31 @@ export function HomepageClient({ rfps, selectedRfp }: HomepageClientProps) {
             />
           ) : !isLoading ? (
             <Card>
-              <CardContent className="pt-6">
-                  <div className="flex flex-col items-center justify-center gap-4 text-center p-8">
+              <CardHeader>
+                  <div className="flex flex-wrap items-start justify-between gap-4">
+                      <div>
+                          <CardTitle>Extracted Questions</CardTitle>
+                          <CardDescription>
+                              Filter, assign, and answer the questions for this RFP.
+                          </CardDescription>
+                      </div>
+                      <div className="flex gap-2">
+                          <Button variant="outline" disabled>
+                              <PlusCircle className="mr-2" />
+                              Add Question
+                          </Button>
+                          <Button variant="default" disabled>
+                              <Download className="mr-2" />
+                              Export RFP
+                          </Button>
+                      </div>
+                  </div>
+              </CardHeader>
+              <CardContent>
+                  <div className="flex flex-col items-center justify-center gap-4 text-center p-8 border-2 border-dashed border-muted rounded-lg min-h-[200px]">
                     <FileText className="size-12 text-muted-foreground" />
                     <h3 className="font-semibold">Your Questions Will Appear Here</h3>
-                    <p className="text-sm text-muted-foreground">Once you provide an RFP in the card above, we'll use AI to extract and list all the questions for you to answer.</p>
+                    <p className="text-sm text-muted-foreground max-w-md">Once you provide an RFP in the card above, we'll use AI to extract and list all the questions for you to answer.</p>
                   </div>
               </CardContent>
             </Card>
