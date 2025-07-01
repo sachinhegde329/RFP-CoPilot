@@ -50,16 +50,19 @@ class RfpService {
                 for (const rfp of rfpsToSeed) {
                     await setDoc(doc(rfpsCollection, rfp.id), rfp);
                 }
-                return rfpsToSeed;
+                return JSON.parse(JSON.stringify(rfpsToSeed));
             }
             return [];
         }
-        return snapshot.docs.map(doc => doc.data() as RFP);
+        const rfps = snapshot.docs.map(doc => doc.data() as RFP);
+        return JSON.parse(JSON.stringify(rfps));
     }
     
     public async getRfp(tenantId: string, rfpId: string): Promise<RFP | undefined> {
         const rfpDoc = await getDoc(doc(this.getRfpsCollection(tenantId), rfpId));
-        return rfpDoc.exists() ? rfpDoc.data() as RFP : undefined;
+        if (!rfpDoc.exists()) return undefined;
+        const rfpData = rfpDoc.data() as RFP;
+        return JSON.parse(JSON.stringify(rfpData));
     }
 
     public async updateQuestion(tenantId: string, rfpId: string, questionId: number, updates: Partial<Question>): Promise<Question | null> {

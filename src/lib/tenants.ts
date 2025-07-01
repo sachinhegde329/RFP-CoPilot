@@ -139,13 +139,16 @@ export async function getTenantBySubdomain(subdomain: string): Promise<Tenant | 
              const demoTenant = await createFreeTenant(demoUser, 'megacorp');
              const demoDocRef = doc(db, 'tenants', demoTenant.id);
              await updateDoc(demoDocRef, { name: 'MegaCorp (Demo)', plan: 'team' });
-             return { ...demoTenant, name: 'MegaCorp (Demo)', plan: 'team' };
+             const finalTenant = await getDoc(demoDocRef);
+             const tenantData = finalTenant.data() as Omit<Tenant, 'limits'>;
+             return JSON.parse(JSON.stringify({ ...tenantData, id: finalTenant.id, limits: getLimitsForTenant(tenantData) }));
         }
         return null;
     }
     
     const tenantData = tenantDoc.data() as Omit<Tenant, 'limits'>;
-    return { ...tenantData, id: tenantDoc.id, limits: getLimitsForTenant(tenantData) };
+    const tenantWithData = { ...tenantData, id: tenantDoc.id, limits: getLimitsForTenant(tenantData) };
+    return JSON.parse(JSON.stringify(tenantWithData));
 }
 
 export async function updateTenant(tenantId: string, updates: Partial<Tenant>): Promise<Tenant | null> {
