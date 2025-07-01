@@ -14,7 +14,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         </div>
         <div className="flex flex-1 flex-col md:flex-row gap-8">
             <SettingsNav />
-            <div className="flex-1">
+            <div className="flex-1 flex">
                 {children}
             </div>
         </div>

@@ -1,3 +1,4 @@
+
 'use client'
 
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -94,7 +95,7 @@ export default function WorkspaceSettingsPage() {
     };
 
     return (
-        <Card className="flex flex-col h-full">
+        <Card className="flex flex-col flex-1">
             <CardHeader>
                 <CardTitle>Workspace</CardTitle>
                 <CardDescription>

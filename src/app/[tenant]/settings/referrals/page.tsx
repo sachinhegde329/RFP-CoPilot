@@ -1,3 +1,4 @@
+
 import { getTenantBySubdomain } from "@/lib/tenants"
 import { notFound } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -20,7 +21,7 @@ export default function ReferralsPage({ params }: { params: { tenant: string }})
     ]
 
     return (
-        <Card className="flex flex-col h-full">
+        <Card className="flex flex-col flex-1">
             <CardHeader>
                 <div className="flex items-center gap-2">
                     <Gift className="text-primary" />

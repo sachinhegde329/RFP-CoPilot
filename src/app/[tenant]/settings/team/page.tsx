@@ -93,7 +93,7 @@ export default function TeamSettingsPage() {
 
 
     return (
-        <Card className="flex flex-col h-full">
+        <Card className="flex flex-col flex-1">
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                     <CardTitle>Team Members</CardTitle>

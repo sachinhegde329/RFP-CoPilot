@@ -1,3 +1,4 @@
+
 import { getTenantBySubdomain } from "@/lib/tenants";
 import { notFound } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card"
@@ -12,7 +13,7 @@ export default function BillingSettingsPage({ params }: { params: { tenant: stri
     }
 
     return (
-        <Card className="flex flex-col h-full">
+        <Card className="flex flex-col flex-1">
             <CardHeader>
                 <CardTitle>Billing</CardTitle>
                 <CardDescription>

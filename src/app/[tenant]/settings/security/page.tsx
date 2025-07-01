@@ -1,3 +1,4 @@
+
 import Link from "next/link";
 import Image from "next/image"
 
@@ -32,7 +33,7 @@ export default function SecuritySettingsPage({ params }: { params: { tenant: str
   return (
     <>
       <SecurityClient tenantSubdomain={tenant.subdomain} />
-      <Card className="flex flex-col h-full">
+      <Card className="flex flex-col flex-1">
         <CardHeader>
           <CardTitle>Security</CardTitle>
           <CardDescription>

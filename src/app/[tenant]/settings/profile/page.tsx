@@ -60,7 +60,7 @@ export default function ProfileSettingsPage() {
     }
 
     return (
-        <Card className="flex flex-col h-full">
+        <Card className="flex flex-col flex-1">
             <CardHeader>
                 <CardTitle>My Profile</CardTitle>
                 <CardDescription>
