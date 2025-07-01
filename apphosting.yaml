@@ -5,3 +5,17 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+
+# For production, secrets should be stored in Google Secret Manager
+# and referenced here.
+# https://firebase.google.com/docs/app-hosting/configure#manage-secrets
+secretEnv:
+  - key: GEMINI_API_KEY
+    secret: GEMINI_API_KEY
+  - key: STRIPE_SECRET_KEY
+    secret: STRIPE_SECRET_KEY
+  - key: CRON_SECRET
+    secret: CRON_SECRET
+  # Add other secrets for connectors as needed
+  # - key: GOOGLE_CLIENT_SECRET
+  #   secret: GOOGLE_CLIENT_SECRET
