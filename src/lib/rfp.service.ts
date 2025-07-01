@@ -28,38 +28,14 @@ export interface RFP {
 // NOTE: This service is now migrated to use Firestore for data persistence.
 
 /**
- * Manually reconstructs an RFP object from a Firestore document snapshot.
- * This ensures the returned object is a plain JavaScript object, free of any
- * non-serializable types like Firestore Timestamps.
- * @param doc The Firestore document snapshot.
- * @returns A clean, serializable RFP object.
+ * A robust way to convert Firestore-specific types (like Timestamps) to plain JSON.
+ * This prevents serialization errors when passing data from Server to Client Components.
+ * @param data The data to be sanitized.
+ * @returns A clean, serializable object.
  */
-function cleanRfp(doc: DocumentSnapshot): RFP {
-    const data = doc.data()!;
-    return {
-        id: doc.id,
-        name: data.name,
-        status: data.status,
-        topics: data.topics || [],
-        questions: (data.questions || []).map((q: any) => ({
-            id: q.id,
-            question: q.question,
-            category: q.category,
-            answer: q.answer,
-            compliance: q.compliance,
-            status: q.status,
-            assignee: q.assignee ? {
-                id: q.assignee.id,
-                name: q.assignee.name,
-                email: q.assignee.email,
-                role: q.assignee.role,
-                status: q.assignee.status,
-                avatar: q.assignee.avatar || null,
-            } : null,
-        })),
-    };
+function sanitizeData<T>(data: T): T {
+    return JSON.parse(JSON.stringify(data));
 }
-
 
 class RfpService {
 
@@ -84,18 +60,20 @@ class RfpService {
                 for (const rfp of rfpsToSeed) {
                     await setDoc(doc(rfpsCollection, rfp.id), rfp);
                 }
-                // Seeded data is already clean as it's constructed in memory
-                return rfpsToSeed;
+                // Seeded data is clean, but sanitize for consistency.
+                return sanitizeData(rfpsToSeed);
             }
             return [];
         }
-        return snapshot.docs.map(cleanRfp);
+        const rfps = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as RFP));
+        return sanitizeData(rfps);
     }
     
     public async getRfp(tenantId: string, rfpId: string): Promise<RFP | undefined> {
         const rfpDoc = await getDoc(doc(this.getRfpsCollection(tenantId), rfpId));
         if (!rfpDoc.exists()) return undefined;
-        return cleanRfp(rfpDoc);
+        const rfp = { id: rfpDoc.id, ...rfpDoc.data() } as RFP;
+        return sanitizeData(rfp);
     }
 
     public async updateQuestion(tenantId: string, rfpId: string, questionId: number, updates: Partial<Question>): Promise<Question | null> {
@@ -106,8 +84,9 @@ class RfpService {
         if (questionIndex > -1) {
             const updatedQuestion = { ...rfp.questions[questionIndex], ...updates };
             rfp.questions[questionIndex] = updatedQuestion;
+            // rfp is already sanitized from the getRfp call
             await updateDoc(doc(this.getRfpsCollection(tenantId), rfpId), { questions: rfp.questions });
-            return updatedQuestion;
+            return sanitizeData(updatedQuestion);
         }
         return null;
     }
@@ -156,7 +135,7 @@ const getSampleQuestions = (members: TeamMember[]): Question[] => [
     {
       id: 2,
       question: "Can you describe your Service Level Agreement (SLA) for production uptime and provide details on support tiers?",
-      answer: "Our standard SLA guarantees 99.9% uptime for our production environment, excluding scheduled maintenance. We offer two support tiers: Standard (9-5 business hours, email support) and Premium (24/7 phone and email support with a 1-hour response time guarantee for critical issues).",
+      answer: "Our standard SLA guarantees 99.9% uptime for our production environment, excluding scheduled maintenance. We offer two support tiers: Standard (9-5 business hours, email support) and Premium (24/7 phone and email support with a 1-hour response time for critical issues).",
       category: "Legal",
       compliance: "pending",
       assignee: members.find((m: any) => m.role === 'Owner') || null,
