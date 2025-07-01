@@ -3,7 +3,7 @@ import type { Tenant, Role } from "./tenants";
 import type { addOnsConfig } from "./tenants";
 
 // Features controlled by plans and add-ons
-export type Feature = keyof typeof addOnsConfig | 'aiExpertReview' | 'complianceValidation' | 'sso';
+export type Feature = keyof typeof addOnsConfig | 'aiExpertReview' | 'complianceValidation' | 'sso' | 'analytics' | 'customTemplates';
 
 // Granular actions based on user roles, mapped from the provided matrix
 export type Action =
@@ -20,9 +20,9 @@ export type Action =
 
 const planFeatureMatrix: Record<Tenant['plan'], Feature[]> = {
     free: [],
-    starter: ['aiExpertReview'],
-    team: ['aiExpertReview'], // Team plan from pricing page
-    business: ['aiExpertReview', 'analytics'], // Business plan from pricing page
+    starter: [], // Core answering is included, but premium features are not.
+    team: ['customTemplates'],
+    business: ['aiExpertReview', 'analytics'],
     enterprise: ['aiExpertReview', 'analytics', 'customTemplates', 'complianceValidation', 'sso'],
 };
 
@@ -51,7 +51,7 @@ const rolePermissions: Record<Role, Action[]> = {
     // Editor (Sales Exec, Pre-Sales, Product Manager) handles the primary RFP and knowledge base work.
     Editor: ['viewContent', 'editContent', 'assignQuestions', 'uploadRfps', 'manageIntegrations'],
     
-    // Viewer has read-only access to content.
+    // Viewer has read-only access to all content.
     Viewer: ['viewContent'],
 };
 

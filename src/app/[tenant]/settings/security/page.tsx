@@ -13,8 +13,9 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { LockKeyhole, FileText, ExternalLink, CheckCircle } from "lucide-react"
-import { canPerformAction } from '@/lib/access-control';
+import { LockKeyhole, FileText, ExternalLink, CheckCircle, ShieldAlert } from "lucide-react"
+import { canPerformAction, hasFeatureAccess } from '@/lib/access-control';
+import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 
 export default function SecuritySettingsPage() {
   const { tenant } = useTenant();
@@ -24,6 +25,8 @@ export default function SecuritySettingsPage() {
 
   const currentUser = tenant.members[0];
   const canManageSecurity = canPerformAction(currentUser.role, 'manageSecurity');
+  const canManageSso = hasFeatureAccess(tenant, 'sso');
+
 
   useEffect(() => {
     const ssoSuccess = searchParams.get('sso_success');
@@ -80,11 +83,23 @@ export default function SecuritySettingsPage() {
             <CardTitle>Single Sign-On (SSO)</CardTitle>
           </div>
           <CardDescription>
-            Allow your team to sign in using your company's identity provider. SSO is available on the Enterprise plan.
+            Allow your team to sign in using your company's identity provider.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-            <fieldset disabled={!canManageSecurity}>
+            {!canManageSso && (
+                <Alert>
+                    <ShieldAlert className="h-4 w-4" />
+                    <AlertTitle>Enterprise Feature</AlertTitle>
+                    <AlertDescription>
+                        Single Sign-On (SSO) is available on the Enterprise plan. 
+                        <Button asChild variant="link" className="p-0 h-auto ml-1">
+                            <Link href={`/pricing?tenant=${tenant.subdomain}`}>Upgrade Your Plan</Link>
+                        </Button>
+                    </AlertDescription>
+                </Alert>
+            )}
+            <fieldset disabled={!canManageSecurity || !canManageSso}>
                 <div className="flex flex-col sm:flex-row gap-4">
                     {isOktaSsoConfigured ? (
                         <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" disabled>

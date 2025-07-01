@@ -19,7 +19,7 @@ import {
 } from "@/lib/tenants"
 import { stripe } from "@/lib/stripe"
 import { hasFeatureAccess, canPerformAction, type Action } from "@/lib/access-control"
-import { notificationService } from "@/lib/notifications.service";
+import { notificationService } from "@/lib/notifications.service"
 import { exportService } from "@/lib/export.service";
 import { templateService, type Template, type TemplateSection } from "@/lib/template.service"
 
@@ -80,6 +80,13 @@ export async function generateAnswerAction(question: string, tenantId: string, c
   if (permCheck.error) return { error: permCheck.error };
   const { tenant } = permCheck;
 
+  // Note: In a real production app, you would check and decrement the tenant's
+  // remaining AI answers count from a database here. For this prototype, we'll
+  // assume the user has available answers if they are on a valid plan.
+  if (tenant.limits.aiAnswers <= 0) {
+      return { error: "You have no AI answers remaining this month. Please upgrade your plan or purchase an AI Answer Pack." };
+  }
+
   if (!question) {
     return { error: "Question cannot be empty." }
   }
@@ -101,7 +108,7 @@ export async function generateAnswerAction(question: string, tenantId: string, c
       rfpQuestion: question,
       knowledgeBaseChunks: relevantChunks.map(chunk => ({
           content: chunk.content,
-          source: chunk.title
+          source: chunk.source
       })),
       tone: tenant.defaultTone || "Formal",
     })
@@ -123,7 +130,7 @@ export async function reviewAnswerAction(question: string, answer: string, tenan
   
   const canAccess = hasFeatureAccess(tenant, 'aiExpertReview');
   if (!canAccess) {
-    return { error: "AI Expert Review is a premium feature. Please upgrade your plan to use it." };
+    return { error: "AI Expert Review is not available on your plan. Please upgrade to a Business or Enterprise plan to use this feature." };
   }
 
   try {
@@ -141,9 +148,15 @@ export async function reviewAnswerAction(question: string, answer: string, tenan
 export async function extractQuestionsAction(rfpText: string, rfpName: string, tenantId: string, currentUser: CurrentUser): Promise<{ rfp?: RFP, error?: string }> {
   const permCheck = checkPermission(tenantId, currentUser, 'uploadRfps');
   if (permCheck.error) return { error: permCheck.error };
+  const { tenant } = permCheck;
 
   if (!rfpText) {
     return { error: "RFP text cannot be empty." }
+  }
+
+  const existingRfps = rfpService.getRfps(tenant.id);
+  if (existingRfps.length >= tenant.limits.rfps) {
+      return { error: `You have reached the limit of ${tenant.limits.rfps} active RFPs for your plan. Please upgrade to create more.` };
   }
 
   try {
@@ -601,7 +614,7 @@ export async function exportRfpAction(payload: {
     currentUser: CurrentUser,
     exportVersion: string,
     format: 'pdf' | 'docx',
-    acknowledgments: { name: string, role: string, comment: string }[]
+    acknowledgments: { name: string, role: string; comment: string }[]
 }) {
     const { tenantId, rfpId, templateId, currentUser, exportVersion, format, acknowledgments } = payload;
     
@@ -614,6 +627,10 @@ export async function exportRfpAction(payload: {
         return { error: "Template not found." };
     }
     
+    if (template.type === 'Custom' && !hasFeatureAccess(tenant, 'customTemplates')) {
+        return { error: 'Custom export templates are not available on your current plan. Please upgrade or use a system template.' };
+    }
+
     const rfp = rfpService.getRfp(tenantId, rfpId);
     if (!rfp) {
         return { error: "RFP not found." };
