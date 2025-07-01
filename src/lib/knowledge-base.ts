@@ -1,4 +1,3 @@
-
 import { embeddingService } from './embedding.service';
 import { websiteCrawlerService } from './connectors/websiteCrawler.service';
 import { getConnectorService } from './connectors';
@@ -195,7 +194,7 @@ class KnowledgeBaseService {
 
 
   // == CHUNK MANAGEMENT ==
-  public async addChunks(tenantId: string, sourceId: string, sourceType: DataSourceType, title: string, chunks: string[], url?: string) {
+  public async addChunks(tenantId: string, sourceId: string, sourceType: DataSourceType, title: string, chunks: string[], url?: string, additionalMetadata: Record<string, any> = {}) {
     this._ensureTenantData(tenantId);
     
     // Generate embeddings and tags for all chunks in parallel for efficiency
@@ -220,6 +219,7 @@ class KnowledgeBaseService {
           sourceType,
           url,
           chunkIndex: index,
+          ...additionalMetadata,
         }
       };
     });
@@ -366,5 +366,3 @@ class KnowledgeBaseService {
 }
 
 export const knowledgeBaseService = new KnowledgeBaseService();
-
-    

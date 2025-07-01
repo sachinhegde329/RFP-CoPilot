@@ -76,7 +76,7 @@ class WebsiteCrawlerService {
   /**
    * Private helper to fetch and parse a page for the new sync method.
    */
-  private async _fetchAndParsePage(url: string): Promise<{ title: string, content: string, links: string[], url: string }> {
+  private async _fetchAndParsePage(url: string): Promise<{ title: string; content: string; links: string[]; url: string, section: string }> {
       const response = await fetch(url, { headers: { 'User-Agent': USER_AGENT }});
       if (!response.ok || !response.headers.get('content-type')?.includes('text/html')) {
         throw new Error(`Skipping non-HTML page: ${url}`);
@@ -87,21 +87,42 @@ class WebsiteCrawlerService {
       const title = $('title').text().trim() || $('h1').first().text().trim() || url;
       
       // Try to find the main content area to avoid boilerplate
-      let contentRoot = $('main');
-      if (contentRoot.length === 0) contentRoot = $('article');
-      if (contentRoot.length === 0) contentRoot = $('#content');
-      if (contentRoot.length === 0) contentRoot = $('#main');
-      if (contentRoot.length === 0) contentRoot = $('.main-content');
+      let contentRoot = $('main, article, #content, #main, .main-content').first();
       if (contentRoot.length === 0) contentRoot = $('body'); // Fallback to the whole body
 
+      // Extract breadcrumbs for section context before removing them
+      const breadcrumbItems: string[] = [];
+      $('nav[aria-label="breadcrumb"], .breadcrumb, [class*="breadcrumbs"]').find('li, a, span').each((i, el) => {
+          const text = $(el).text().trim().replace(/>/g, '').trim(); // Clean up separators
+          if (text) {
+              breadcrumbItems.push(text);
+          }
+      });
+      const section = breadcrumbItems.filter(item => item.toLowerCase() !== 'home').join(' / ');
+      
       // Remove elements that are typically not part of the main content
       contentRoot.find('script, style, nav, footer, header, aside, form, .navbar, .footer, #sidebar, [role="navigation"], [role="banner"], [role="contentinfo"], [role="complementary"]').remove();
-
-      // Add newlines after block elements to preserve some structure
-      contentRoot.find('br, p, h1, h2, h3, h4, h5, h6, li, blockquote, pre, div').after('\n');
-
-      const content = contentRoot.text().replace(/\s\s+/g, ' ').trim();
       
+      // Selective content extraction
+      let extractedText = '';
+      contentRoot.find('h1, h2, h3, h4, p, li, pre, code').each((i, el) => {
+          extractedText += $(el).text() + '\n\n';
+      });
+      
+      // Simple table to text conversion
+      contentRoot.find('table').each((i, tableEl) => {
+          let tableText = '';
+          $(tableEl).find('tr').each((j, rowEl) => {
+              const rowTexts: string[] = [];
+              $(rowEl).find('th, td').each((k, cellEl) => {
+                  rowTexts.push($(cellEl).text().trim());
+              });
+              tableText += rowTexts.join(' | ') + '\n';
+          });
+          extractedText += `\n--- Table ---\n${tableText}--- End Table ---\n\n`;
+      });
+      const content = extractedText.replace(/\n{3,}/g, '\n\n').trim();
+
       const links: string[] = [];
       const baseOrigin = new URL(url).origin;
 
@@ -110,7 +131,6 @@ class WebsiteCrawlerService {
           if (href && !href.startsWith('mailto:') && !href.startsWith('tel:')) { // Filter out mailto/tel links
               try {
                   const absoluteUrl = new URL(href, url).href.split('#')[0].split('?')[0]; // Also remove query params and fragments
-                  // Filter out links to common file types and ensure it's the same domain
                   if (new URL(absoluteUrl).origin === baseOrigin && !/\.(jpg|jpeg|png|gif|pdf|zip|css|js|svg|ico)$/i.test(absoluteUrl)) {
                       links.push(absoluteUrl);
                   }
@@ -119,7 +139,7 @@ class WebsiteCrawlerService {
       });
       const uniqueLinks = [...new Set(links)];
 
-      return { title, content, links: uniqueLinks, url };
+      return { title, content, links: uniqueLinks, url, section };
   }
 
 
@@ -182,8 +202,8 @@ class WebsiteCrawlerService {
             console.log(`Crawling (${pagesCrawled + 1}/${maxPages}): ${url} at depth ${depth}`);
             const pageData = await this._fetchAndParsePage(url);
             
-            // Check if the current page (URL or title) matches keywords
-            if (hasKeywords && !matchesKeywords(pageData.url) && !matchesKeywords(pageData.title)) {
+            // Check if the current page (URL, title, or section) matches keywords
+            if (hasKeywords && !matchesKeywords(pageData.url) && !matchesKeywords(pageData.title) && !matchesKeywords(pageData.section)) {
                 console.log(`Skipping page (no keyword match): ${url}`);
                 continue; // Don't process this page or its links
             }
@@ -193,7 +213,7 @@ class WebsiteCrawlerService {
             const chunks = this.chunkText(pageData.content);
             
             if (chunks.length > 0) {
-                await knowledgeBaseService.addChunks(source.tenantId, source.id, 'website', pageData.title, chunks, pageData.url);
+                await knowledgeBaseService.addChunks(source.tenantId, source.id, 'website', pageData.title, chunks, pageData.url, { section: pageData.section });
                 totalItems += chunks.length;
             }
 
@@ -227,5 +247,3 @@ class WebsiteCrawlerService {
 }
 
 export const websiteCrawlerService = new WebsiteCrawlerService();
-
-    
