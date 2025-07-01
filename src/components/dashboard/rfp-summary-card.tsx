@@ -74,7 +74,7 @@ export function RfpSummaryCard({ isLoading, onProcessRfp }: RfpSummaryCardProps)
         } else {
             toast({
                 title: "Upload Successful",
-                description: `Successfully parsed ${file.name}.`,
+                description: `Successfully parsed ${file.name}. Processing...`,
             });
             setRfpText(result.text)
             onProcessRfp(result.text, file)
