@@ -7,8 +7,9 @@ import type { RFP } from "@/lib/rfp.service";
 
 export default async function Homepage({ params, searchParams }: { params: { tenant: string }, searchParams: { [key: string]: string | string[] | undefined }}) {
     const rfpsResult = await getRfpsAction(params.tenant);
-    // Data is sanitized in the service layer (rfp.service.ts).
-    const rfps: RFP[] = rfpsResult.rfps || [];
+    // Force sanitization here to prevent non-serializable props error.
+    // This is the most reliable way to fix the "client is offline" error in Next.js.
+    const rfps: RFP[] = JSON.parse(JSON.stringify(rfpsResult.rfps || []));
     
     const rfpId = typeof searchParams.rfpId === 'string' ? searchParams.rfpId : rfps[0]?.id;
     const selectedRfp = rfps.find(r => r.id === rfpId) || rfps[0];
