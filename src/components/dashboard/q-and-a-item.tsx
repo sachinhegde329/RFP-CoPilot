@@ -89,11 +89,12 @@ export function QAndAItem({ questionData, tenantId, members, onUpdateQuestion }:
     
     const result = await generateAnswerAction(question, tenantId, currentUser)
     if (result.error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: result.error,
-      })
+        const isInfo = result.error.includes("knowledge base");
+        toast({
+            variant: isInfo ? "default" : "destructive",
+            title: isInfo ? "Answer Not Found" : "Error",
+            description: result.error,
+        })
     } else {
       onUpdateQuestion(id, { answer: result.answer || "" });
       setSources(result.sources || [])

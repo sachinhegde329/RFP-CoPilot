@@ -99,8 +99,7 @@ export async function generateAnswerAction(question: string, tenantId: string, c
     
     if (relevantChunks.length === 0) {
         return {
-            answer: "I could not find any relevant information in the knowledge base to answer this question. Please add more documents or try rewording the question.",
-            sources: []
+            error: "I could not find any relevant information in the knowledge base to answer this question. Please add more documents or try rewording the question."
         };
     }
 
