@@ -167,8 +167,23 @@ export default function LoginPage() {
               <Image src="https://placehold.co/20x20.png" alt="Google logo" width={16} height={16} data-ai-hint="google logo" className="mr-2"/>
               Continue with SSO
             </Button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">
+                  Or
+                </span>
+              </div>
+            </div>
+
+            <Button asChild variant="secondary" className="w-full">
+                <Link href="/megacorp">Live Demo</Link>
+            </Button>
             
-            <p className="text-center text-sm text-muted-foreground">
+            <p className="text-center text-sm text-muted-foreground mt-2">
                 Don't have an account?{' '}
                 <Link href="/signup" className="font-semibold text-primary hover:underline">
                     Sign up

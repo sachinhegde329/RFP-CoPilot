@@ -181,7 +181,22 @@ export default function SignUpPage() {
               Sign up with SSO
             </Button>
             
-             <p className="text-center text-sm text-muted-foreground">
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">
+                  Or
+                </span>
+              </div>
+            </div>
+
+            <Button asChild variant="secondary" className="w-full">
+                <Link href="/megacorp">Live Demo</Link>
+            </Button>
+
+             <p className="text-center text-sm text-muted-foreground mt-2">
                 Already have an account?{' '}
                 <Link href="/login" className="font-semibold text-primary hover:underline">
                     Log in
