@@ -11,17 +11,20 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { FileBox, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 
-import { GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithRedirect, getRedirectResult, signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { findOrCreateTenantForUserAction } from '@/app/actions';
 
-
 export default function LoginPage() {
-  const [isLoading, setIsLoading] = useState(true); // Start as true to handle redirect check
+  const [isAuthLoading, setIsAuthLoading] = useState(true); // For redirect check and any auth action
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const { toast } = useToast();
   const router = useRouter();
 
@@ -45,13 +48,13 @@ export default function LoginPage() {
                         title: 'Login Failed',
                         description: actionResult.error || "Could not find or create a workspace for your account.",
                     });
-                    setIsLoading(false);
+                    setIsAuthLoading(false);
                 } else {
                     router.push(`/${actionResult.tenant.subdomain}`);
                 }
             } else {
                 // No redirect result, user has just loaded the page normally.
-                setIsLoading(false);
+                setIsAuthLoading(false);
             }
         } catch (error: any) {
             toast({
@@ -59,21 +62,53 @@ export default function LoginPage() {
                 title: 'Sign-in Error',
                 description: error.message || 'An unknown error occurred during sign-in.',
             });
-            setIsLoading(false);
+            setIsAuthLoading(false);
         }
     };
     
     processRedirectResult();
   }, [router, toast]);
 
-  const handleGoogleSignIn = async () => {
-    setIsLoading(true);
-    const provider = new GoogleAuthProvider();
-    // This will redirect the user to the Google sign-in page.
-    // The result is handled by the useEffect hook when they are redirected back.
-    await signInWithRedirect(auth, provider);
+  const handleEmailSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsAuthLoading(true);
+    try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const user = userCredential.user;
+        const actionResult = await findOrCreateTenantForUserAction({
+            uid: user.uid,
+            email: user.email,
+            displayName: user.displayName,
+            photoURL: user.photoURL,
+        });
+
+        if (actionResult.error || !actionResult.tenant) {
+            toast({
+                variant: 'destructive',
+                title: 'Login Failed',
+                description: actionResult.error || "Could not find or create a workspace.",
+            });
+            setIsAuthLoading(false);
+        } else {
+            router.push(`/${actionResult.tenant.subdomain}`);
+        }
+    } catch (error: any) {
+        toast({
+            variant: 'destructive',
+            title: 'Sign-in Error',
+            description: error.code === 'auth/invalid-credential' 
+                ? 'Invalid email or password.' 
+                : (error.message || 'An unknown error occurred.'),
+        });
+        setIsAuthLoading(false);
+    }
   };
 
+  const handleGoogleSignIn = async () => {
+    setIsAuthLoading(true);
+    const provider = new GoogleAuthProvider();
+    await signInWithRedirect(auth, provider);
+  };
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
@@ -84,21 +119,63 @@ export default function LoginPage() {
         </div>
         <Card className="w-full">
           <CardHeader>
-            <CardTitle>Welcome back</CardTitle>
+            <CardTitle>Welcome</CardTitle>
             <CardDescription>
-              Sign in to your workspace to continue.
+              Log in or continue as a guest to get started.
             </CardDescription>
           </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <Button onClick={handleGoogleSignIn} disabled={isLoading} variant="outline" className="w-full">
-                 {isLoading ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Image src="https://placehold.co/20x20.png" alt="Google logo" width={16} height={16} data-ai-hint="google logo" className="mr-2"/>
-                  )}
-                Continue with Google
+          <CardContent className="grid gap-4">
+            <form onSubmit={handleEmailSignIn} className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="name@example.com"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                disabled={isAuthLoading}
+              />
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                required
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={isAuthLoading}
+              />
+              <Button type="submit" className="w-full mt-2" disabled={isAuthLoading}>
+                {isAuthLoading && <Loader2 className="mr-2 animate-spin" />}
+                Login with Email
               </Button>
-            </CardContent>
+            </form>
+            
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-card px-2 text-muted-foreground">
+                  Or
+                </span>
+              </div>
+            </div>
+
+            <Button onClick={handleGoogleSignIn} disabled={isAuthLoading} variant="outline" className="w-full">
+              <Image src="https://placehold.co/20x20.png" alt="Google logo" width={16} height={16} data-ai-hint="google logo" className="mr-2"/>
+              Continue with SSO
+            </Button>
+            
+            <Button
+              variant="link"
+              className="w-full text-muted-foreground font-normal text-sm"
+              onClick={() => router.push('/megacorp')}
+              disabled={isAuthLoading}
+            >
+              Test without login
+            </Button>
+          </CardContent>
         </Card>
       </div>
     </div>
