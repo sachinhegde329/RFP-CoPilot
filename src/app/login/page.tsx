@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -180,7 +181,7 @@ export default function LoginPage() {
             </div>
 
             <Button asChild variant="secondary" className="w-full">
-                <Link href="/megacorp">Live Demo</Link>
+                <a href="/megacorp">Live Demo</a>
             </Button>
             
             <p className="text-center text-sm text-muted-foreground mt-2">
