@@ -17,12 +17,13 @@ import { FileBox, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 
-import { GoogleAuthProvider, signInWithRedirect, getRedirectResult, signInWithEmailAndPassword } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithRedirect, getRedirectResult, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { findOrCreateTenantForUserAction } from '@/app/actions';
 
-export default function LoginPage() {
-  const [isAuthLoading, setIsAuthLoading] = useState(true); // For redirect check and any auth action
+export default function SignUpPage() {
+  const [isAuthLoading, setIsAuthLoading] = useState(true);
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { toast } = useToast();
@@ -33,7 +34,6 @@ export default function LoginPage() {
         try {
             const result = await getRedirectResult(auth);
             if (result) {
-                // User successfully signed in and has been redirected back.
                 const user = result.user;
                 const actionResult = await findOrCreateTenantForUserAction({
                     uid: user.uid,
@@ -45,22 +45,21 @@ export default function LoginPage() {
                 if (actionResult.error || !actionResult.tenant) {
                     toast({
                         variant: 'destructive',
-                        title: 'Login Failed',
-                        description: actionResult.error || "Could not find or create a workspace for your account.",
+                        title: 'Sign Up Failed',
+                        description: actionResult.error || "Could not create a workspace for your account.",
                     });
                     setIsAuthLoading(false);
                 } else {
                     router.push(`/${actionResult.tenant.subdomain}`);
                 }
             } else {
-                // No redirect result, user has just loaded the page normally.
                 setIsAuthLoading(false);
             }
         } catch (error: any) {
             toast({
                 variant: 'destructive',
-                title: 'Sign-in Error',
-                description: error.message || 'An unknown error occurred during sign-in.',
+                title: 'Sign-up Error',
+                description: error.message || 'An unknown error occurred during sign-up.',
             });
             setIsAuthLoading(false);
         }
@@ -69,24 +68,28 @@ export default function LoginPage() {
     processRedirectResult();
   }, [router, toast]);
 
-  const handleEmailSignIn = async (e: React.FormEvent) => {
+  const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsAuthLoading(true);
     try {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
         const user = userCredential.user;
+
+        // Update user's profile with their name
+        await updateProfile(user, { displayName: name });
+
         const actionResult = await findOrCreateTenantForUserAction({
             uid: user.uid,
             email: user.email,
-            displayName: user.displayName,
+            displayName: name, // Use the name from the form
             photoURL: user.photoURL,
         });
 
         if (actionResult.error || !actionResult.tenant) {
             toast({
                 variant: 'destructive',
-                title: 'Login Failed',
-                description: actionResult.error || "Could not find or create a workspace.",
+                title: 'Sign Up Failed',
+                description: actionResult.error || "Could not create a workspace.",
             });
             setIsAuthLoading(false);
         } else {
@@ -95,9 +98,9 @@ export default function LoginPage() {
     } catch (error: any) {
         toast({
             variant: 'destructive',
-            title: 'Sign-in Error',
-            description: error.code === 'auth/invalid-credential' 
-                ? 'Invalid email or password.' 
+            title: 'Sign-up Error',
+            description: error.code === 'auth/email-already-in-use' 
+                ? 'This email is already in use. Please log in.' 
                 : (error.message || 'An unknown error occurred.'),
         });
         setIsAuthLoading(false);
@@ -119,13 +122,23 @@ export default function LoginPage() {
         </div>
         <Card className="w-full">
           <CardHeader>
-            <CardTitle>Welcome back</CardTitle>
+            <CardTitle>Create an account</CardTitle>
             <CardDescription>
-              Enter your credentials to access your workspace.
+              Enter your information to get started.
             </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
-            <form onSubmit={handleEmailSignIn} className="grid gap-2">
+            <form onSubmit={handleEmailSignUp} className="grid gap-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                type="text"
+                placeholder="Your name"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={isAuthLoading}
+              />
               <Label htmlFor="email">Email</Label>
               <Input
                 id="email"
@@ -140,15 +153,15 @@ export default function LoginPage() {
               <Input
                 id="password"
                 type="password"
-                required
                 placeholder="••••••••"
+                required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={isAuthLoading}
               />
               <Button type="submit" className="w-full mt-2" disabled={isAuthLoading}>
                 {isAuthLoading && <Loader2 className="mr-2 animate-spin" />}
-                Login
+                Create Account
               </Button>
             </form>
             
@@ -165,15 +178,16 @@ export default function LoginPage() {
 
             <Button onClick={handleGoogleSignIn} disabled={isAuthLoading} variant="outline" className="w-full">
               <Image src="https://placehold.co/20x20.png" alt="Google logo" width={16} height={16} data-ai-hint="google logo" className="mr-2"/>
-              Continue with SSO
+              Sign up with SSO
             </Button>
             
-            <p className="text-center text-sm text-muted-foreground">
-                Don't have an account?{' '}
-                <Link href="/signup" className="font-semibold text-primary hover:underline">
-                    Sign up
+             <p className="text-center text-sm text-muted-foreground">
+                Already have an account?{' '}
+                <Link href="/login" className="font-semibold text-primary hover:underline">
+                    Log in
                 </Link>
             </p>
+
           </CardContent>
         </Card>
       </div>

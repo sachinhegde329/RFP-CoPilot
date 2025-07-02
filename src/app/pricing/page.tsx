@@ -38,7 +38,7 @@ const plans = [
       "Community Support",
     ],
     buttonText: "Get Started for Free",
-    buttonLink: "/login",
+    buttonLink: "/signup",
   },
   {
     name: "Starter",
@@ -176,8 +176,8 @@ export default function PricingPage() {
                 </Link>
             </Button>
             <Button asChild>
-              <Link href="/login">
-                Get Started
+              <Link href="/signup">
+                Sign Up
               </Link>
             </Button>
           </div>
