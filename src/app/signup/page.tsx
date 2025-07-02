@@ -19,10 +19,11 @@ import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 
 import { GoogleAuthProvider, signInWithRedirect, getRedirectResult, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { useFirebase } from '@/components/providers/firebase-provider';
 import { findOrCreateTenantForUserAction } from '@/app/actions';
 
 export default function SignUpPage() {
+  const firebase = useFirebase();
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -31,6 +32,11 @@ export default function SignUpPage() {
   const router = useRouter();
 
   useEffect(() => {
+    if (!firebase) {
+      // Firebase might not be initialized yet, wait for the provider.
+      return;
+    }
+    const { auth } = firebase;
     const processRedirectResult = async () => {
         try {
             const result = await getRedirectResult(auth);
@@ -67,10 +73,12 @@ export default function SignUpPage() {
     };
     
     processRedirectResult();
-  }, [router, toast]);
+  }, [router, toast, firebase]);
 
   const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!firebase) return;
+    const { auth } = firebase;
     setIsAuthLoading(true);
     try {
         const userCredential = await createUserWithEmailAndPassword(auth, email, password);
@@ -109,10 +117,14 @@ export default function SignUpPage() {
   };
 
   const handleGoogleSignIn = async () => {
+    if (!firebase) return;
+    const { auth } = firebase;
     setIsAuthLoading(true);
     const provider = new GoogleAuthProvider();
     await signInWithRedirect(auth, provider);
   };
+  
+  const isFirebaseReady = !!firebase;
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
@@ -138,7 +150,7 @@ export default function SignUpPage() {
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                disabled={isAuthLoading}
+                disabled={isAuthLoading || !isFirebaseReady}
               />
               <Label htmlFor="email">Email</Label>
               <Input
@@ -148,7 +160,7 @@ export default function SignUpPage() {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                disabled={isAuthLoading}
+                disabled={isAuthLoading || !isFirebaseReady}
               />
               <Label htmlFor="password">Password</Label>
               <Input
@@ -158,10 +170,10 @@ export default function SignUpPage() {
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                disabled={isAuthLoading}
+                disabled={isAuthLoading || !isFirebaseReady}
               />
-              <Button type="submit" className="w-full mt-2" disabled={isAuthLoading}>
-                {isAuthLoading && <Loader2 className="mr-2 animate-spin" />}
+              <Button type="submit" className="w-full mt-2" disabled={isAuthLoading || !isFirebaseReady}>
+                {(isAuthLoading || !isFirebaseReady) && <Loader2 className="mr-2 animate-spin" />}
                 Create Account
               </Button>
             </form>
@@ -177,7 +189,7 @@ export default function SignUpPage() {
               </div>
             </div>
 
-            <Button onClick={handleGoogleSignIn} disabled={isAuthLoading} variant="outline" className="w-full">
+            <Button onClick={handleGoogleSignIn} disabled={isAuthLoading || !isFirebaseReady} variant="outline" className="w-full">
               <Image src="https://placehold.co/20x20.png" alt="Google logo" width={16} height={16} data-ai-hint="google logo" className="mr-2"/>
               Sign up with SSO
             </Button>
