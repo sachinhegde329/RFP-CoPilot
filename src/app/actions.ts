@@ -941,3 +941,16 @@ export async function deleteTemplateAction(tenantId: string, templateId: string,
         return { error: 'Failed to delete template.' };
     }
 }
+
+export async function getTenantBySubdomainAction(subdomain: string): Promise<{ tenant?: Tenant, error?: string }> {
+    try {
+        const tenant = await getTenantBySubdomain(subdomain);
+        if (!tenant) {
+            return { error: 'Tenant not found.' };
+        }
+        return { tenant: tenant }; // service already sanitizes data
+    } catch (e: any) {
+        console.error(`Action failed: getTenantBySubdomainAction for ${subdomain}`, e);
+        return { error: e.message || 'Failed to retrieve tenant information.' };
+    }
+}
