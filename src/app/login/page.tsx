@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
@@ -15,50 +15,63 @@ import { FileBox, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
 
-import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { findOrCreateTenantForUserAction } from '@/app/actions';
 
 
 export default function LoginPage() {
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Start as true to handle redirect check
   const { toast } = useToast();
   const router = useRouter();
+
+  useEffect(() => {
+    const processRedirectResult = async () => {
+        try {
+            const result = await getRedirectResult(auth);
+            if (result) {
+                // User successfully signed in and has been redirected back.
+                const user = result.user;
+                const actionResult = await findOrCreateTenantForUserAction({
+                    uid: user.uid,
+                    email: user.email,
+                    displayName: user.displayName,
+                    photoURL: user.photoURL,
+                });
+                
+                if (actionResult.error || !actionResult.tenant) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Login Failed',
+                        description: actionResult.error || "Could not find or create a workspace for your account.",
+                    });
+                    setIsLoading(false);
+                } else {
+                    router.push(`/${actionResult.tenant.subdomain}`);
+                }
+            } else {
+                // No redirect result, user has just loaded the page normally.
+                setIsLoading(false);
+            }
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Sign-in Error',
+                description: error.message || 'An unknown error occurred during sign-in.',
+            });
+            setIsLoading(false);
+        }
+    };
+    
+    processRedirectResult();
+  }, [router, toast]);
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
     const provider = new GoogleAuthProvider();
-    try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      if(user) {
-        const actionResult = await findOrCreateTenantForUserAction({
-            uid: user.uid,
-            email: user.email,
-            displayName: user.displayName,
-            photoURL: user.photoURL,
-        });
-        
-        if (actionResult.error || !actionResult.tenant) {
-            toast({
-                variant: 'destructive',
-                title: 'Login Failed',
-                description: actionResult.error || "Could not find or create a workspace for your account.",
-            });
-             setIsLoading(false);
-        } else {
-            router.push(`/${actionResult.tenant.subdomain}`);
-        }
-      }
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Sign-in Error',
-        description: error.message || 'An unknown error occurred during sign-in.',
-      });
-      setIsLoading(false);
-    }
+    // This will redirect the user to the Google sign-in page.
+    // The result is handled by the useEffect hook when they are redirected back.
+    await signInWithRedirect(auth, provider);
   };
 
 
