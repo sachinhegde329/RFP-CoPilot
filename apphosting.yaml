@@ -14,8 +14,33 @@ secretEnv:
     secret: GEMINI_API_KEY
   - key: STRIPE_SECRET_KEY
     secret: STRIPE_SECRET_KEY
+  - key: STRIPE_WEBHOOK_SECRET
+    secret: STRIPE_WEBHOOK_SECRET
   - key: CRON_SECRET
     secret: CRON_SECRET
-  # Add other secrets for connectors as needed
-  # - key: GOOGLE_CLIENT_SECRET
-  #   secret: GOOGLE_CLIENT_SECRET
+  - key: GOOGLE_CLIENT_ID
+    secret: GOOGLE_CLIENT_ID
+  - key: GOOGLE_CLIENT_SECRET
+    secret: GOOGLE_CLIENT_SECRET
+  - key: MICROSOFT_CLIENT_ID
+    secret: MICROSOFT_CLIENT_ID
+  - key: MICROSOFT_CLIENT_SECRET
+    secret: MICROSOFT_CLIENT_SECRET
+  - key: OKTA_CLIENT_ID
+    secret: OKTA_CLIENT_ID
+  - key: OKTA_DOMAIN
+    secret: OKTA_DOMAIN
+  - key: DROPBOX_APP_KEY
+    secret: DROPBOX_APP_KEY
+  - key: DROPBOX_APP_SECRET
+    secret: DROPBOX_APP_SECRET
+  - key: GITHUB_TOKEN
+    secret: GITHUB_TOKEN
+  - key: CONFLUENCE_URL
+    secret: CONFLUENCE_URL
+  - key: CONFLUENCE_USERNAME
+    secret: CONFLUENCE_USERNAME
+  - key: CONFLUENCE_API_TOKEN
+    secret: CONFLUENCE_API_TOKEN
+  - key: NOTION_API_KEY
+    secret: NOTION_API_KEY
