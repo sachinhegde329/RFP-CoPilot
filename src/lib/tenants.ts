@@ -87,26 +87,31 @@ export async function findOrCreateTenantForUser(user: User): Promise<Tenant | nu
 }
 
 export async function getTenantBySubdomain(subdomain: string): Promise<Tenant | null> {
-    const tenantDocRef = doc(db, 'tenants', subdomain);
-    const tenantDoc = await getDoc(tenantDocRef);
+    try {
+        const tenantDocRef = doc(db, 'tenants', subdomain);
+        const tenantDoc = await getDoc(tenantDocRef);
 
-    if (!tenantDoc.exists()) {
-        // As a fallback, create a demo tenant if 'megacorp' is accessed but doesn't exist
-        if (subdomain === 'megacorp') {
-             const demoUser = { uid: 'demo-user-id', email: 'alex.j@megacorp.com', displayName: 'Alex Johnson', photoURL: 'https://placehold.co/100x100.png' } as User;
-             const demoTenant = await createFreeTenant(demoUser, 'megacorp');
-             const demoDocRef = doc(db, 'tenants', demoTenant.id);
-             await updateDoc(demoDocRef, { name: 'MegaCorp (Demo)', plan: 'team' });
-             const finalTenant = await getDoc(demoDocRef);
-             const tenantData = finalTenant.data() as Omit<Tenant, 'limits'>;
-             return sanitizeData({ ...tenantData, id: finalTenant.id, limits: getLimitsForTenant(tenantData) });
+        if (!tenantDoc.exists()) {
+            // As a fallback, create a demo tenant if 'megacorp' is accessed but doesn't exist
+            if (subdomain === 'megacorp') {
+                const demoUser = { uid: 'demo-user-id', email: 'alex.j@megacorp.com', displayName: 'Alex Johnson', photoURL: 'https://placehold.co/100x100.png' } as User;
+                const demoTenant = await createFreeTenant(demoUser, 'megacorp');
+                const demoDocRef = doc(db, 'tenants', demoTenant.id);
+                await updateDoc(demoDocRef, { name: 'MegaCorp (Demo)', plan: 'team' });
+                const finalTenant = await getDoc(demoDocRef);
+                const tenantData = finalTenant.data() as Omit<Tenant, 'limits'>;
+                return sanitizeData({ ...tenantData, id: finalTenant.id, limits: getLimitsForTenant(tenantData) });
+            }
+            return null;
         }
+        
+        const tenantData = tenantDoc.data() as Omit<Tenant, 'limits'>;
+        const tenantWithData = { ...tenantData, id: tenantDoc.id, limits: getLimitsForTenant(tenantData) };
+        return sanitizeData(tenantWithData);
+    } catch (error) {
+        console.error(`Error fetching tenant '${subdomain}':`, error);
         return null;
     }
-    
-    const tenantData = tenantDoc.data() as Omit<Tenant, 'limits'>;
-    const tenantWithData = { ...tenantData, id: tenantDoc.id, limits: getLimitsForTenant(tenantData) };
-    return sanitizeData(tenantWithData);
 }
 
 export async function updateTenant(tenantId: string, updates: Partial<Omit<Tenant, 'id' | 'subdomain' | 'limits'>>): Promise<Tenant | null> {
