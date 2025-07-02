@@ -1,24 +1,29 @@
+
 rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Allow anyone to read the basic tenant document.
-    // This is required for subdomain routing and initial page load.
     match /tenants/{tenantId} {
+      // Allow anyone to read any tenant document.
+      // This is necessary for the initial layout load to resolve the subdomain.
       allow read: if true;
-      // Only authenticated users can update a tenant document.
-      // In a real app, you would add role-based checks here (e.g., owner/admin).
-      allow write: if request.auth != null;
-    }
+      
+      // Allow creating or updating the 'megacorp' demo tenant by anyone.
+      // For all other tenants, these actions require authentication.
+      allow create, update: if tenantId == 'megacorp' || request.auth != null;
+      
+      // Deleting a tenant requires authentication.
+      allow delete: if request.auth != null;
 
-    // Secure all subcollections within a tenant.
-    // Only authenticated users can access the data within a tenant.
-    // NOTE: This rule does not prevent one authenticated user from reading another tenant's
-    // data. For a multi-tenant production app, you must implement rules that
-    // verify the user is a member of the specific tenant they are trying to access.
-    match /tenants/{tenantId}/{subcollection}/{docId=**} {
-      allow read, write: if request.auth != null;
+      // Rules for subcollections within a tenant (e.g., rfps, knowledge_chunks)
+      match /{subcollection}/{docId} {
+        // Public read for the demo tenant's subcollections.
+        // Authenticated read for all other tenants' subcollections.
+        allow read: if tenantId == 'megacorp' || request.auth != null;
+
+        // Writing to any subcollection requires authentication.
+        allow write: if request.auth != null;
+      }
     }
   }
 }
