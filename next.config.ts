@@ -26,11 +26,6 @@ const nextConfig: NextConfig = {
     '@octokit/rest',
     '@notionhq/client',
   ],
-  devIndicators: {
-    allowedDevOrigins: [
-        'https://6000-firebase-studio-1751210223860.cluster-nzwlpk54dvagsxetkvxzbvslyi.cloudworkstations.dev'
-    ]
-  }
 };
 
 export default nextConfig;
