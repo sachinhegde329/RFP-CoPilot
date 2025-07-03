@@ -14,7 +14,7 @@ The live demo provides a pre-configured workspace with sample data, allowing you
 
 **How to Access:**
 1.  From the login or sign-up page, click the **"Live Demo"** button.
-2.  You will be taken directly to the `megacorp` workspace dashboard.
+2.  You will be taken directly to the `megacorp` workspace.
 
 **What to Test:**
 *   **Process an RFP:** On the main dashboard, paste some sample text into the text area and click **"Process RFP"**. A new RFP will be created and selected.
@@ -54,3 +54,34 @@ This path lets you experience the application as a new user, starting with a bla
     *   Observe how the AI uses the information from the document you just uploaded, citing it as a source.
 *   **Explore Your Workspace:**
     *   Navigate to the **Settings** pages to configure your workspace name, invite team members, and see how a new environment is managed.
+
+## Deploying to Vercel
+
+This Next.js application is configured to deploy seamlessly to Vercel.
+
+### 1. Push to a Git Repository
+Deploying to Vercel starts with a Git repository. Push your code to a provider like GitHub, GitLab, or Bitbucket.
+
+### 2. Create a Vercel Project
+1.  Go to your Vercel dashboard and click **"Add New... > Project"**.
+2.  Import the Git repository you just created.
+3.  Vercel will automatically detect that you're using Next.js and configure the build settings.
+
+### 3. Configure Environment Variables
+This is the most important step. Your application relies on several services, which are configured using environment variables.
+1.  In your new Vercel project, go to the **Settings** tab and click on **Environment Variables**.
+2.  Copy all the variables from your local `.env` file and add them to your Vercel project.
+    *   **`GEMINI_API_KEY`**: Your API key for Google AI services.
+    *   **`FIREBASE_CONFIG`**: The full JSON configuration object for your Firebase project.
+    *   **`STRIPE_SECRET_KEY`** & **`STRIPE_WEBHOOK_SECRET`**: Your Stripe API keys.
+    *   **`NEXT_PUBLIC_ROOT_DOMAIN`**: The root domain of your application (e.g., `rfpcopilot.com`). This is crucial for subdomain routing to work correctly.
+    *   Any other OAuth or service keys you are using (e.g., `GOOGLE_CLIENT_ID`, `DROPBOX_APP_SECRET`).
+
+### 4. Update Redirect URIs and Webhooks
+After your first deployment, Vercel will assign you a production URL (e.g., `your-project.vercel.app`). You must update the settings in your third-party services to use this new URL:
+*   **Firebase Authentication**: In your Firebase project settings, add the new Vercel domain to the list of authorized domains.
+*   **OAuth Providers (Google, Microsoft, etc.)**: In each provider's developer console, add the new OAuth callback URLs (e.g., `https://your-project.vercel.app/api/auth/google/callback`) to the list of authorized redirect URIs.
+*   **Stripe**: In your Stripe dashboard, update the webhook endpoint to point to `https://your-project.vercel.app/api/webhooks/stripe`.
+
+### 5. Deploy
+With your environment variables set, trigger a new deployment from your Vercel project dashboard. Vercel will build and deploy your application.
