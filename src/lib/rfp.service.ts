@@ -1,127 +1,10 @@
 
 import { getTenantBySubdomain } from './tenants';
 import type { TeamMember } from './tenant-types';
-import { db } from './firebase';
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, type DocumentSnapshot } from 'firebase/firestore';
 import type { Question, RFP } from './rfp-types';
 
-// NOTE: This service is now migrated to use Firestore for data persistence.
-
-/**
- * A robust way to convert Firestore-specific types (like Timestamps) to plain JSON.
- * This prevents serialization errors when passing data from Server to Client Components.
- * @param data The data to be sanitized.
- * @returns A clean, serializable object.
- */
-function sanitizeData<T>(data: T): T {
-    return JSON.parse(JSON.stringify(data));
-}
-
-class RfpService {
-
-    private getRfpsCollection(tenantId: string) {
-        return collection(db, 'tenants', tenantId, 'rfps');
-    }
-
-    public async getRfps(tenantId: string): Promise<RFP[]> {
-        const rfpsCollection = this.getRfpsCollection(tenantId);
-        const snapshot = await getDocs(query(rfpsCollection));
-        if (snapshot.empty) {
-            // Seed data for megacorp demo tenant
-            if (tenantId === 'megacorp') {
-                const tenant = await getTenantBySubdomain('megacorp');
-                if (!tenant) return [];
-                const sampleQuestions = getSampleQuestions(tenant.members);
-                const rfpsToSeed: RFP[] = [
-                    { id: 'rfp-1', name: 'Q3 Enterprise Security RFP', status: 'Open', questions: sampleQuestions, topics: ['security', 'compliance', 'enterprise'] },
-                    { id: 'rfp-2', name: 'Project Titan Proposal', status: 'Draft', questions: [sampleQuestions[3], sampleQuestions[2]], topics: ['product', 'pricing'] },
-                    { id: 'rfp-3', name: '2023 Compliance Audit', status: 'Completed', questions: [sampleQuestions[0], sampleQuestions[1]], topics: ['security', 'legal', 'audit'] },
-                ];
-                for (const rfp of rfpsToSeed) {
-                    await setDoc(doc(rfpsCollection, rfp.id), rfp);
-                }
-                // Seeded data is clean, but sanitize for consistency.
-                return sanitizeData(rfpsToSeed);
-            }
-            return [];
-        }
-        
-        // Manually reconstruct objects to guarantee they are plain data and avoid serialization issues.
-        const rfps = snapshot.docs.map(docSnap => {
-            const data = docSnap.data();
-            return {
-                id: docSnap.id,
-                name: data.name,
-                status: data.status,
-                questions: data.questions || [],
-                topics: data.topics || [],
-            } as RFP;
-        });
-
-        return sanitizeData(rfps);
-    }
-    
-    public async getRfp(tenantId: string, rfpId: string): Promise<RFP | undefined> {
-        const rfpDoc = await getDoc(doc(this.getRfpsCollection(tenantId), rfpId));
-        if (!rfpDoc.exists()) return undefined;
-
-        const data = rfpDoc.data();
-        const rfp = {
-            id: rfpDoc.id,
-            name: data.name,
-            status: data.status,
-            questions: data.questions || [],
-            topics: data.topics || [],
-        } as RFP;
-        
-        return sanitizeData(rfp);
-    }
-
-    public async updateQuestion(tenantId: string, rfpId: string, questionId: number, updates: Partial<Question>): Promise<Question | null> {
-        const rfp = await this.getRfp(tenantId, rfpId);
-        if (!rfp) return null;
-        
-        const questionIndex = rfp.questions.findIndex(q => q.id === questionId);
-        if (questionIndex > -1) {
-            const updatedQuestion = { ...rfp.questions[questionIndex], ...updates };
-            rfp.questions[questionIndex] = updatedQuestion;
-            // rfp is already sanitized from the getRfp call
-            await updateDoc(doc(this.getRfpsCollection(tenantId), rfpId), { questions: rfp.questions });
-            return sanitizeData(updatedQuestion);
-        }
-        return null;
-    }
-
-    public async addRfp(tenantId: string, name: string, questions: Question[], topics: string[] = []): Promise<RFP> {
-        const newRfpId = `rfp-${Date.now()}`;
-        const newRfp: RFP = {
-            id: newRfpId,
-            name,
-            questions,
-            status: 'Draft',
-            topics,
-        };
-        await setDoc(doc(this.getRfpsCollection(tenantId), newRfpId), newRfp);
-        return newRfp;
-    }
-
-    public async addQuestion(tenantId: string, rfpId: string, questionData: Omit<Question, 'id'>): Promise<Question> {
-        const rfp = await this.getRfp(tenantId, rfpId);
-        if (!rfp) throw new Error("RFP not found");
-
-        const questions = rfp.questions;
-        const newId = questions.length > 0 ? Math.max(...questions.map(q => q.id)) + 1 : 1;
-        const newQuestion: Question = {
-            ...questionData,
-            id: newId,
-        };
-        questions.push(newQuestion);
-        await updateDoc(doc(this.getRfpsCollection(tenantId), rfpId), { questions: questions });
-        return newQuestion;
-    }
-}
-
-export const rfpService = new RfpService();
+// NOTE: With Firebase removed, this service now uses a temporary in-memory store.
+// Data will NOT persist across server restarts.
 
 const getSampleQuestions = (members: TeamMember[]): Question[] => [
     {
@@ -161,3 +44,88 @@ const getSampleQuestions = (members: TeamMember[]): Question[] => [
       status: 'Completed'
     }
 ];
+
+let inMemoryRfps: RFP[] = [];
+
+// Seed data function to be called when needed
+const initializeDemoData = async () => {
+    if (inMemoryRfps.length === 0) {
+        const tenant = await getTenantBySubdomain('megacorp');
+        if (tenant) {
+            const sampleQuestions = getSampleQuestions(tenant.members);
+            inMemoryRfps = [
+                { id: 'rfp-1', name: 'Q3 Enterprise Security RFP', status: 'Open', questions: sampleQuestions, topics: ['security', 'compliance', 'enterprise'] },
+                { id: 'rfp-2', name: 'Project Titan Proposal', status: 'Draft', questions: [sampleQuestions[3], sampleQuestions[2]], topics: ['product', 'pricing'] },
+                { id: 'rfp-3', name: '2023 Compliance Audit', status: 'Completed', questions: [sampleQuestions[0], sampleQuestions[1]], topics: ['security', 'legal', 'audit'] },
+            ];
+        }
+    }
+};
+
+class RfpService {
+
+    public async getRfps(tenantId: string): Promise<RFP[]> {
+        if (tenantId === 'megacorp') {
+            await initializeDemoData();
+            return [...inMemoryRfps];
+        }
+        return [];
+    }
+    
+    public async getRfp(tenantId: string, rfpId: string): Promise<RFP | undefined> {
+        if (tenantId === 'megacorp') {
+            await initializeDemoData();
+            return inMemoryRfps.find(r => r.id === rfpId);
+        }
+        return undefined;
+    }
+
+    public async updateQuestion(tenantId: string, rfpId: string, questionId: number, updates: Partial<Question>): Promise<Question | null> {
+        const rfp = await this.getRfp(tenantId, rfpId);
+        if (!rfp) return null;
+        
+        const rfpIndex = inMemoryRfps.findIndex(r => r.id === rfpId);
+        if (rfpIndex === -1) return null;
+        
+        const questionIndex = inMemoryRfps[rfpIndex].questions.findIndex(q => q.id === questionId);
+        if (questionIndex > -1) {
+            const updatedQuestion = { ...inMemoryRfps[rfpIndex].questions[questionIndex], ...updates };
+            inMemoryRfps[rfpIndex].questions[questionIndex] = updatedQuestion;
+            return updatedQuestion;
+        }
+        return null;
+    }
+
+    public async addRfp(tenantId: string, name: string, questions: Question[], topics: string[] = []): Promise<RFP> {
+        const newRfp: RFP = {
+            id: `rfp-${Date.now()}`,
+            name,
+            questions,
+            status: 'Draft',
+            topics,
+        };
+        if (tenantId === 'megacorp') {
+            inMemoryRfps.unshift(newRfp);
+        }
+        return newRfp;
+    }
+
+    public async addQuestion(tenantId: string, rfpId: string, questionData: Omit<Question, 'id'>): Promise<Question> {
+        const rfp = await this.getRfp(tenantId, rfpId);
+        if (!rfp) throw new Error("RFP not found");
+
+        const rfpIndex = inMemoryRfps.findIndex(r => r.id === rfpId);
+        if (rfpIndex === -1) throw new Error("RFP not found");
+
+        const questions = inMemoryRfps[rfpIndex].questions;
+        const newId = questions.length > 0 ? Math.max(...questions.map(q => q.id)) + 1 : 1;
+        const newQuestion: Question = {
+            ...questionData,
+            id: newId,
+        };
+        inMemoryRfps[rfpIndex].questions.push(newQuestion);
+        return newQuestion;
+    }
+}
+
+export const rfpService = new RfpService();

@@ -2,12 +2,9 @@
 import { embeddingService } from './embedding.service';
 import { getConnectorService } from './connectors';
 import { tagContent } from '@/ai/flows/tag-content-flow';
-import { db } from './firebase';
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, query, where, writeBatch, addDoc } from 'firebase/firestore';
 
-
-// NOTE: This service is now migrated to use Firestore for data persistence.
-// Vector search is still simulated in-memory for this prototype.
+// NOTE: With Firebase removed, this service now uses a temporary in-memory store.
+// Data will NOT persist across server restarts or be shared across requests.
 
 export type DataSourceType = 'website' | 'document' | 'confluence' | 'sharepoint' | 'gdrive' | 'notion' | 'github' | 'dropbox';
 export type SyncStatus = 'Synced' | 'Syncing' | 'Error' | 'Pending';
@@ -56,61 +53,48 @@ export interface SearchFilters {
     tags?: string[];
 }
 
-function sanitizeData<T>(data: T): T {
-  return JSON.parse(JSON.stringify(data));
-}
+// In-memory store for demo purposes
+const inMemorySources: DataSource[] = [];
+const inMemoryChunks: DocumentChunk[] = [];
 
 class KnowledgeBaseService {
-  private getSourcesCollection(tenantId: string) {
-    return collection(db, 'tenants', tenantId, 'knowledge_sources');
-  }
-
-  private getChunksCollection(tenantId: string) {
-    return collection(db, 'tenants', tenantId, 'knowledge_chunks');
-  }
 
   // == SOURCE MANAGEMENT ==
   public async getAllDataSources(): Promise<DataSource[]> {
-    const tenantsCollection = collection(db, 'tenants');
-    const tenantsSnapshot = await getDocs(tenantsCollection);
-    let allSources: DataSource[] = [];
-
-    for (const tenantDoc of tenantsSnapshot.docs) {
-      const sourcesSnapshot = await getDocs(this.getSourcesCollection(tenantDoc.id));
-      const sources = sourcesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DataSource));
-      allSources = allSources.concat(sources);
-    }
-    return sanitizeData(allSources);
+    return [...inMemorySources];
   }
   
   public async getDataSources(tenantId: string): Promise<DataSource[]> {
-    const sourcesSnapshot = await getDocs(this.getSourcesCollection(tenantId));
-    const sources = sourcesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DataSource));
-    return sanitizeData(sources.sort((a, b) => a.name.localeCompare(b.name)));
+    return inMemorySources.filter(s => s.tenantId === tenantId).sort((a, b) => a.name.localeCompare(b.name));
   }
 
   public async getDataSource(tenantId: string, sourceId: string): Promise<DataSource | undefined> {
-    const sourceDoc = await getDoc(doc(this.getSourcesCollection(tenantId), sourceId));
-    if (!sourceDoc.exists()) return undefined;
-    return sanitizeData({ id: sourceDoc.id, ...sourceDoc.data() } as DataSource);
+    return inMemorySources.find(s => s.tenantId === tenantId && s.id === sourceId);
   }
 
   public async addDataSource(sourceData: Omit<DataSource, 'id'>): Promise<DataSource> {
-    const { tenantId, ...rest } = sourceData;
-    const newSourceRef = await addDoc(this.getSourcesCollection(tenantId), rest);
-    return { id: newSourceRef.id, ...sourceData };
+    const newSource = { id: `source-${Date.now()}`, ...sourceData };
+    inMemorySources.push(newSource);
+    return newSource;
   }
   
   public async updateDataSource(tenantId: string, sourceId: string, updates: Partial<DataSource>): Promise<DataSource | undefined> {
-    const sourceRef = doc(this.getSourcesCollection(tenantId), sourceId);
-    await updateDoc(sourceRef, updates);
-    return this.getDataSource(tenantId, sourceId);
+    const sourceIndex = inMemorySources.findIndex(s => s.tenantId === tenantId && s.id === sourceId);
+    if (sourceIndex > -1) {
+      inMemorySources[sourceIndex] = { ...inMemorySources[sourceIndex], ...updates };
+      return inMemorySources[sourceIndex];
+    }
+    return undefined;
   }
 
   public async deleteDataSource(tenantId: string, sourceId: string): Promise<boolean> {
     await this.deleteChunksBySourceId(tenantId, sourceId);
-    await deleteDoc(doc(this.getSourcesCollection(tenantId), sourceId));
-    return true;
+    const sourceIndex = inMemorySources.findIndex(s => s.tenantId === tenantId && s.id === sourceId);
+    if (sourceIndex > -1) {
+      inMemorySources.splice(sourceIndex, 1);
+      return true;
+    }
+    return false;
   }
 
   private cosineSimilarity(vecA: number[], vecB: number[]): number {
@@ -129,7 +113,6 @@ class KnowledgeBaseService {
   // == CHUNK MANAGEMENT ==
   public async addChunks(tenantId: string, sourceId: string, sourceType: DataSourceType, title: string, chunks: string[], url?: string, additionalMetadata: Record<string, any> = {}) {
     if (chunks.length === 0) return;
-    const chunksCollection = this.getChunksCollection(tenantId);
 
     const processingPromises = chunks.map(content => Promise.all([
         embeddingService.generateEmbedding(content),
@@ -137,9 +120,9 @@ class KnowledgeBaseService {
     ]));
     const processedChunksData = await Promise.all(processingPromises);
       
-    const batch = writeBatch(db);
     processedChunksData.forEach(([embedding, tagResult], index) => {
-        const newChunk: Omit<DocumentChunk, 'id'> = {
+        const newChunk: DocumentChunk = {
+            id: `chunk-${Date.now()}-${index}`,
             tenantId,
             sourceId,
             title,
@@ -148,33 +131,22 @@ class KnowledgeBaseService {
             tags: tagResult.tags,
             metadata: { sourceType, url, chunkIndex: index, ...additionalMetadata }
         };
-        const chunkRef = doc(chunksCollection);
-        batch.set(chunkRef, newChunk);
+        inMemoryChunks.push(newChunk);
     });
-    await batch.commit();
   }
 
   public async deleteChunksBySourceId(tenantId: string, sourceId:string): Promise<boolean> {
-    const q = query(this.getChunksCollection(tenantId), where('sourceId', '==', sourceId));
-    const snapshot = await getDocs(q);
-    if (snapshot.empty) return true;
-
-    const batch = writeBatch(db);
-    snapshot.docs.forEach(doc => batch.delete(doc.ref));
-    await batch.commit();
-    return true;
+    const initialLength = inMemoryChunks.length;
+    const filteredChunks = inMemoryChunks.filter(c => !(c.tenantId === tenantId && c.sourceId === sourceId));
+    inMemoryChunks.length = 0; // Clear the array
+    Array.prototype.push.apply(inMemoryChunks, filteredChunks); // Push back remaining items
+    return inMemoryChunks.length < initialLength;
   }
 
   public async searchChunks(tenantId: string, queryText: string, filters: SearchFilters = {}): Promise<DocumentChunk[]> {
     const { topK = 5, sourceTypes, tags } = filters;
-    const chunksCollection = this.getChunksCollection(tenantId);
-
-    // This is still a "fetch all then filter" approach due to Firestore's limitations for vector search.
-    // In a production app with a real vector DB, this query would be much more efficient.
-    const chunksSnapshot = await getDocs(chunksCollection);
-    let potentialChunks = chunksSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as DocumentChunk));
+    let potentialChunks = inMemoryChunks.filter(c => c.tenantId === tenantId && c.embedding);
     
-    potentialChunks = potentialChunks.filter(chunk => chunk.embedding);
     if (potentialChunks.length === 0 || !queryText) return [];
 
     if (sourceTypes && sourceTypes.length > 0) {
@@ -196,7 +168,7 @@ class KnowledgeBaseService {
     }));
     
     scoredChunks.sort((a, b) => b.score - a.score);
-    return sanitizeData(scoredChunks.slice(0, topK));
+    return scoredChunks.slice(0, topK);
   }
 
   // == SYNCING & LOGGING ==

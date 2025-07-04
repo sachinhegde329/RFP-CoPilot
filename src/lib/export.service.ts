@@ -1,10 +1,9 @@
 
-import { collection, doc, addDoc, getDocs, query, orderBy } from 'firebase/firestore';
-import { db } from './firebase';
 import type { Role } from './tenant-types';
 import type { Question } from './rfp-types';
 
-// NOTE: This service is now migrated to use Firestore for data persistence.
+// NOTE: With Firebase removed, this service now uses a temporary in-memory store.
+// Data will NOT persist across server restarts.
 
 export interface ExportRecord {
     id: string;
@@ -23,33 +22,25 @@ export interface ExportRecord {
     acknowledgments: { name:string; role: string; comment: string; }[];
 }
 
-function sanitizeData<T>(data: T): T {
-    return JSON.parse(JSON.stringify(data));
-}
+const inMemoryExportHistory: ExportRecord[] = [];
 
 class ExportService {
-    private getExportsCollection(tenantId: string, rfpId: string) {
-        return collection(db, 'tenants', tenantId, 'rfps', rfpId, 'exports');
-    }
 
     public async addExportRecord(tenantId: string, record: Omit<ExportRecord, 'id' | 'tenantId'>): Promise<ExportRecord> {
-        const exportsCollection = this.getExportsCollection(tenantId, record.rfpId);
-        const newRecordRef = await addDoc(exportsCollection, record);
-        
         const newRecord: ExportRecord = {
             ...record,
-            id: newRecordRef.id,
+            id: `export-${Date.now()}`,
             tenantId,
         };
+        inMemoryExportHistory.push(newRecord);
         return newRecord;
     }
 
     public async getExportHistory(tenantId: string, rfpId: string): Promise<ExportRecord[]> {
-        const exportsCollection = this.getExportsCollection(tenantId, rfpId);
-        const q = query(exportsCollection, orderBy('exportedAt', 'desc'));
-        const snapshot = await getDocs(q);
-        const history = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ExportRecord));
-        return sanitizeData(history);
+        const history = inMemoryExportHistory
+            .filter(r => r.tenantId === tenantId && r.rfpId === rfpId)
+            .sort((a, b) => new Date(b.exportedAt).getTime() - new Date(a.exportedAt).getTime());
+        return history;
     }
 }
 

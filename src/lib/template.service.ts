@@ -1,8 +1,7 @@
 
-import { db } from './firebase';
-import { collection, doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc } from 'firebase/firestore';
 
-// NOTE: This service is now migrated to use Firestore for data persistence.
+// NOTE: With Firebase removed, this service now uses an in-memory store
+// for custom templates, which will not persist. System templates are hardcoded.
 
 export type TemplateType = 'System' | 'Custom';
 export type TemplateIcon = 'FileText' | 'FileJson' | 'Blocks';
@@ -24,15 +23,10 @@ export interface Template {
   structure: TemplateSection[];
 }
 
-function sanitizeData<T>(data: T): T {
-    return JSON.parse(JSON.stringify(data));
-}
+const inMemoryCustomTemplates: Template[] = [];
 
 class TemplateService {
-    private getTemplatesCollection(tenantId: string) {
-        return collection(db, 'tenants', tenantId, 'templates');
-    }
-
+    
     private getSystemTemplates(tenantId: string): Template[] {
         return [
             {
@@ -78,34 +72,30 @@ class TemplateService {
 
     public async getTemplates(tenantId: string): Promise<Template[]> {
         const systemTemplates = this.getSystemTemplates(tenantId);
-        const templatesSnapshot = await getDocs(this.getTemplatesCollection(tenantId));
-        const customTemplates = templatesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Template));
-        return sanitizeData([...systemTemplates, ...customTemplates]);
+        const customTemplates = inMemoryCustomTemplates.filter(t => t.tenantId === tenantId);
+        return [...systemTemplates, ...customTemplates];
     }
 
     public async getTemplate(tenantId: string, templateId: string): Promise<Template | undefined> {
         if (templateId.startsWith('system-')) {
             return this.getSystemTemplates(tenantId).find(t => t.id === templateId);
         }
-        const templateDoc = await getDoc(doc(this.getTemplatesCollection(tenantId), templateId));
-        if (!templateDoc.exists()) return undefined;
-        return sanitizeData({ id: templateDoc.id, ...templateDoc.data() } as Template);
+        return inMemoryCustomTemplates.find(t => t.tenantId === tenantId && t.id === templateId);
     }
 
     public async updateTemplate(tenantId: string, templateId: string, data: Partial<Pick<Template, 'name' | 'description' | 'structure'>>): Promise<Template | null> {
-        const templateRef = doc(this.getTemplatesCollection(tenantId), templateId);
-        const templateSnap = await getDoc(templateRef);
-        if (!templateSnap.exists() || (templateSnap.data() as Template).type === 'System') {
-            return null;
+        const templateIndex = inMemoryCustomTemplates.findIndex(t => t.id === templateId && t.tenantId === tenantId);
+        if (templateIndex > -1) {
+            inMemoryCustomTemplates[templateIndex] = { ...inMemoryCustomTemplates[templateIndex], ...data };
+            return inMemoryCustomTemplates[templateIndex];
         }
-        await updateDoc(templateRef, data);
-        const updatedDoc = await getDoc(templateRef);
-        return sanitizeData({ id: updatedDoc.id, ...updatedDoc.data() } as Template);
+        return null; // Can't update system templates
     }
 
     public async createTemplate(tenantId: string, data: { name: string, description: string }): Promise<Template> {
-        const newTemplateData: Omit<Template, 'id'> = {
+        const newTemplate: Template = {
             ...data,
+            id: `custom-${Date.now()}`,
             tenantId,
             type: 'Custom',
             icon: 'Blocks',
@@ -114,32 +104,34 @@ class TemplateService {
                 { id: `c2-${Date.now()}`, type: 'qa_list_by_category', content: '*' },
             ],
         };
-        const newTemplateRef = await addDoc(this.getTemplatesCollection(tenantId), newTemplateData);
-        return { ...newTemplateData, id: newTemplateRef.id };
+        inMemoryCustomTemplates.push(newTemplate);
+        return newTemplate;
     }
 
     public async duplicateTemplate(tenantId: string, templateId: string): Promise<Template | null> {
         const sourceTemplate = await this.getTemplate(tenantId, templateId);
         if (!sourceTemplate) return null;
 
-        const newTemplateData: Omit<Template, 'id'> = {
+        const newTemplate: Template = {
             ...sourceTemplate,
+            id: `custom-${Date.now()}`,
             name: `${sourceTemplate.name} (Copy)`,
             type: 'Custom',
             icon: 'Blocks',
             structure: sourceTemplate.structure.map(section => ({...section, id: `section-${Date.now()}-${Math.random()}`}))
         };
         
-        const newTemplateRef = await addDoc(this.getTemplatesCollection(tenantId), newTemplateData);
-        return { ...newTemplateData, id: newTemplateRef.id };
+        inMemoryCustomTemplates.push(newTemplate);
+        return newTemplate;
     }
 
     public async deleteTemplate(tenantId: string, templateId: string): Promise<boolean> {
-        const template = await this.getTemplate(tenantId, templateId);
-        if (!template || template.type === 'System') return false;
-
-        await deleteDoc(doc(this.getTemplatesCollection(tenantId), templateId));
-        return true;
+        const templateIndex = inMemoryCustomTemplates.findIndex(t => t.id === templateId && t.tenantId === tenantId);
+        if (templateIndex > -1) {
+            inMemoryCustomTemplates.splice(templateIndex, 1);
+            return true;
+        }
+        return false; // Can't delete system templates
     }
 }
 
