@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect } from "react"
-import { useRouter, usePathname } from "next/navigation"
+import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { RfpSummaryCard } from "@/components/dashboard/rfp-summary-card"
 import { QAndAList } from "@/components/dashboard/q-and-a-list"
@@ -24,10 +24,6 @@ type Attachment = {
   type: string;
   url: string;
 };
-
-type HomepageClientProps = {
-  searchParams: { [key: string]: string | string[] | undefined };
-}
 
 function DashboardSkeleton() {
     return (
@@ -60,10 +56,11 @@ function DashboardSkeleton() {
     )
 }
 
-export function HomepageClient({ searchParams }: HomepageClientProps) {
+export function HomepageClient() {
   const { tenant } = useTenant();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   
   const [rfps, setRfps] = useState<RFP[]>([]);
   const [selectedRfp, setSelectedRfp] = useState<RFP | undefined>();
@@ -93,7 +90,7 @@ export function HomepageClient({ searchParams }: HomepageClientProps) {
 
   useEffect(() => {
     // This effect handles selection changes after the initial load or URL changes
-    const rfpIdFromUrl = typeof searchParams.rfpId === 'string' ? searchParams.rfpId : undefined;
+    const rfpIdFromUrl = searchParams.get('rfpId');
     if (rfps.length > 0) {
         const rfpToSelect = rfps.find(r => r.id === rfpIdFromUrl) || rfps[0];
         setSelectedRfp(rfpToSelect);
@@ -102,7 +99,7 @@ export function HomepageClient({ searchParams }: HomepageClientProps) {
         setSelectedRfp(undefined);
         setQuestions([]);
     }
-  }, [searchParams.rfpId, rfps]);
+  }, [searchParams, rfps]);
 
   useEffect(() => {
     return () => {
