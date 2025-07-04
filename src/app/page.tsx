@@ -72,6 +72,7 @@ export default function LandingPage() {
                         height={675}
                         className="rounded-lg"
                         data-ai-hint="dashboard analytics"
+                        priority
                     />
                 </div>
             </div>
