@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     // For this example, we will run them sequentially to avoid overwhelming the service.
     (async () => {
         console.log("Cron job started: Syncing all sources...");
-        const allSources = knowledgeBaseService.getAllDataSources();
+        const allSources = await knowledgeBaseService.getAllDataSources();
         
         for (const source of allSources) {
             try {
