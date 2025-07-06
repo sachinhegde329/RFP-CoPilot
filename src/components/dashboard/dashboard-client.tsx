@@ -6,7 +6,6 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { RfpSummaryCard } from "@/components/dashboard/rfp-summary-card"
 import { QAndAList } from "@/components/dashboard/q-and-a-list"
-import { ComplianceCard } from "@/components/dashboard/compliance-card"
 import { getRfpsAction, extractQuestionsAction, updateQuestionAction, addQuestionAction } from "@/app/actions"
 import { useToast } from "@/hooks/use-toast"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -174,7 +173,7 @@ function RfpWorkspaceView() {
 
             {selectedRfp ? (
               <>
-                <div className="lg:col-span-3">
+                <div className="lg:col-span-4">
                   <QAndAList 
                     questions={questions} 
                     tenantId={tenant.id}
@@ -185,9 +184,6 @@ function RfpWorkspaceView() {
                     attachments={attachments}
                     onUpdateAttachments={handleUpdateAttachments}
                   />
-                </div>
-                <div className="lg:col-span-1 space-y-6">
-                  <ComplianceCard />
                 </div>
               </>
             ) : (

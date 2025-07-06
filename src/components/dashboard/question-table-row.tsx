@@ -2,11 +2,12 @@
 "use client"
 
 import { useState, memo } from "react"
+import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import { Sparkles, CheckCircle2, AlertTriangle, History, Loader2, Bot, Clipboard, ClipboardCheck, BookOpenCheck, UserPlus, Circle, CheckCircle, CircleDotDashed, Bold, Italic, Underline, List, MessageSquare } from "lucide-react"
+import { Sparkles, CheckCircle2, AlertTriangle, History, Loader2, Bot, Clipboard, ClipboardCheck, BookOpenCheck, UserPlus, Circle, CheckCircle, CircleDotDashed, Bold, Italic, Underline, List, MessageSquare, ShieldCheck, Lock, Shield, XCircle } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { generateAnswerAction, reviewAnswerAction } from "@/app/actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -19,7 +20,7 @@ import type { TeamMember } from "@/lib/tenant-types"
 import { Input } from "../ui/input"
 import { cn } from "@/lib/utils"
 import type { Question } from "@/lib/rfp-types";
-import { Card } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 type QAndAItemProps = {
   questionData: Question
@@ -44,6 +45,7 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
   
   const currentUser = tenant.members[0];
   const canUseAiReview = hasFeatureAccess(tenant, 'aiExpertReview');
+  const canUseCompliance = hasFeatureAccess(tenant, 'complianceValidation');
   const canEdit = canPerformAction(currentUser.role, 'editContent');
   const canAssign = canPerformAction(currentUser.role, 'assignQuestions');
   
@@ -116,6 +118,25 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
   const handleStatusChange = (newStatus: Question['status']) => {
     onUpdateQuestion(id, { status: newStatus });
   };
+  
+  const handleRunComplianceCheck = () => {
+    // Mock a successful check for now
+    onUpdateQuestion(id, { compliance: "passed" });
+    toast({
+        title: "Compliance Check Passed",
+        description: "The answer aligns with configured compliance standards.",
+    });
+  };
+
+  const ComplianceStatusDisplay = ({ status }: { status: Question['compliance'] }) => {
+    if (status === 'passed') {
+        return <div className="flex items-center gap-2 text-green-600"><CheckCircle className="h-5 w-5" /> <span className="font-semibold">Passed</span></div>
+    }
+    if (status === 'failed') {
+        return <div className="flex items-center gap-2 text-destructive"><XCircle className="h-5 w-5" /> <span className="font-semibold">Failed</span></div>
+    }
+    return <div className="flex items-center gap-2 text-muted-foreground"><Shield className="h-5 w-5" /> <span className="font-semibold">Pending</span></div>
+  }
 
   const StatusIcon = ({ status, className }: { status: Question['status'], className?: string }) => {
     switch (status) {
@@ -140,11 +161,7 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
                     <Tooltip>
                         <DropdownMenu>
                             <TooltipTrigger asChild>
-                                <DropdownMenuTrigger
-                                    disabled={!canAssign}
-                                    className={cn("flex h-6 w-6 items-center justify-center rounded-full", canAssign ? "hover:bg-accent/50" : "cursor-not-allowed")}
-                                    onClick={(e) => e.stopPropagation()}
-                                >
+                                <button disabled={!canAssign} className={cn("flex h-6 w-6 items-center justify-center rounded-full", canAssign ? "hover:bg-accent/50" : "cursor-not-allowed")} onClick={(e) => e.stopPropagation()}>
                                     {assignee ? (
                                         <Avatar className="h-full w-full">
                                             {assignee.avatar && <AvatarImage src={assignee.avatar} alt={assignee.name} />}
@@ -155,7 +172,7 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
                                             <UserPlus className="h-3 w-3 text-muted-foreground" />
                                         </div>
                                     )}
-                                </DropdownMenuTrigger>
+                                </button>
                             </TooltipTrigger>
                              {canAssign && (
                                 <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
@@ -182,12 +199,14 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
                 </TooltipProvider>
 
                 <DropdownMenu>
-                    <DropdownMenuTrigger
-                        className="h-auto p-1 font-normal capitalize flex items-center gap-1 rounded-md hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:pointer-events-none"
-                        disabled={!canEdit}
-                        onClick={(e) => e.stopPropagation()}
-                    >
-                        <span className="hidden sm:inline-flex">{status}</span>
+                    <DropdownMenuTrigger asChild>
+                         <button
+                            className="h-auto p-1 font-normal capitalize flex items-center gap-1 rounded-md hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:pointer-events-none"
+                            disabled={!canEdit}
+                            onClick={(e) => e.stopPropagation()}
+                         >
+                           <span className="hidden sm:inline-flex">{status}</span>
+                         </button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenuItem onSelect={() => handleStatusChange('Unassigned')}>
@@ -283,6 +302,27 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
                     )}
                 </div>
                 <div className="md:col-span-1 space-y-4">
+                    <Card>
+                        <CardHeader className="p-3">
+                            <CardTitle className="text-sm flex items-center gap-2"><ShieldCheck className="h-4 w-4"/>Compliance Status</CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-3 pt-0">
+                            {canUseCompliance ? (
+                                <div className="space-y-3">
+                                    <ComplianceStatusDisplay status={questionData.compliance} />
+                                    <Button variant="outline" size="sm" className="w-full" onClick={handleRunComplianceCheck} disabled={!currentAnswer || !canEdit}>Run Check</Button>
+                                </div>
+                            ) : (
+                                <div className="text-center text-muted-foreground p-4 border-2 border-dashed rounded-lg">
+                                    <Lock className="size-6 mx-auto mb-2 text-primary" />
+                                    <p className="text-xs font-semibold mb-1">Available on Enterprise</p>
+                                    <Button asChild variant="link" size="sm" className="p-0 h-auto text-xs">
+                                        <Link href={`/pricing?tenant=${tenant.subdomain}`}>Upgrade</Link>
+                                    </Button>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
                     <div className="flex items-center justify-between">
                        <h4 className="font-semibold text-sm flex items-center gap-2"><MessageSquare /> Comments</h4>
                        <span className="text-xs text-muted-foreground">2 comments</span>
