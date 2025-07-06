@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Sparkles, CheckCircle2, AlertTriangle, Bot, Clipboard, ClipboardCheck, BookOpenCheck, UserPlus, Bold, Italic, Underline, List, MessageSquare, PlusCircle, X } from "lucide-react"
+import { Sparkles, CheckCircle2, AlertTriangle, Bot, Clipboard, ClipboardCheck, BookOpenCheck, UserPlus, Bold, Italic, Underline, List, MessageSquare, PlusCircle, X, Settings } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { generateAnswerAction, reviewAnswerAction } from "@/app/actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -21,6 +21,9 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { TeamMember } from "@/lib/tenant-types"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Input } from "@/components/ui/input"
+import { Label } from "../ui/label"
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "../ui/select"
+import { RadioGroup, RadioGroupItem } from "../ui/radio-group"
 
 
 type QAndAItemProps = {
@@ -46,6 +49,13 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
   const [isCopied, setIsCopied] = useState(false);
   const [newTagInput, setNewTagInput] = useState('');
   
+  // Generation settings
+  const [genLanguage, setGenLanguage] = useState('English');
+  const [genTone, setGenTone] = useState(tenant.defaultTone || 'Formal');
+  const [genStyle, setGenStyle] = useState('a paragraph');
+  const [genLength, setGenLength] = useState('medium-length');
+  const [genTags, setGenTags] = useState(true);
+
   const currentUser = tenant.members[0];
   const canUseAiReview = hasFeatureAccess(tenant, 'aiExpertReview');
   const canEdit = canPerformAction(currentUser.role, 'editContent');
@@ -57,7 +67,17 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
     setSources([]);
     setConfidence(null);
     
-    const result = await generateAnswerAction({question, rfpId, tenantId, currentUser});
+    const result = await generateAnswerAction({
+        question, 
+        rfpId, 
+        tenantId, 
+        currentUser,
+        language: genLanguage,
+        tone: genTone,
+        style: genStyle,
+        length: genLength,
+        autogenerateTags: genTags
+    });
     if (result.error) {
         const isInfo = result.error.includes("knowledge base");
         toast({
@@ -69,6 +89,11 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
       setCurrentAnswer(result.answer || "");
       setSources(result.sources || []);
       setConfidence(result.confidenceScore || null);
+       if (result.tags && result.tags.length > 0) {
+            const existingTags = new Set(tags || []);
+            result.tags.forEach(tag => existingTags.add(tag));
+            onUpdateQuestion(id, { tags: Array.from(existingTags) });
+        }
     }
     setIsGenerating(false);
   };
@@ -276,6 +301,25 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
                 {isGenerating ? "..." : <Sparkles />}
                 Generate
               </Button>
+               <Popover>
+                <PopoverTrigger asChild>
+                    <Button variant="ghost" size="icon" disabled={isGenerating || !canEdit}>
+                        <Settings />
+                    </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80">
+                    <div className="grid gap-4">
+                        <div className="space-y-2"><h4 className="font-medium leading-none">Generation Settings</h4><p className="text-sm text-muted-foreground">Customize the AI's output for this answer.</p></div>
+                        <div className="grid gap-2">
+                            <div className="grid grid-cols-3 items-center gap-4"><Label>Language</Label><Select value={genLanguage} onValueChange={setGenLanguage}><SelectTrigger className="col-span-2 h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="English">English</SelectItem><SelectItem value="Spanish">Spanish</SelectItem><SelectItem value="French">French</SelectItem></SelectContent></Select></div>
+                            <div className="grid grid-cols-3 items-center gap-4"><Label>Tone</Label><Select value={genTone} onValueChange={setGenTone}><SelectTrigger className="col-span-2 h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Formal">Formal</SelectItem><SelectItem value="Consultative">Consultative</SelectItem><SelectItem value="Technical">Technical</SelectItem></SelectContent></Select></div>
+                             <div className="grid grid-cols-3 items-center gap-4"><Label>Style</Label><RadioGroup value={genStyle} onValueChange={setGenStyle} className="col-span-2 flex gap-4"><div className="flex items-center space-x-2"><RadioGroupItem value="a paragraph" id="style-p" /><Label htmlFor="style-p">Paragraph</Label></div><div className="flex items-center space-x-2"><RadioGroupItem value="bullet points" id="style-b" /><Label htmlFor="style-b">Bullets</Label></div></RadioGroup></div>
+                            <div className="grid grid-cols-3 items-center gap-4"><Label>Length</Label><RadioGroup value={genLength} onValueChange={setGenLength} className="col-span-2 flex gap-4"><div className="flex items-center space-x-2"><RadioGroupItem value="short" id="len-s" /><Label htmlFor="len-s">Short</Label></div><div className="flex items-center space-x-2"><RadioGroupItem value="medium-length" id="len-m" /><Label htmlFor="len-m">Medium</Label></div><div className="flex items-center space-x-2"><RadioGroupItem value="detailed" id="len-d" /><Label htmlFor="len-d">Long</Label></div></RadioGroup></div>
+                            <div className="flex items-center space-x-2 pt-2"><Checkbox id="gen-tags" checked={genTags} onCheckedChange={(c) => setGenTags(Boolean(c))} /><Label htmlFor="gen-tags">Auto-generate tags</Label></div>
+                        </div>
+                    </div>
+                </PopoverContent>
+              </Popover>
               <Button
                 variant="outline"
                 onClick={handleReviewAnswer}

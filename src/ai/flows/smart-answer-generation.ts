@@ -45,7 +45,7 @@ const prompt = ai.definePrompt({
   name: 'ragAnswerGeneratorPrompt',
   input: {schema: GenerateDraftAnswerInputSchema},
   output: {schema: GenerateDraftAnswerOutputSchema},
-  prompt: `You are an expert RFP assistant. Your task is to answer the user's question.
+  prompt: `You are an expert RFP assistant. Your task is to answer the user's question with precision and adherence to the specified format.
 
 {{#if knowledgeBaseChunks}}
 ---
@@ -57,14 +57,14 @@ Context from Knowledge Base:
 Question: {{{rfpQuestion}}}
 
 Instructions for answering from Knowledge Base:
-1. Based **only** on the context provided, generate a comprehensive and accurate {{length}} answer in {{{language}}}.
-2. The answer should have a {{{tone}}} tone and be formatted as {{{style}}}.
-3. If the context does not contain enough information to answer the question, state that you cannot provide an answer based on the available knowledge, in the requested language.
-4. In your generated answer, cite the sources you used in parentheses, like this: (source: Security Policy 2023).
-5. In the output, provide a \`confidenceScore\` from 0.0 to 1.0, representing how well the context answered the question.
-6. In the output, list all the \`sources\` you used to formulate the answer.
+1.  **Strictly adhere to the provided context.** Your answer MUST be based exclusively on the information given in the "Context from Knowledge Base" section. Do not use any outside knowledge.
+2.  If the context does not contain enough information to answer the question, you MUST respond with only this exact phrase in the requested language: "The provided knowledge base does not contain enough information to answer this question."
+3.  Generate a {{length}} answer in {{{language}}} with a {{{tone}}} tone, formatted as {{{style}}}.
+4.  When you use information from a source, you must cite it in your answer using parentheses, like this: (source: Document Title).
+5.  Based on how well the provided context allowed you to answer the question, provide a \`confidenceScore\` from 0.0 (no answer found) to 1.0 (a complete answer was found).
+6.  In the output, list all the unique \`sources\` you used to formulate the answer.
 {{#if autogenerateTags}}
-7. Additionally, analyze the question and your generated answer, and provide a list of 1-3 relevant keyword tags in the \`tags\` output field.
+7.  Additionally, analyze the question and your generated answer, and provide a list of 1-3 relevant keyword tags in the \`tags\` output field. These tags should be single words or short phrases in lowercase (e.g., "data security", "sla", "pricing model").
 {{/if}}
 
 {{else}}
@@ -72,13 +72,13 @@ Instructions for answering from Knowledge Base:
 Question: {{{rfpQuestion}}}
 ---
 Instructions for answering from General Knowledge:
-1. The user's knowledge base did not contain information about this question.
-2. Answer the question based on your general knowledge. Generate a {{length}} answer in {{{language}}} with a {{{tone}}} tone, formatted as {{{style}}}.
-3. **Crucially, begin your answer with the disclaimer (in the requested language): "This answer was generated from general knowledge and not from your internal knowledge base."**
-4. If you cannot provide a confident and accurate answer from your general knowledge, you MUST respond with only this exact phrase: "No answer is available in the knowledge base, and I am unable to provide a confident answer from my general knowledge."
-5. Do not provide a confidence score or sources.
+1.  The user's knowledge base did not contain information about this question.
+2.  Answer the question based on your general knowledge. Generate a {{length}} answer in {{{language}}} with a {{{tone}}} tone, formatted as {{{style}}}.
+3.  **Crucially, begin your answer with this exact disclaimer (in the requested language): "This answer was generated from general knowledge and not from your internal knowledge base."**
+4.  If you cannot provide a confident and accurate answer from your general knowledge, you MUST respond with only this exact phrase: "No answer is available in the knowledge base, and I am unable to provide a confident answer from my general knowledge."
+5.  Do not provide a confidence score or sources.
 {{#if autogenerateTags}}
-6. Additionally, analyze the question and your generated answer, and provide a list of 1-3 relevant keyword tags in the \`tags\` output field.
+6.  Additionally, analyze the question and your generated answer, and provide a list of 1-3 relevant keyword tags in the \`tags\` output field.
 {{/if}}
 {{/if}}
 `,
@@ -96,7 +96,7 @@ const generateDraftAnswerFlow = ai.defineFlow(
     // If chunks were provided, ensure sources are populated in the output, even if the LLM fails to do so.
     if (input.knowledgeBaseChunks && input.knowledgeBaseChunks.length > 0) {
         if (!output!.sources || output!.sources.length === 0) {
-            output!.sources = input.knowledgeBaseChunks.map(chunk => chunk.source);
+            output!.sources = [...new Set(input.knowledgeBaseChunks.map(chunk => chunk.source))];
         }
     }
 
