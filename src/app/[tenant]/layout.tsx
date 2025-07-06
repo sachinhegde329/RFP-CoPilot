@@ -34,7 +34,7 @@ export default async function TenantLayout({
 
   return (
     <TenantProvider tenant={tenant}>
-      <SidebarProvider defaultOpen={false}>
+      <SidebarProvider defaultOpen={true}>
         <div className="flex min-h-screen">
           <AppSidebar />
           {children}

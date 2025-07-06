@@ -43,7 +43,7 @@ export function AppSidebar() {
   ];
 
   return (
-    <Sidebar>
+    <Sidebar collapsible="icon">
       <SidebarHeader className="p-4 flex items-center justify-center">
         <Image 
           src={tenant.branding.logoUrl} 
