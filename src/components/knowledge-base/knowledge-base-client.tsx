@@ -357,11 +357,6 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
                             <CardDescription>Manage automated and manual content sources for your knowledge base.</CardDescription>
                         </div>
                         <div className="flex gap-2">
-                             <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".pdf,.docx,.xlsx,.md,.txt,.html" disabled={isUploading}/>
-                            <Button variant="outline" onClick={handleUploadClick} disabled={isUploading || !canManageIntegrations}>
-                                {isUploading ? <Loader2 className="mr-2 animate-spin" /> : <Upload className="mr-2" />}
-                                {isUploading ? 'Uploading...' : 'Upload Files'}
-                            </Button>
                              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                                 <DialogTrigger asChild><Button disabled={!canManageIntegrations}><LinkIcon className="mr-2"/>Connect Source</Button></DialogTrigger>
                                 <DialogContent className="sm:max-w-2xl">
@@ -413,6 +408,11 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
 
                                 </DialogContent>
                             </Dialog>
+                             <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".pdf,.docx,.xlsx,.md,.txt,.html" disabled={isUploading}/>
+                            <Button variant="outline" onClick={handleUploadClick} disabled={isUploading || !canManageIntegrations}>
+                                {isUploading ? <Loader2 className="mr-2 animate-spin" /> : <Upload className="mr-2" />}
+                                {isUploading ? 'Uploading...' : 'Upload Files'}
+                            </Button>
                         </div>
                     </CardHeader>
                     <CardContent>
