@@ -49,10 +49,10 @@ function AdminDashboardView() {
     }, [tenant.id, currentUser]);
     
     const adminCards = [
-        { title: "Manage Team", icon: Users, stat: `${tenant.members.length} / ${tenant.limits.seats} Seats`, description: "Invite new members and manage roles.", link: `/${tenant.subdomain}/settings/team` },
-        { title: "Knowledge Base", icon: Database, stat: `${sourceCount} Sources`, description: "Manage content sources and integrations.", link: `/${tenant.subdomain}/knowledge-base` },
-        { title: "Export Templates", icon: Blocks, stat: `${templateCount} Templates`, description: "Configure branded document templates.", link: `/${tenant.subdomain}/templates` },
-        { title: "Billing & Plan", icon: CreditCard, stat: `On ${tenant.plan} plan`, description: "Manage your subscription and view invoices.", link: `/${tenant.subdomain}/settings/billing` },
+        { title: "Team Members", icon: Users, stat: `${tenant.members.length} / ${tenant.limits.seats} Seats`, description: "Invite new members and manage roles.", link: `/${tenant.subdomain}/settings/team`, cta: "Manage" },
+        { title: "Knowledge Base", icon: Database, stat: `${sourceCount} Sources`, description: "Manage content sources and integrations.", link: `/${tenant.subdomain}/knowledge-base`, cta: "Manage" },
+        { title: "Export Templates", icon: Blocks, stat: `${templateCount} Templates`, description: "Configure branded document templates.", link: `/${tenant.subdomain}/templates`, cta: "Manage" },
+        { title: "Billing & Plan", icon: CreditCard, stat: `On ${tenant.plan} plan`, description: "Manage your subscription and view invoices.", link: `/${tenant.subdomain}/settings/billing`, cta: "Manage" },
     ];
 
     return (
@@ -77,7 +77,7 @@ function AdminDashboardView() {
                         <CardFooter>
                             <Button variant="outline" size="sm" asChild>
                                 <Link href={card.link}>
-                                    Go to {card.title} <ArrowRight className="ml-2 h-4 w-4" />
+                                    {card.cta} <ArrowRight className="ml-2 h-4 w-4" />
                                 </Link>
                             </Button>
                         </CardFooter>
