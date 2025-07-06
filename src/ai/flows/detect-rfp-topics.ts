@@ -51,6 +51,11 @@ const detectRfpTopicsFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return output!;
+    if (!output) {
+      console.error("The AI model failed to return structured data for topic detection.");
+      // Return a valid, empty response to prevent crashing.
+      return { topics: [] };
+    }
+    return output;
   }
 );

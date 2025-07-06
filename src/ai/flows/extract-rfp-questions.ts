@@ -57,6 +57,11 @@ const extractRfpQuestionsFlow = ai.defineFlow(
   },
   async input => {
     const {output} = await prompt(input);
-    return output!;
+    if (!output) {
+      console.error("The AI model failed to return structured data for question extraction.");
+      // Return a valid, empty response to prevent crashing.
+      return { questions: [] };
+    }
+    return output;
   }
 );
