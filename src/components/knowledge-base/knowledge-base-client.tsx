@@ -463,5 +463,3 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
     </>
   )
 }
-
-    
