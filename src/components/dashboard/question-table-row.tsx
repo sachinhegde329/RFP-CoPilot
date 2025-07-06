@@ -19,6 +19,7 @@ import type { TeamMember } from "@/lib/tenant-types"
 import { Input } from "../ui/input"
 import { cn } from "@/lib/utils"
 import type { Question } from "@/lib/rfp-types";
+import { Card } from "@/components/ui/card"
 
 type QAndAItemProps = {
   questionData: Question
