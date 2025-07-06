@@ -12,7 +12,6 @@ import { useToast } from "@/hooks/use-toast"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { FileText } from "lucide-react"
 import type { Question, RFP } from "@/lib/rfp-types"
-import { AttachmentsCard } from "./attachments-card"
 import { RfpSelector } from "./rfp-selector"
 import { HomepageHeader } from "./dashboard-header"
 import { DashboardSkeleton } from "./dashboard-skeleton"
@@ -183,13 +182,11 @@ function RfpWorkspaceView() {
                     members={tenant.members} 
                     onUpdateQuestion={handleUpdateQuestion}
                     onAddQuestion={handleAddQuestion}
+                    attachments={attachments}
+                    onUpdateAttachments={handleUpdateAttachments}
                   />
                 </div>
                 <div className="lg:col-span-1 space-y-6">
-                  <AttachmentsCard 
-                      attachments={attachments}
-                      onUpdateAttachments={handleUpdateAttachments}
-                  />
                   <ComplianceCard />
                 </div>
               </>

@@ -1,13 +1,13 @@
 
 'use client'
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { QAndAItem } from "./question-table-row"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import type { TeamMember } from "@/lib/tenant-types"
 import { useTenant } from "@/components/providers/tenant-provider"
-import { PlusCircle, ChevronDown, Loader2, Download, AlertTriangle, UserCheck, ShieldAlert, Sparkles, CheckCheck } from "lucide-react"
+import { PlusCircle, ChevronDown, Loader2, Download, AlertTriangle, UserCheck, ShieldAlert, Sparkles, CheckCheck, Paperclip, File, Trash2 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import {
   DropdownMenu,
@@ -16,6 +16,8 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu"
 import {
   Dialog,
@@ -288,6 +290,14 @@ function ExportDialog({ rfpId, questions, members }: { rfpId: string, questions:
     )
 }
 
+type Attachment = {
+  id: number;
+  name: string;
+  size: string;
+  type: string;
+  url: string;
+};
+
 type QAndAListProps = {
   questions: Question[]
   tenantId: string
@@ -295,11 +305,13 @@ type QAndAListProps = {
   members: TeamMember[]
   onUpdateQuestion: (questionId: number, updates: Partial<Question>) => void;
   onAddQuestion: (questionData: Omit<Question, 'id'>) => Promise<boolean>;
+  attachments: Attachment[];
+  onUpdateAttachments: (attachments: Attachment[]) => void;
 }
 
 type FilterType = "all" | "assignedToMe" | "unassigned" | "inProgress" | "completed"
 
-export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestion, onAddQuestion }: QAndAListProps) {
+export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestion, onAddQuestion, attachments, onUpdateAttachments }: QAndAListProps) {
   const [activeFilter, setActiveFilter] = useState<FilterType>("all")
   const { tenant } = useTenant(); 
   const { toast } = useToast();
@@ -311,6 +323,60 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
   const [newQuestionCategory, setNewQuestionCategory] = useState('Product');
 
   const canEditContent = canPerformAction(currentUser.role, 'editContent');
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAddAttachmentClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (attachments.length >= 3) {
+      toast({
+        variant: 'destructive',
+        title: 'Attachment Limit Reached',
+        description: 'You can only upload a maximum of 3 supporting documents.',
+      });
+      return;
+    }
+
+    const newAttachment: Attachment = {
+      id: Date.now(),
+      name: file.name,
+      size: file.size > 1024 * 1024
+          ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+          : `${(file.size / 1024).toFixed(0)} KB`,
+      type: file.type,
+      url: URL.createObjectURL(file),
+    };
+
+    onUpdateAttachments([...attachments, newAttachment]);
+
+    toast({
+      title: 'Attachment Added',
+      description: `${file.name} has been added.`,
+    });
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleDeleteAttachment = (id: number) => {
+    const attachmentToRemove = attachments.find(att => att.id === id);
+    const newAttachments = attachments.filter(att => att.id !== id);
+    onUpdateAttachments(newAttachments);
+    
+    if (attachmentToRemove) {
+        toast({
+          title: 'Attachment Removed',
+          description: `${attachmentToRemove.name} has been removed.`,
+        });
+    }
+  };
 
   const filteredQuestions = useMemo(() => {
     switch (activeFilter) {
@@ -380,7 +446,52 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
               Filter, assign, and answer the questions for this RFP.
             </CardDescription>
           </div>
-          <ExportDialog rfpId={rfpId} questions={questions} members={members} />
+          <div className="flex items-center gap-2">
+             <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleFileChange}
+                className="hidden"
+              />
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline">
+                  <Paperclip className="mr-2" />
+                  Documents ({attachments.length})
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-80">
+                <DropdownMenuLabel>Supporting Documents</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                {attachments.length > 0 ? (
+                  attachments.map(attachment => (
+                    <DropdownMenuItem key={attachment.id} className="justify-between" onSelect={(e) => e.preventDefault()}>
+                        <a href={attachment.url} download={attachment.name} className="flex items-center gap-2 hover:underline truncate">
+                          <File className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                          <div className="truncate">
+                            <span className="font-medium truncate text-sm">{attachment.name}</span>
+                            <span className="text-xs text-muted-foreground block">{attachment.size}</span>
+                          </div>
+                        </a>
+                      <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={() => handleDeleteAttachment(attachment.id)}>
+                        <Trash2 className="h-4 w-4 text-destructive" />
+                      </Button>
+                    </DropdownMenuItem>
+                  ))
+                ) : (
+                  <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                    No documents attached.
+                  </div>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onSelect={handleAddAttachmentClick} disabled={attachments.length >= 3}>
+                  <PlusCircle className="mr-2 h-4 w-4" />
+                  Add Document
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <ExportDialog rfpId={rfpId} questions={questions} members={members} />
+          </div>
         </div>
 
         {totalCount > 0 && (
