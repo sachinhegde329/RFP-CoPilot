@@ -155,7 +155,7 @@ export async function reviewAnswerAction(question: string, answer: string, tenan
 export async function extractQuestionsAction(rfpText: string, rfpName: string, tenantId: string, currentUser: CurrentUser): Promise<{ rfp?: RFP, error?: string }> {
   const permCheck = await checkPermission(tenantId, currentUser, 'uploadRfps');
   if (permCheck.error) return { error: permCheck.error };
-  const { tenant } = permCheck;
+  const { tenant, user } = permCheck;
 
   if (!rfpText) {
     return { error: "RFP text cannot be empty." }
@@ -176,8 +176,8 @@ export async function extractQuestionsAction(rfpText: string, rfpName: string, t
       ...q,
       answer: "",
       compliance: "pending" as const,
-      assignee: null,
-      status: "Unassigned" as const,
+      assignee: user,
+      status: "In Progress" as const,
     }));
     
     const newRfp = await rfpService.addRfp(tenantId, rfpName, questionsWithStatus, topicResult.topics);
