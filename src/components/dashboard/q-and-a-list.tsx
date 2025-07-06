@@ -1,3 +1,4 @@
+
 'use client'
 
 import { useState, useMemo } from "react"
@@ -34,7 +35,12 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
 
   const filteredQuestions = useMemo(() => {
     return questions.filter(q => {
-      const searchTermMatch = searchTerm === '' || q.question.toLowerCase().includes(searchTerm.toLowerCase()) || q.answer.toLowerCase().includes(searchTerm.toLowerCase());
+      const lowerCaseSearchTerm = searchTerm.toLowerCase();
+      const questionMatch = q.question.toLowerCase().includes(lowerCaseSearchTerm);
+      const answerMatch = q.answer.toLowerCase().includes(lowerCaseSearchTerm);
+      const tagsMatch = q.tags?.some(tag => tag.toLowerCase().includes(lowerCaseSearchTerm)) || false;
+
+      const searchTermMatch = searchTerm === '' || questionMatch || answerMatch || tagsMatch;
       
       const statusMatch = filterStatuses.length === 0 || filterStatuses.includes(q.status);
       

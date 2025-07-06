@@ -14,7 +14,8 @@ const getSampleQuestions = (members: TeamMember[]): Question[] => [
       category: "Security",
       compliance: "pending",
       assignee: members.find((m: any) => m.role === 'Admin') || null,
-      status: 'In Progress'
+      status: 'In Progress',
+      tags: ['GDPR', 'data-security', 'deletion'],
     },
     {
       id: 2,
@@ -23,7 +24,8 @@ const getSampleQuestions = (members: TeamMember[]): Question[] => [
       category: "Legal",
       compliance: "pending",
       assignee: members.find((m: any) => m.role === 'Owner') || null,
-      status: 'In Progress'
+      status: 'In Progress',
+      tags: ['SLA', 'support'],
     },
     {
       id: 3,
@@ -32,7 +34,8 @@ const getSampleQuestions = (members: TeamMember[]): Question[] => [
       category: "Pricing",
       compliance: "pending",
       assignee: null,
-      status: 'Unassigned'
+      status: 'Unassigned',
+      tags: [],
     },
     {
       id: 4,
@@ -41,7 +44,8 @@ const getSampleQuestions = (members: TeamMember[]): Question[] => [
       category: "Product",
       compliance: "pending",
       assignee: members.find((m: any) => m.role === 'Editor') || null,
-      status: 'Completed'
+      status: 'Completed',
+      tags: ['integration', 'salesforce'],
     }
 ];
 

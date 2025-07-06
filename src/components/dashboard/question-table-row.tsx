@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Sparkles, CheckCircle2, AlertTriangle, Bot, Clipboard, ClipboardCheck, BookOpenCheck, UserPlus, Bold, Italic, Underline, List, MessageSquare } from "lucide-react"
+import { Sparkles, CheckCircle2, AlertTriangle, Bot, Clipboard, ClipboardCheck, BookOpenCheck, UserPlus, Bold, Italic, Underline, List, MessageSquare, PlusCircle, X } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { generateAnswerAction, reviewAnswerAction } from "@/app/actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -19,6 +19,8 @@ import { cn } from "@/lib/utils"
 import type { Question } from "@/lib/rfp-types";
 import { Checkbox } from "@/components/ui/checkbox"
 import { TeamMember } from "@/lib/tenant-types"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Input } from "@/components/ui/input"
 
 
 type QAndAItemProps = {
@@ -30,7 +32,7 @@ type QAndAItemProps = {
 }
 
 export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId, members, onUpdateQuestion }: QAndAItemProps) {
-  const { id, question, assignee, status, answer } = questionData;
+  const { id, question, assignee, status, answer, tags } = questionData;
   const { tenant } = useTenant();
   const { toast } = useToast();
   
@@ -42,6 +44,7 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
   const [isGenerating, setIsGenerating] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [newTagInput, setNewTagInput] = useState('');
   
   const currentUser = tenant.members[0];
   const canUseAiReview = hasFeatureAccess(tenant, 'aiExpertReview');
@@ -108,6 +111,26 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
     onUpdateQuestion(id, { status: newStatus });
   };
   
+  const handleAddTag = () => {
+    if (newTagInput.trim() && !(tags || []).includes(newTagInput.trim())) {
+      const newTags = [...(tags || []), newTagInput.trim()];
+      onUpdateQuestion(id, { tags: newTags });
+      setNewTagInput('');
+    }
+  };
+
+  const handleRemoveTag = (tagToRemove: string) => {
+    const newTags = (tags || []).filter(t => t !== tagToRemove);
+    onUpdateQuestion(id, { tags: newTags });
+  };
+  
+  const handleTagInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleAddTag();
+    }
+  };
+
   const StatusBadge = ({ status }: { status: Question['status'] }) => {
     const variant = {
       'Completed': 'secondary',
@@ -175,7 +198,50 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
             </DropdownMenu>
           </div>
           <div className="col-span-2">
-            <Badge variant="outline">No tags</Badge>
+            <Popover>
+              <PopoverTrigger asChild>
+                <button 
+                  className="flex flex-wrap gap-1 items-center text-left min-h-[28px] w-full disabled:opacity-70 disabled:pointer-events-none"
+                  disabled={!canEdit}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  {(tags && tags.length > 0) ? (
+                    tags.map(tag => (
+                      <Badge key={tag} variant="secondary">{tag}</Badge>
+                    ))
+                  ) : (
+                    <span className="text-muted-foreground text-xs">No tags</span>
+                  )}
+                </button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64" align="start" onClick={(e) => e.stopPropagation()}>
+                <div className="space-y-2">
+                    <h4 className="font-medium text-sm">Edit Tags</h4>
+                    <div className="flex gap-1">
+                        <Input 
+                            value={newTagInput} 
+                            onChange={e => setNewTagInput(e.target.value)} 
+                            onKeyDown={handleTagInputKeyDown}
+                            placeholder="Add a tag..."
+                            className="h-8"
+                        />
+                        <Button size="icon" variant="ghost" className="h-8 w-8 flex-shrink-0" onClick={handleAddTag}><PlusCircle className="h-4 w-4" /></Button>
+                    </div>
+                    {tags && tags.length > 0 && (
+                      <div className="flex flex-wrap gap-1 pt-2">
+                          {tags.map(tag => (
+                              <Badge key={tag} variant="secondary" className="flex items-center gap-1">
+                                  {tag}
+                                  <button onClick={() => handleRemoveTag(tag)} className="ml-1 rounded-full hover:bg-muted-foreground/20 focus:bg-muted-foreground/20 outline-none">
+                                      <X className="h-3 w-3" />
+                                  </button>
+                              </Badge>
+                          ))}
+                      </div>
+                    )}
+                </div>
+              </PopoverContent>
+            </Popover>
           </div>
           <div className="col-span-2">
             <StatusBadge status={status} />

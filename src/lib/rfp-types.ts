@@ -12,6 +12,7 @@ export interface Question {
   compliance: ComplianceStatus;
   assignee?: TeamMember | null;
   status: QuestionStatus;
+  tags?: string[];
 }
 
 export interface RFP {
