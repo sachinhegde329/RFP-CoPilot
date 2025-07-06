@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'Server configuration error.' }, { status: 500 });
     }
 
-    const pendingSource = knowledgeBaseService.addDataSource({
+    const pendingSource = await knowledgeBaseService.addDataSource({
         tenantId,
         type: 'dropbox',
         name: 'Dropbox (Connecting...)',

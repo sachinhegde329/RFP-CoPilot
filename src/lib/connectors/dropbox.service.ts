@@ -3,7 +3,7 @@
  * This service handles OAuth, listing files/folders, and ingesting file content.
  */
 
-import { Dropbox } from 'dropbox';
+import { Dropbox, type files } from 'dropbox';
 import type { DataSource } from '@/lib/knowledge-base';
 import { knowledgeBaseService } from '@/lib/knowledge-base';
 import { parseDocument } from '@/ai/flows/parse-document';
@@ -22,15 +22,15 @@ class DropboxService {
      * @param source The DataSource containing auth tokens.
      * @returns A list of resources.
      */
-    async listResources(source: DataSource): Promise<any[]> {
+    async listResources(source: DataSource): Promise<files.FileMetadataReference[]> {
         const dbx = this.getClient(source);
-        let allFiles: any[] = [];
+        let allFiles: files.FileMetadataReference[] = [];
         let hasMore = true;
         let cursor: string | undefined = undefined;
 
         while (hasMore) {
             const response = await (cursor ? dbx.filesListFolderContinue({ cursor }) : dbx.filesListFolder({ path: '', recursive: true, limit: 100 }));
-            const files = response.result.entries.filter(entry => entry['.tag'] === 'file');
+            const files = response.result.entries.filter(entry => entry['.tag'] === 'file') as files.FileMetadataReference[];
             allFiles = allFiles.concat(files);
             hasMore = response.result.has_more;
             cursor = response.result.cursor;
@@ -47,8 +47,8 @@ class DropboxService {
      */
     async fetchResource(source: DataSource, resourcePath: string): Promise<{ fileBinary: Buffer, mimeType: string }> {
         const dbx = this.getClient(source);
-        const response: any = await dbx.filesDownload({ path: resourcePath });
-        const fileBinary = response.result.fileBinary;
+        const response = await dbx.filesDownload({ path: resourcePath });
+        const fileBinary = (response.result as any).fileBinary;
         
         // This is a simplification; a real app might use a library like 'mime-types'
         const ext = resourcePath.split('.').pop()?.toLowerCase();
@@ -77,12 +77,13 @@ class DropboxService {
      */
     async sync(source: DataSource) {
         console.log(`Starting sync for Dropbox source: ${source.name}`);
-        knowledgeBaseService.deleteChunksBySourceId(source.tenantId, source.id);
+        await knowledgeBaseService.deleteChunksBySourceId(source.tenantId, source.id);
 
         const files = await this.listResources(source);
         let totalItems = 0;
 
         for (const file of files) {
+            if (!file.path_display) continue;
             try {
                 const { fileBinary, mimeType } = await this.fetchResource(source, file.path_display);
                 const { chunks } = await this.parseContent(fileBinary, mimeType);
@@ -93,7 +94,7 @@ class DropboxService {
             }
         }
         
-        knowledgeBaseService.updateDataSource(source.tenantId, source.id, {
+        await knowledgeBaseService.updateDataSource(source.tenantId, source.id, {
             status: 'Synced',
             itemCount: totalItems,
             lastSynced: new Date().toLocaleDateString(),

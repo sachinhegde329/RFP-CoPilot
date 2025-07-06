@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Create a pending data source to be updated by the callback
-    const pendingSource = knowledgeBaseService.addDataSource({
+    const pendingSource = await knowledgeBaseService.addDataSource({
         tenantId,
         type: 'sharepoint',
         name: 'SharePoint (Connecting...)',
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     microsoftAuthUrl.searchParams.set('client_id', process.env.MICROSOFT_CLIENT_ID!);
     microsoftAuthUrl.searchParams.set('redirect_uri', `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/microsoft/callback`);
     microsoftAuthUrl.searchParams.set('response_type', 'code');
-    microsoftAuthUrl.searchParams.set('scope', 'Sites.Read.All Files.Read.All offline_access');
+    microsoftAuthUrl.searchParams.set('scope', 'Sites.Read.All Files.Read.All offline_access User.Read');
     microsoftAuthUrl.searchParams.set('response_mode', 'query');
     microsoftAuthUrl.searchParams.set('state', state);
 

@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { knowledgeBaseService } from '@/lib/knowledge-base';
 import { getTenantBySubdomain } from '@/lib/tenants';
+import { google } from 'googleapis';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -21,61 +22,58 @@ export async function GET(request: NextRequest) {
   
   const { tenantId, sourceId } = decodedState;
   
+  const tenant = await getTenantBySubdomain(tenantId);
+  const redirectUrl = new URL(`/${tenant?.subdomain || ''}/knowledge-base`, request.url);
+
   if (!tenantId || !sourceId) {
-     return NextResponse.redirect(new URL('/login?error=missing_state_data', request.url));
+     redirectUrl.searchParams.set('connect_error', 'gdrive_missing_state');
+     return NextResponse.redirect(redirectUrl);
   }
 
   try {
-    const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        client_id: process.env.GOOGLE_CLIENT_ID,
-        client_secret: process.env.GOOGLE_CLIENT_SECRET,
-        code,
-        grant_type: 'authorization_code',
-        redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/google/callback`,
-      }),
+    const oAuth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/google/callback`
+    );
+
+    const { tokens } = await oAuth2Client.getToken(code);
+    oAuth2Client.setCredentials(tokens);
+
+    const people = google.people({version: 'v1', auth: oAuth2Client});
+    const me = await people.people.get({
+        resourceName: 'people/me',
+        personFields: 'names,emailAddresses',
     });
     
-    if (!tokenResponse.ok) {
-        const errorData = await tokenResponse.json();
-        console.error('Failed to fetch Google tokens:', errorData);
-        throw new Error(errorData.error_description || 'Failed to exchange code for tokens.');
-    }
-
-    const tokens = await tokenResponse.json();
+    const userName = me.data.names?.[0]?.displayName || me.data.emailAddresses?.[0]?.value || 'User';
 
     const authData = {
       accessToken: tokens.access_token,
       refreshToken: tokens.refresh_token,
       scope: tokens.scope,
       tokenType: tokens.token_type,
-      expiryDate: Date.now() + tokens.expires_in * 1000,
+      expiryDate: tokens.expiry_date,
     };
 
     // In a real app, tokens should be encrypted before storing.
-    knowledgeBaseService.updateDataSource(tenantId, sourceId, {
-      status: 'Synced',
-      name: 'Google Drive', // Can be updated later with user info
+    await knowledgeBaseService.updateDataSource(tenantId, sourceId, {
+      status: 'Syncing',
+      name: `Google Drive (${userName})`,
       auth: authData,
-      lastSynced: 'Just now',
+      lastSynced: 'In progress...',
     });
 
-    const tenant = getTenantBySubdomain(tenantId);
-    const redirectUrl = new URL(`/${tenant?.subdomain || ''}/knowledge-base`, request.url);
-    redirectUrl.searchParams.set('connect_success', 'gdrive');
+    // Don't await this, let it run in the background
+    knowledgeBaseService.syncDataSource(tenantId, sourceId);
     
+    redirectUrl.searchParams.set('connect_success', 'gdrive');
     return NextResponse.redirect(redirectUrl);
 
   } catch (error) {
-    console.error('OAuth callback error:', error);
+    console.error('Google OAuth callback error:', error);
     // Update status to Error
-    knowledgeBaseService.updateDataSource(tenantId, sourceId, { status: 'Error', lastSynced: 'Failed to connect' });
-    const tenant = getTenantBySubdomain(tenantId);
-    const redirectUrl = new URL(`/${tenant?.subdomain || ''}/knowledge-base`, request.url);
+    await knowledgeBaseService.updateDataSource(tenantId, sourceId, { status: 'Error', lastSynced: 'Failed to connect' });
     redirectUrl.searchParams.set('connect_error', 'gdrive');
     return NextResponse.redirect(redirectUrl);
   }

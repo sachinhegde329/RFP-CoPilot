@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
   }
   
   const { tenantId, sourceId } = decodedState;
-  const tenant = getTenantBySubdomain(tenantId);
+  const tenant = await getTenantBySubdomain(tenantId);
   const redirectUrl = new URL(`/${tenant?.subdomain || ''}/knowledge-base`, request.url);
 
   if (!tenantId || !sourceId) {
@@ -52,19 +52,22 @@ export async function GET(request: NextRequest) {
     
     const userAccount = await new Dropbox({ accessToken: authData.accessToken }).usersGetCurrentAccount();
 
-    knowledgeBaseService.updateDataSource(tenantId, sourceId, {
-      status: 'Synced', // Set to synced initially, sync job will update
+    await knowledgeBaseService.updateDataSource(tenantId, sourceId, {
+      status: 'Syncing',
       name: `Dropbox (${userAccount.result.name.display_name})`,
       auth: authData,
-      lastSynced: 'Just now',
+      lastSynced: 'In progress...',
     });
+    
+    // Don't await this, let it run in the background
+    knowledgeBaseService.syncDataSource(tenantId, sourceId);
 
     redirectUrl.searchParams.set('connect_success', 'dropbox');
     return NextResponse.redirect(redirectUrl);
 
   } catch (error: any) {
     console.error('Dropbox OAuth callback error:', error);
-    knowledgeBaseService.updateDataSource(tenantId, sourceId, { status: 'Error', lastSynced: 'Failed to connect' });
+    await knowledgeBaseService.updateDataSource(tenantId, sourceId, { status: 'Error', lastSynced: 'Failed to connect' });
     redirectUrl.searchParams.set('connect_error', 'dropbox');
     return NextResponse.redirect(redirectUrl);
   }

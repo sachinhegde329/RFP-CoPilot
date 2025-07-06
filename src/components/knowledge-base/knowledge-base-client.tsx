@@ -2,6 +2,7 @@
 'use client'
 
 import { useState, useRef, ChangeEvent, useEffect, useMemo } from "react"
+import { useSearchParams } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -95,11 +96,32 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { tenant } = useTenant();
+  const searchParams = useSearchParams();
 
   const currentUser = tenant.members[0];
   const canManageIntegrations = canPerformAction(currentUser.role, 'manageIntegrations');
   const canEditContent = canPerformAction(currentUser.role, 'editContent');
   
+   useEffect(() => {
+    const success = searchParams.get('connect_success');
+    const error = searchParams.get('connect_error');
+    if (success) {
+      toast({
+        title: "Connection Successful",
+        description: `Successfully connected to ${success}. Your content will start syncing shortly.`,
+      });
+      fetchSources();
+    }
+    if (error) {
+       toast({
+        variant: "destructive",
+        title: "Connection Failed",
+        description: `Could not connect to ${error}. Please try again.`,
+      });
+      fetchSources(); // Fetch to remove the 'Pending' source
+    }
+  }, [searchParams, toast]);
+
   const fetchSources = async () => {
     setIsLoadingSources(true);
     const result = await getKnowledgeSourcesAction(tenant.id);
@@ -122,7 +144,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
                 setSources(prevSources => prevSources.map(s => s.id === result.source?.id ? result.source : s));
             }
         });
-    }, 3000);
+    }, 5000); // Check every 5 seconds
 
     return () => clearInterval(intervalId);
   }, [sources, tenant.id]);

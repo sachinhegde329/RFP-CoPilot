@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { knowledgeBaseService } from '@/lib/knowledge-base';
 import { getTenantBySubdomain } from '@/lib/tenants';
+import { Client } from '@microsoft/microsoft-graph-client';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -21,8 +22,12 @@ export async function GET(request: NextRequest) {
   
   const { tenantId, sourceId } = decodedState;
   
+  const tenant = await getTenantBySubdomain(tenantId);
+  const redirectUrl = new URL(`/${tenant?.subdomain || ''}/knowledge-base`, request.url);
+
   if (!tenantId || !sourceId) {
-     return NextResponse.redirect(new URL('/login?error=missing_state_data', request.url));
+     redirectUrl.searchParams.set('connect_error', 'sharepoint_missing_state');
+     return NextResponse.redirect(redirectUrl);
   }
 
   try {
@@ -37,7 +42,7 @@ export async function GET(request: NextRequest) {
         code,
         grant_type: 'authorization_code',
         redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/microsoft/callback`,
-        scope: 'Sites.Read.All Files.Read.All offline_access',
+        scope: 'Sites.Read.All Files.Read.All offline_access User.Read',
       }),
     });
     
@@ -57,26 +62,26 @@ export async function GET(request: NextRequest) {
       expiryDate: Date.now() + tokens.expires_in * 1000,
     };
 
-    // In a real app, tokens should be encrypted before storing.
-    knowledgeBaseService.updateDataSource(tenantId, sourceId, {
-      status: 'Synced',
-      name: 'SharePoint', // Can be updated later with user info
-      auth: authData,
-      lastSynced: 'Just now',
-    });
+    const graphClient = Client.init({ authProvider: (done) => done(null, authData.accessToken) });
+    const user = await graphClient.api('/me').get();
 
-    const tenant = getTenantBySubdomain(tenantId);
-    const redirectUrl = new URL(`/${tenant?.subdomain || ''}/knowledge-base`, request.url);
-    redirectUrl.searchParams.set('connect_success', 'sharepoint');
+    await knowledgeBaseService.updateDataSource(tenantId, sourceId, {
+      status: 'Syncing',
+      name: `SharePoint (${user.displayName || user.userPrincipalName})`,
+      auth: authData,
+      lastSynced: 'In progress...',
+    });
     
+    // Don't await this, let it run in the background
+    knowledgeBaseService.syncDataSource(tenantId, sourceId);
+    
+    redirectUrl.searchParams.set('connect_success', 'sharepoint');
     return NextResponse.redirect(redirectUrl);
 
   } catch (error) {
     console.error('Microsoft OAuth callback error:', error);
     // Update status to Error
-    knowledgeBaseService.updateDataSource(tenantId, sourceId, { status: 'Error', lastSynced: 'Failed to connect' });
-    const tenant = getTenantBySubdomain(tenantId);
-    const redirectUrl = new URL(`/${tenant?.subdomain || ''}/knowledge-base`, request.url);
+    await knowledgeBaseService.updateDataSource(tenantId, sourceId, { status: 'Error', lastSynced: 'Failed to connect' });
     redirectUrl.searchParams.set('connect_error', 'sharepoint');
     return NextResponse.redirect(redirectUrl);
   }

@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { knowledgeBaseService } from '@/lib/knowledge-base';
+import { google } from 'googleapis';
 
 export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
@@ -15,7 +16,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Create a pending data source to be updated by the callback
-    const pendingSource = knowledgeBaseService.addDataSource({
+    const pendingSource = await knowledgeBaseService.addDataSource({
         tenantId,
         type: 'gdrive',
         name: 'Google Drive (Connecting...)',
@@ -25,14 +26,22 @@ export async function GET(request: NextRequest) {
 
     const state = Buffer.from(JSON.stringify({ sourceId: pendingSource.id, tenantId })).toString('base64');
     
-    const googleAuthUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
-    googleAuthUrl.searchParams.set('client_id', process.env.GOOGLE_CLIENT_ID!);
-    googleAuthUrl.searchParams.set('redirect_uri', `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/google/callback`);
-    googleAuthUrl.searchParams.set('response_type', 'code');
-    googleAuthUrl.searchParams.set('scope', 'https://www.googleapis.com/auth/drive.readonly profile email');
-    googleAuthUrl.searchParams.set('access_type', 'offline');
-    googleAuthUrl.searchParams.set('prompt', 'consent'); // Forces a refresh token to be sent
-    googleAuthUrl.searchParams.set('state', state);
+    const oAuth2Client = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/google/callback`
+    );
+
+    const googleAuthUrl = oAuth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: [
+        'https://www.googleapis.com/auth/drive.readonly', 
+        'https://www.googleapis.com/auth/userinfo.profile',
+        'https://www.googleapis.com/auth/userinfo.email'
+      ],
+      prompt: 'consent',
+      state: state,
+    });
 
     return NextResponse.redirect(googleAuthUrl);
 }

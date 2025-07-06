@@ -90,7 +90,7 @@ class GoogleDriveService {
     
     async sync(source: DataSource) {
         console.log(`Starting sync for Google Drive source: ${source.name}`);
-        knowledgeBaseService.deleteChunksBySourceId(source.tenantId, source.id);
+        await knowledgeBaseService.deleteChunksBySourceId(source.tenantId, source.id);
 
         const files = await this.listResources(source);
         let totalItems = 0;
@@ -108,7 +108,7 @@ class GoogleDriveService {
             }
         }
         
-        knowledgeBaseService.updateDataSource(source.tenantId, source.id, {
+        await knowledgeBaseService.updateDataSource(source.tenantId, source.id, {
             status: 'Synced',
             itemCount: totalItems,
             lastSynced: new Date().toLocaleDateString(),

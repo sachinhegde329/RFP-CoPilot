@@ -34,12 +34,16 @@ class SharePointService {
         
         // 2. For each drive, list all files recursively
         for (const drive of drives.value) {
-            let nextLink: string | undefined = `/drives/${drive.id}/root/search(q='')?$top=100`;
-            while (nextLink) {
-                const driveItems = await graphClient.api(nextLink).get();
-                const files = driveItems.value.filter((item: any) => item.file);
-                allItems = allItems.concat(files);
-                nextLink = driveItems['@odata.nextLink'];
+            try {
+                let nextLink: string | undefined = `/drives/${drive.id}/root/search(q='')?$top=100`;
+                while (nextLink) {
+                    const driveItems = await graphClient.api(nextLink).get();
+                    const files = driveItems.value.filter((item: any) => item.file);
+                    allItems = allItems.concat(files);
+                    nextLink = driveItems['@odata.nextLink'];
+                }
+            } catch (error) {
+                console.error(`Could not list items for drive ${drive.name} (${drive.id}). It might be empty or have access restrictions. Error:`, error);
             }
         }
         return allItems;
@@ -71,7 +75,7 @@ class SharePointService {
 
     async sync(source: DataSource) {
         console.log(`Starting sync for SharePoint source: ${source.name}`);
-        knowledgeBaseService.deleteChunksBySourceId(source.tenantId, source.id);
+        await knowledgeBaseService.deleteChunksBySourceId(source.tenantId, source.id);
 
         const files = await this.listResources(source);
         let totalItems = 0;
@@ -87,7 +91,7 @@ class SharePointService {
             }
         }
         
-        knowledgeBaseService.updateDataSource(source.tenantId, source.id, {
+        await knowledgeBaseService.updateDataSource(source.tenantId, source.id, {
             status: 'Synced',
             itemCount: totalItems,
             lastSynced: new Date().toLocaleDateString(),
