@@ -4,13 +4,13 @@ import { useState, useEffect, useCallback } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { QAndAList } from "@/components/dashboard/q-and-a-list"
-import { getRfpsAction, extractQuestionsAction, updateQuestionAction, addQuestionAction } from "@/app/actions"
+import { getRfpsAction, updateQuestionAction, addQuestionAction, generateAnswerAction } from "@/app/actions"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import type { Question, RFP } from "@/lib/rfp-types"
 import { DashboardSkeleton } from "./dashboard-skeleton"
-import { File, PlusCircle, Sparkles, Upload } from "lucide-react"
+import { File, PlusCircle, Sparkles, Upload, Loader2 } from "lucide-react"
 import { ExportRfpDialog } from "./export-rfp-dialog"
 
 type Attachment = {
@@ -30,10 +30,10 @@ function RfpWorkspaceView() {
   const [rfps, setRfps] = useState<RFP[]>([]);
   const [selectedRfp, setSelectedRfp] = useState<RFP | undefined>();
   const [isDataLoading, setIsDataLoading] = useState(true);
+  const [isAutoGenerating, setIsAutoGenerating] = useState(false);
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [rfpAttachments, setRfpAttachments] = useState<Record<string, Attachment[]>>({});
-  const [isProcessing, setIsProcessing] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const { toast } = useToast();
 
@@ -105,6 +105,44 @@ function RfpWorkspaceView() {
     }
   }, [selectedRfp, tenant.id, currentUser, toast]);
 
+  const handleAutogenerateAll = async () => {
+    if (!selectedRfp) return;
+
+    const unansweredQuestions = selectedRfp.questions.filter(q => !q.answer);
+
+    if (unansweredQuestions.length === 0) {
+      toast({ title: "All questions have answers", description: "There are no unanswered questions to generate." });
+      return;
+    }
+
+    setIsAutoGenerating(true);
+    toast({
+      title: "Autogeneration Started",
+      description: `Attempting to generate answers for ${unansweredQuestions.length} questions. This may take a few moments.`,
+    });
+
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const question of unansweredQuestions) {
+      const result = await generateAnswerAction(question.question, selectedRfp.id, tenant.id, currentUser);
+      if (result.error) {
+        console.error(`Failed to generate answer for Q${question.id}:`, result.error);
+        errorCount++;
+      } else if (result.answer) {
+        // This will optimistically update the UI and save to the backend.
+        await handleUpdateQuestion(question.id, { answer: result.answer });
+        successCount++;
+      }
+    }
+
+    setIsAutoGenerating(false);
+    toast({
+      title: "Autogeneration Complete",
+      description: `Generated ${successCount} answers. Failed on ${errorCount} questions.`,
+    });
+  };
+
   if (isDataLoading) {
     return <DashboardSkeleton />;
   }
@@ -124,7 +162,10 @@ function RfpWorkspaceView() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <Button><Sparkles className="mr-2"/> Autogenerate All</Button>
+                <Button onClick={handleAutogenerateAll} disabled={isAutoGenerating || !selectedRfp}>
+                    {isAutoGenerating ? <Loader2 className="mr-2 animate-spin" /> : <Sparkles className="mr-2"/>}
+                    {isAutoGenerating ? 'Generating...' : 'Autogenerate All'}
+                </Button>
                 <Button variant="outline" onClick={() => selectedRfp && setIsExportDialogOpen(true)} disabled={!selectedRfp}>Export</Button>
               </div>
               
