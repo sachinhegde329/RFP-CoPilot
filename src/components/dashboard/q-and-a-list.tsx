@@ -3,7 +3,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from "react"
 import { QuestionTableRow } from "./question-table-row"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import type { TeamMember } from "@/lib/tenant-types"
 import { useTenant } from "@/components/providers/tenant-provider"
@@ -497,7 +497,26 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
                 </DropdownMenuContent>
                 </DropdownMenu>
             </div>
-            <div className="ml-auto flex gap-2">
+            <div className="ml-auto flex items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={numSelected === 0 || isBulkProcessing}>
+                      {isBulkProcessing ? <Loader2 className="mr-2 animate-spin" /> : <CheckCheck className="mr-2" />}
+                      Bulk Actions ({numSelected})
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    <DropdownMenuItem onSelect={handleBulkGenerate} disabled={!canEditContent || isBulkProcessing}>
+                      <Sparkles className="mr-2" />
+                      Generate Answers
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onSelect={handleBulkMarkComplete} disabled={!canEditContent || isBulkProcessing}>
+                      <CheckCheck className="mr-2" />
+                      Mark as Complete
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                
                 <Dialog open={isAddQuestionDialogOpen} onOpenChange={setIsAddQuestionDialogOpen}>
                     <DialogTrigger asChild>
                         <Button variant="outline" size="sm" disabled={!canEditContent}>
@@ -597,21 +616,6 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
             </TableBody>
           </Table>
       </CardContent>
-      {numSelected > 0 && (
-          <CardFooter className="p-3 border-t bg-muted/50 justify-between items-center sticky bottom-0">
-              <span className="text-sm text-muted-foreground">{numSelected} selected</span>
-              <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={handleBulkGenerate} disabled={isBulkProcessing || !canEditContent}>
-                      {isBulkProcessing ? <Loader2 className="mr-2 animate-spin" /> : <Sparkles className="mr-2" />}
-                      Generate Answers
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={handleBulkMarkComplete} disabled={isBulkProcessing || !canEditContent}>
-                      {isBulkProcessing ? <Loader2 className="mr-2 animate-spin" /> : <CheckCheck className="mr-2" />}
-                      Mark as Complete
-                  </Button>
-              </div>
-          </CardFooter>
-      )}
     </Card>
   )
 }
