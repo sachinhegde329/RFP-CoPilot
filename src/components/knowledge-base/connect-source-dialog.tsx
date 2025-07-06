@@ -10,7 +10,7 @@ import { Loader2, Globe, FolderSync, Network, Box, BookOpen, BookText, Github } 
 import type { DataSource, DataSourceType } from '@/lib/knowledge-base';
 import { useTenant } from '@/components/providers/tenant-provider';
 import { useToast } from '@/hooks/use-toast';
-import { addWebsiteSourceAction } from '@/app/actions';
+import { addWebsiteSourceAction, addGitHubSourceAction, addConfluenceSourceAction, addNotionSourceAction } from '@/app/actions';
 import { Checkbox } from '@/components/ui/checkbox';
 
 
@@ -61,7 +61,7 @@ export function ConnectSourceDialog({ sourceType, onOpenChange, onSourceAdded }:
     }, 300);
   }
   
-  const handleConnect = () => {
+  const handleOAuthRedirect = () => {
     if (!sourceType) return;
     
     setIsLoading(true);
@@ -72,14 +72,44 @@ export function ConnectSourceDialog({ sourceType, onOpenChange, onSourceAdded }:
         window.location.href = `/api/auth/microsoft/initiate?tenantId=${tenant.id}`;
     } else if (sourceType === 'dropbox') {
         window.location.href = `/api/auth/dropbox/initiate?tenantId=${tenant.id}`;
-    } else {
-        toast({
-            title: "Connector Coming Soon",
-            description: `The ${sourceType} connector is under development.`,
-        });
-        setIsLoading(false);
     }
   };
+
+  const handleStaticSourceConnect = async () => {
+    if (!sourceType) return;
+    setIsLoading(true);
+
+    let result: { source?: DataSource; error?: string; } | null = null;
+    let action;
+
+    switch (sourceType) {
+        case 'github':
+            action = addGitHubSourceAction(tenant.id, currentUser);
+            break;
+        case 'confluence':
+            action = addConfluenceSourceAction(tenant.id, currentUser);
+            break;
+        case 'notion':
+            action = addNotionSourceAction(tenant.id, currentUser);
+            break;
+        default:
+            toast({ variant: 'destructive', title: 'Error', description: 'Invalid source type for static connection.' });
+            setIsLoading(false);
+            return;
+    }
+    
+    result = await action;
+
+    if (result.error || !result.source) {
+        toast({ variant: "destructive", title: "Connection Failed", description: result.error });
+        setIsLoading(false);
+    } else {
+        onSourceAdded(result.source);
+        toast({ title: "Connection Successful", description: `Started syncing content from ${result.source.name}` });
+        handleClose();
+    }
+  }
+
 
   const handleSyncWebsite = async () => {
     if (!websiteUrl || !/^(https?:\/\/)/.test(websiteUrl)) {
@@ -179,9 +209,10 @@ export function ConnectSourceDialog({ sourceType, onOpenChange, onSourceAdded }:
       );
     }
     
-    const isImplemented = ['gdrive', 'sharepoint', 'dropbox'].includes(sourceType);
+    const isOAuth = ['gdrive', 'sharepoint', 'dropbox'].includes(sourceType);
+    const isStatic = ['github', 'confluence', 'notion'].includes(sourceType);
 
-    if (isImplemented) {
+    if (isOAuth) {
         return (
             <>
                 <DialogHeader>
@@ -193,7 +224,7 @@ export function ConnectSourceDialog({ sourceType, onOpenChange, onSourceAdded }:
                 </div>
                 <DialogFooter>
                     <Button variant="outline" onClick={handleClose}>Cancel</Button>
-                    <Button onClick={handleConnect} disabled={isLoading}>
+                    <Button onClick={handleOAuthRedirect} disabled={isLoading}>
                          {isLoading && <Loader2 className="animate-spin mr-2"/>}
                         Continue
                     </Button>
@@ -202,7 +233,30 @@ export function ConnectSourceDialog({ sourceType, onOpenChange, onSourceAdded }:
         );
     }
 
-    // Fallback for unimplemented connectors
+    if (isStatic) {
+         return (
+            <>
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2"><Icon /> Connect to {details?.name}</DialogTitle>
+                    <DialogDescription>This will connect to the pre-configured {details?.name} instance.</DialogDescription>
+                </DialogHeader>
+                <div className="py-4 text-sm text-muted-foreground">
+                    <p>
+                        This integration uses an API key set up by your administrator on the server. Clicking "Connect" will create the source and begin the initial sync.
+                    </p>
+                </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={handleClose}>Cancel</Button>
+                    <Button onClick={handleStaticSourceConnect} disabled={isLoading}>
+                         {isLoading && <Loader2 className="animate-spin mr-2"/>}
+                        Connect and Sync
+                    </Button>
+                </DialogFooter>
+            </>
+        );
+    }
+
+    // Fallback for unimplemented connectors (should not happen with current logic)
     return (
         <>
             <DialogHeader>

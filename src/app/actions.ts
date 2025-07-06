@@ -324,6 +324,75 @@ export async function addWebsiteSourceAction(url: string, tenantId: string, curr
 }
 
 
+export async function addGitHubSourceAction(tenantId: string, currentUser: CurrentUser) {
+    const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
+    if (permCheck.error) return { error: permCheck.error };
+
+    if (!process.env.GITHUB_REPO || !process.env.GITHUB_TOKEN) {
+        return { error: "GitHub integration is not configured on the server. Please set GITHUB_REPO and GITHUB_TOKEN environment variables." };
+    }
+
+    const newSource = await knowledgeBaseService.addDataSource({
+        tenantId,
+        type: 'github',
+        name: `GitHub (${process.env.GITHUB_REPO})`,
+        status: 'Syncing',
+        lastSynced: 'In progress...',
+        itemCount: 0,
+    });
+
+    // Don't await this, let it run in the background
+    knowledgeBaseService.syncDataSource(tenantId, newSource.id);
+
+    return { source: newSource };
+}
+
+export async function addConfluenceSourceAction(tenantId: string, currentUser: CurrentUser) {
+    const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
+    if (permCheck.error) return { error: permCheck.error };
+
+    if (!process.env.CONFLUENCE_URL || !process.env.CONFLUENCE_USERNAME || !process.env.CONFLUENCE_API_TOKEN) {
+        return { error: "Confluence integration is not configured on the server. Please set CONFLUENCE environment variables." };
+    }
+
+    const newSource = await knowledgeBaseService.addDataSource({
+        tenantId,
+        type: 'confluence',
+        name: `Confluence`,
+        status: 'Syncing',
+        lastSynced: 'In progress...',
+        itemCount: 0,
+    });
+
+    // Don't await this, let it run in the background
+    knowledgeBaseService.syncDataSource(tenantId, newSource.id);
+
+    return { source: newSource };
+}
+
+export async function addNotionSourceAction(tenantId: string, currentUser: CurrentUser) {
+    const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
+    if (permCheck.error) return { error: permCheck.error };
+
+    if (!process.env.NOTION_API_KEY) {
+        return { error: "Notion integration is not configured on the server. Please set NOTION_API_KEY environment variable." };
+    }
+
+    const newSource = await knowledgeBaseService.addDataSource({
+        tenantId,
+        type: 'notion',
+        name: `Notion`,
+        status: 'Syncing',
+        lastSynced: 'In progress...',
+        itemCount: 0,
+    });
+
+    // Don't await this, let it run in the background
+    knowledgeBaseService.syncDataSource(tenantId, newSource.id);
+
+    return { source: newSource };
+}
+
 export async function resyncKnowledgeSourceAction(tenantId: string, sourceId: string, currentUser: CurrentUser) {
     const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
     if (permCheck.error) return { error: permCheck.error };
