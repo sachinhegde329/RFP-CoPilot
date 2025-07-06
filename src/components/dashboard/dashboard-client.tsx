@@ -14,6 +14,7 @@ import type { Question, RFP } from "@/lib/rfp-types"
 import { RfpSelector } from "./rfp-selector"
 import { HomepageHeader } from "./dashboard-header"
 import { DashboardSkeleton } from "./dashboard-skeleton"
+import { ComplianceCard } from "./compliance-card"
 
 type Attachment = {
   id: number;
@@ -163,8 +164,8 @@ function RfpWorkspaceView() {
             <RfpSelector rfps={rfps} selectedRfpId={selectedRfp.id} />
           ) : null}
 
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <div className="lg:col-span-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-3">
               <RfpSummaryCard
                 isLoading={isProcessing}
                 onProcessRfp={handleProcessRfp}
@@ -173,7 +174,7 @@ function RfpWorkspaceView() {
 
             {selectedRfp ? (
               <>
-                <div className="lg:col-span-4">
+                <div className="lg:col-span-2">
                   <QAndAList 
                     questions={questions} 
                     tenantId={tenant.id}
@@ -185,9 +186,12 @@ function RfpWorkspaceView() {
                     onUpdateAttachments={handleUpdateAttachments}
                   />
                 </div>
+                 <div className="lg:col-span-1 space-y-6">
+                  <ComplianceCard />
+                </div>
               </>
             ) : (
-              <div className="lg:col-span-4">
+              <div className="lg:col-span-3">
                 <Card>
                     <CardHeader>
                         <CardTitle>No RFPs Found</CardTitle>

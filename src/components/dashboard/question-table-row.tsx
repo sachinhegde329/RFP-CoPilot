@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import { Sparkles, CheckCircle2, AlertTriangle, History, Loader2, Bot, Clipboard, ClipboardCheck, BookOpenCheck, UserPlus, Circle, CheckCircle, CircleDotDashed, Bold, Italic, Underline, List, MessageSquare, ShieldCheck, Lock, Shield, XCircle } from "lucide-react"
+import { Sparkles, CheckCircle2, AlertTriangle, History, Loader2, Bot, Clipboard, ClipboardCheck, BookOpenCheck, UserPlus, Circle, CheckCircle, CircleDotDashed, Bold, Italic, Underline, List, MessageSquare } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { generateAnswerAction, reviewAnswerAction } from "@/app/actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -45,7 +45,6 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
   
   const currentUser = tenant.members[0];
   const canUseAiReview = hasFeatureAccess(tenant, 'aiExpertReview');
-  const canUseCompliance = hasFeatureAccess(tenant, 'complianceValidation');
   const canEdit = canPerformAction(currentUser.role, 'editContent');
   const canAssign = canPerformAction(currentUser.role, 'assignQuestions');
   
@@ -119,25 +118,6 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
     onUpdateQuestion(id, { status: newStatus });
   };
   
-  const handleRunComplianceCheck = () => {
-    // Mock a successful check for now
-    onUpdateQuestion(id, { compliance: "passed" });
-    toast({
-        title: "Compliance Check Passed",
-        description: "The answer aligns with configured compliance standards.",
-    });
-  };
-
-  const ComplianceStatusDisplay = ({ status }: { status: Question['compliance'] }) => {
-    if (status === 'passed') {
-        return <div className="flex items-center gap-2 text-green-600"><CheckCircle className="h-5 w-5" /> <span className="font-semibold">Passed</span></div>
-    }
-    if (status === 'failed') {
-        return <div className="flex items-center gap-2 text-destructive"><XCircle className="h-5 w-5" /> <span className="font-semibold">Failed</span></div>
-    }
-    return <div className="flex items-center gap-2 text-muted-foreground"><Shield className="h-5 w-5" /> <span className="font-semibold">Pending</span></div>
-  }
-
   const StatusIcon = ({ status, className }: { status: Question['status'], className?: string }) => {
     switch (status) {
       case 'Completed': return <CheckCircle className={cn("h-4 w-4 text-green-600", className)} />;
@@ -160,7 +140,7 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
                  <TooltipProvider delayDuration={100}>
                     <Tooltip>
                         <DropdownMenu>
-                            <TooltipTrigger asChild>
+                            <DropdownMenuTrigger asChild>
                                 <button disabled={!canAssign} className={cn("flex h-6 w-6 items-center justify-center rounded-full", canAssign ? "hover:bg-accent/50" : "cursor-not-allowed")} onClick={(e) => e.stopPropagation()}>
                                     {assignee ? (
                                         <Avatar className="h-full w-full">
@@ -173,7 +153,7 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
                                         </div>
                                     )}
                                 </button>
-                            </TooltipTrigger>
+                            </DropdownMenuTrigger>
                              {canAssign && (
                                 <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                                     <DropdownMenuLabel>Assign to</DropdownMenuLabel>
@@ -302,27 +282,6 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
                     )}
                 </div>
                 <div className="md:col-span-1 space-y-4">
-                    <Card>
-                        <CardHeader className="p-3">
-                            <CardTitle className="text-sm flex items-center gap-2"><ShieldCheck className="h-4 w-4"/>Compliance Status</CardTitle>
-                        </CardHeader>
-                        <CardContent className="p-3 pt-0">
-                            {canUseCompliance ? (
-                                <div className="space-y-3">
-                                    <ComplianceStatusDisplay status={questionData.compliance} />
-                                    <Button variant="outline" size="sm" className="w-full" onClick={handleRunComplianceCheck} disabled={!currentAnswer || !canEdit}>Run Check</Button>
-                                </div>
-                            ) : (
-                                <div className="text-center text-muted-foreground p-4 border-2 border-dashed rounded-lg">
-                                    <Lock className="size-6 mx-auto mb-2 text-primary" />
-                                    <p className="text-xs font-semibold mb-1">Available on Enterprise</p>
-                                    <Button asChild variant="link" size="sm" className="p-0 h-auto text-xs">
-                                        <Link href={`/pricing?tenant=${tenant.subdomain}`}>Upgrade</Link>
-                                    </Button>
-                                </div>
-                            )}
-                        </CardContent>
-                    </Card>
                     <div className="flex items-center justify-between">
                        <h4 className="font-semibold text-sm flex items-center gap-2"><MessageSquare /> Comments</h4>
                        <span className="text-xs text-muted-foreground">2 comments</span>
