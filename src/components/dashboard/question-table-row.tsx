@@ -54,7 +54,7 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
     setSources([]);
     setConfidence(null);
     
-    const result = await generateAnswerAction(question, rfpId, tenantId, currentUser);
+    const result = await generateAnswerAction({question, rfpId, tenantId, currentUser});
     if (result.error) {
         const isInfo = result.error.includes("knowledge base");
         toast({
@@ -73,7 +73,7 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
   const handleAcceptAnswer = () => {
       onUpdateQuestion(id, { answer: currentAnswer, status: 'Completed' });
       toast({
-          title: "Answer Accepted",
+          title: "Answer Saved",
           description: "The answer has been saved and marked as completed.",
       });
   }
@@ -226,7 +226,7 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
               disabled={!currentAnswer || isGenerating || isReviewing || !canEdit}
             >
               <CheckCircle2 className="mr-2" />
-              Accept Answer
+              Save & Complete
             </Button>
           </div>
 

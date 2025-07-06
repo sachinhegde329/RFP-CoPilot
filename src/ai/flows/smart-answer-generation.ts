@@ -21,7 +21,10 @@ const ContextChunkSchema = z.object({
 const GenerateDraftAnswerInputSchema = z.object({
   rfpQuestion: z.string().describe('The RFP question to answer.'),
   knowledgeBaseChunks: z.array(ContextChunkSchema).describe('Relevant chunks of content from the knowledge base.').optional(),
-  tone: z.string().describe('The desired tone of the answer (e.g., formal, technical, consultative).').optional(),
+  language: z.string().describe('The desired language for the answer (e.g., English, Spanish).').optional().default('English'),
+  tone: z.string().describe('The desired tone of the answer (e.g., formal, technical, consultative).').optional().default('Formal'),
+  style: z.string().describe('The desired format of the answer (e.g., a paragraph, bullet points).').optional().default('a paragraph'),
+  length: z.string().describe('The desired length of the answer (e.g., short, medium-length, detailed).').optional().default('medium-length'),
 });
 export type GenerateDraftAnswerInput = z.infer<typeof GenerateDraftAnswerInputSchema>;
 
@@ -52,19 +55,20 @@ Context from Knowledge Base:
 Question: {{{rfpQuestion}}}
 
 Instructions for answering from Knowledge Base:
-1. Based **only** on the context provided, generate a comprehensive and accurate answer in a {{#if tone}}{{{tone}}}{{else}}Formal{{/if}} tone.
-2. If the context does not contain enough information to answer the question, state that you cannot provide an answer based on the available knowledge.
-3. In your generated answer, cite the sources you used in parentheses, like this: (source: Security Policy 2023).
-4. In the output, provide a \`confidenceScore\` from 0.0 to 1.0, representing how well the context answered the question.
-5. In the output, list all the \`sources\` you used to formulate the answer.
+1. Based **only** on the context provided, generate a comprehensive and accurate {{length}} answer in {{{language}}}.
+2. The answer should have a {{{tone}}} tone and be formatted as {{{style}}}.
+3. If the context does not contain enough information to answer the question, state that you cannot provide an answer based on the available knowledge, in the requested language.
+4. In your generated answer, cite the sources you used in parentheses, like this: (source: Security Policy 2023).
+5. In the output, provide a \`confidenceScore\` from 0.0 to 1.0, representing how well the context answered the question.
+6. In the output, list all the \`sources\` you used to formulate the answer.
 {{else}}
 ---
 Question: {{{rfpQuestion}}}
 ---
 Instructions for answering from General Knowledge:
 1. The user's knowledge base did not contain information about this question.
-2. Answer the question based on your general knowledge in a {{#if tone}}{{{tone}}}{{else}}Formal{{/if}} tone.
-3. **Crucially, begin your answer with the disclaimer: "This answer was generated from general knowledge and not from your internal knowledge base."**
+2. Answer the question based on your general knowledge. Generate a {{length}} answer in {{{language}}} with a {{{tone}}} tone, formatted as {{{style}}}.
+3. **Crucially, begin your answer with the disclaimer (in the requested language): "This answer was generated from general knowledge and not from your internal knowledge base."**
 4. If you cannot provide a confident and accurate answer from your general knowledge, you MUST respond with only this exact phrase: "No answer is available in the knowledge base, and I am unable to provide a confident answer from my general knowledge."
 5. Do not provide a confidence score or sources.
 {{/if}}

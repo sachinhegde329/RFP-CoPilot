@@ -68,7 +68,18 @@ export async function parseDocumentAction(documentDataUri: string, tenantId: str
     }
 }
 
-export async function generateAnswerAction(question: string, rfpId: string, tenantId: string, currentUser: CurrentUser) {
+export async function generateAnswerAction(payload: {
+    question: string;
+    rfpId: string;
+    tenantId: string;
+    currentUser: CurrentUser;
+    language?: string;
+    tone?: string;
+    style?: string;
+    length?: string;
+}) {
+  const { question, rfpId, tenantId, currentUser, language, tone, style, length } = payload;
+  
   const permCheck = await checkPermission(tenantId, currentUser, 'editContent');
   if (permCheck.error) return { error: permCheck.error };
   const { tenant } = permCheck;
@@ -102,7 +113,10 @@ export async function generateAnswerAction(question: string, rfpId: string, tena
           content: chunk.content,
           source: chunk.metadata.url || chunk.title
       })) : undefined,
-      tone: tenant.defaultTone || "Formal",
+      language: language || 'English',
+      tone: tone || tenant.defaultTone || 'Formal',
+      style: style || 'a paragraph',
+      length: length || 'medium-length',
     })
     return { answer: result.draftAnswer, sources: result.sources, confidenceScore: result.confidenceScore }
   } catch (e) {

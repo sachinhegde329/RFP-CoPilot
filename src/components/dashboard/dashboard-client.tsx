@@ -1,7 +1,8 @@
+
 'use client'
 
-import { useState, useEffect, useCallback } from "react"
-import { useRouter, usePathname, useSearchParams } from "next/navigation"
+import { useState, useEffect, useCallback, useMemo } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { QAndAList } from "@/components/dashboard/q-and-a-list"
 import { getRfpsAction, updateQuestionAction, addQuestionAction, generateAnswerAction } from "@/app/actions"
@@ -12,6 +13,10 @@ import type { Question, RFP } from "@/lib/rfp-types"
 import { DashboardSkeleton } from "./dashboard-skeleton"
 import { File, PlusCircle, Sparkles, Upload, Loader2 } from "lucide-react"
 import { ExportRfpDialog } from "./export-rfp-dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 
 type Attachment = {
   id: number;
@@ -24,13 +29,20 @@ type Attachment = {
 function RfpWorkspaceView() {
   const { tenant } = useTenant();
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   
   const [rfps, setRfps] = useState<RFP[]>([]);
   const [selectedRfp, setSelectedRfp] = useState<RFP | undefined>();
   const [isDataLoading, setIsDataLoading] = useState(true);
   const [isAutoGenerating, setIsAutoGenerating] = useState(false);
+  const [isAutogenDialogOpen, setIsAutogenDialogOpen] = useState(false);
+
+  // Autogen settings state
+  const [autogenLanguage, setAutogenLanguage] = useState('English');
+  const [autogenTone, setAutogenTone] = useState(tenant.defaultTone || 'Formal');
+  const [autogenStyle, setAutogenStyle] = useState('a paragraph');
+  const [autogenLength, setAutogenLength] = useState('medium-length');
+
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [rfpAttachments, setRfpAttachments] = useState<Record<string, Attachment[]>>({});
@@ -105,17 +117,15 @@ function RfpWorkspaceView() {
     }
   }, [selectedRfp, tenant.id, currentUser, toast]);
 
+  const unansweredQuestions = useMemo(() => {
+    return selectedRfp?.questions.filter(q => !q.answer) || [];
+  }, [selectedRfp]);
+
   const handleAutogenerateAll = async () => {
-    if (!selectedRfp) return;
-
-    const unansweredQuestions = selectedRfp.questions.filter(q => !q.answer);
-
-    if (unansweredQuestions.length === 0) {
-      toast({ title: "All questions have answers", description: "There are no unanswered questions to generate." });
-      return;
-    }
+    if (!selectedRfp || unansweredQuestions.length === 0) return;
 
     setIsAutoGenerating(true);
+    setIsAutogenDialogOpen(false);
     toast({
       title: "Autogeneration Started",
       description: `Attempting to generate answers for ${unansweredQuestions.length} questions. This may take a few moments.`,
@@ -125,7 +135,17 @@ function RfpWorkspaceView() {
     let errorCount = 0;
 
     for (const question of unansweredQuestions) {
-      const result = await generateAnswerAction(question.question, selectedRfp.id, tenant.id, currentUser);
+      const result = await generateAnswerAction({
+        question: question.question,
+        rfpId: selectedRfp.id,
+        tenantId: tenant.id,
+        currentUser,
+        language: autogenLanguage,
+        tone: autogenTone,
+        style: autogenStyle,
+        length: autogenLength,
+      });
+
       if (result.error) {
         console.error(`Failed to generate answer for Q${question.id}:`, result.error);
         errorCount++;
@@ -162,7 +182,7 @@ function RfpWorkspaceView() {
               </div>
 
               <div className="flex flex-col gap-2">
-                <Button onClick={handleAutogenerateAll} disabled={isAutoGenerating || !selectedRfp}>
+                <Button onClick={() => setIsAutogenDialogOpen(true)} disabled={isAutoGenerating || !selectedRfp}>
                     {isAutoGenerating ? <Loader2 className="mr-2 animate-spin" /> : <Sparkles className="mr-2"/>}
                     {isAutoGenerating ? 'Generating...' : 'Autogenerate All'}
                 </Button>
@@ -210,6 +230,81 @@ function RfpWorkspaceView() {
           </div>
         </main>
         {selectedRfp && <ExportRfpDialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen} rfp={selectedRfp} />}
+        
+        <Dialog open={isAutogenDialogOpen} onOpenChange={setIsAutogenDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Autogenerate Settings</DialogTitle>
+              <DialogDescription>
+                Configure the settings for generating answers for all {unansweredQuestions.length} unanswered questions.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-6 py-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Language</Label>
+                  <Select value={autogenLanguage} onValueChange={setAutogenLanguage}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="English">English</SelectItem>
+                      <SelectItem value="Spanish">Spanish</SelectItem>
+                      <SelectItem value="French">French</SelectItem>
+                      <SelectItem value="German">German</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Tone</Label>
+                  <Select value={autogenTone} onValueChange={setAutogenTone}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Formal">Formal</SelectItem>
+                      <SelectItem value="Consultative">Consultative</SelectItem>
+                      <SelectItem value="Technical">Technical</SelectItem>
+                      <SelectItem value="Friendly">Friendly</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="space-y-2">
+                  <Label>Answer Style</Label>
+                  <RadioGroup value={autogenStyle} onValueChange={setAutogenStyle} className="flex gap-4">
+                      <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="a paragraph" id="style-para" />
+                          <Label htmlFor="style-para">Paragraph</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="bullet points" id="style-bullets" />
+                          <Label htmlFor="style-bullets">Bullet Points</Label>
+                      </div>
+                  </RadioGroup>
+              </div>
+               <div className="space-y-2">
+                  <Label>Answer Length</Label>
+                  <RadioGroup value={autogenLength} onValueChange={setAutogenLength} className="flex gap-4">
+                      <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="short" id="len-short" />
+                          <Label htmlFor="len-short">Short</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="medium-length" id="len-med" />
+                          <Label htmlFor="len-med">Medium</Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                          <RadioGroupItem value="detailed" id="len-long" />
+                          <Label htmlFor="len-long">Detailed</Label>
+                      </div>
+                  </RadioGroup>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button onClick={handleAutogenerateAll} disabled={isAutoGenerating || unansweredQuestions.length === 0}>
+                {isAutoGenerating ? <Loader2 className="mr-2 animate-spin" /> : <Sparkles className="mr-2" />}
+                {isAutoGenerating ? 'Generating...' : `Generate ${unansweredQuestions.length} Answers`}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </>
     )
 }
