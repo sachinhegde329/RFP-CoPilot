@@ -99,6 +99,10 @@ export default {
             '0%': { opacity: '0', transform: 'scale(0.95)' },
             '100%': { opacity: '1', transform: 'scale(1)' },
         },
+        'fade-in-slide-up': {
+          '0%': { opacity: '0', transform: 'translateY(10px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-in-out',
@@ -106,6 +110,7 @@ export default {
         'dialog-in': 'dialog-in 0.2s ease-out',
         'dialog-out': 'dialog-out 0.2s ease-out',
         'fade-in-scale-up': 'fade-in-scale-up 0.1s ease-out',
+        'fade-in-slide-up': 'fade-in-slide-up 0.3s ease-out forwards',
       },
       typography: (theme: (arg0: string) => any) => ({
         DEFAULT: {

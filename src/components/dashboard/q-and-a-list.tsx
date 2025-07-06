@@ -162,8 +162,13 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
       <div className="flex-1 overflow-y-auto pr-2">
         {filteredQuestions.length > 0 ? (
           <Accordion type="multiple" defaultValue={categoryKeys} className="w-full space-y-4">
-            {categoryKeys.map((category) => (
-              <AccordionItem key={category} value={category} className="bg-card rounded-lg border">
+            {categoryKeys.map((category, index) => (
+              <AccordionItem
+                key={category}
+                value={category}
+                className="bg-card rounded-lg border animate-fade-in-slide-up"
+                style={{ animationDelay: `${index * 50}ms`, opacity: 0 }}
+              >
                 <AccordionTrigger className="p-4 text-base font-semibold hover:no-underline">
                   {category} ({groupedQuestions[category].length})
                 </AccordionTrigger>
