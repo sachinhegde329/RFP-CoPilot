@@ -14,11 +14,12 @@ export default function SettingsPage({ params }: { params: { tenant: string } })
   // Define the settings pages and their required permissions.
   // The order determines the redirect priority.
   const settingsRoutes = [
+    { path: 'dashboard', permission: 'manageTeam' }, // Admins/Owners see this first
     { path: 'profile', permission: 'viewContent' }, // Personal, always available
     { path: 'referrals', permission: 'viewContent' }, 
     { path: 'workspace', permission: 'editWorkspace' },
     { path: 'team', permission: 'manageTeam' },
-    { path: 'billing', permission: 'manageTeam' }, // Assuming billing is tied to team mgmt
+    { path: 'billing', permission: 'manageTeam' },
     { path: 'security', permission: 'manageSecurity' }
   ];
 
