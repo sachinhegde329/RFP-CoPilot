@@ -95,7 +95,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
   const { toast } = useToast();
   const { tenant } = useTenant();
 
-  const [isConfiguringWebsite, setIsConfiguringWebsite] = useState(false);
+  const [configuringSourceType, setConfiguringSourceType] = useState<DataSourceType | null>(null);
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [maxDepth, setMaxDepth] = useState(2);
   const [maxPages, setMaxPages] = useState(10);
@@ -137,7 +137,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
     if (!canManageIntegrations) return;
     
     if (sourceType === 'website') {
-        setIsConfiguringWebsite(true);
+        setConfiguringSourceType('website');
     } else if (sourceType === 'gdrive') {
         window.location.href = `/api/auth/google/initiate?tenantId=${tenant.id}`;
     } else if (sourceType === 'sharepoint') {
@@ -170,7 +170,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
         setSources(prev => [result.source!, ...prev]);
         toast({ title: "Sync Started", description: `Started syncing content from ${websiteUrl}` });
         // Reset and close form
-        setIsConfiguringWebsite(false);
+        setConfiguringSourceType(null);
         setWebsiteUrl('');
         setFilterKeywords('');
     }
@@ -253,51 +253,76 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
             <TabsContent value="sources">
                 <div className="space-y-6">
                     <Card>
-                        <CardHeader><CardTitle>Automated Integrations</CardTitle><CardDescription>Connect to your existing tools to keep your knowledge base automatically up-to-date.</CardDescription></CardHeader>
-                        <CardContent className="p-0">
-                            <div className="divide-y divide-border">
+                        <CardHeader>
+                            <CardTitle>Automated Integrations</CardTitle>
+                            <CardDescription>Connect to your existing tools to keep your knowledge base automatically up-to-date.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                                 {potentialSources.map(potential => {
                                     const connected = sources.find(s => s.type === potential.type);
                                     const Icon = potential.icon;
+                                    const isConfiguringThis = configuringSourceType === potential.type;
+
+                                    if (isConfiguringThis) {
+                                        return (
+                                            <Card key={potential.name} className="lg:col-span-3">
+                                                <CardHeader>
+                                                    <div className="flex items-center gap-3"><Icon className="h-6 w-6 text-muted-foreground flex-shrink-0" /><CardTitle className="text-lg">{potential.name}</CardTitle></div>
+                                                    <CardDescription className="pt-2 pl-9">{potential.description}</CardDescription>
+                                                </CardHeader>
+                                                <CardContent className="space-y-4 pl-12">
+                                                    <div className="space-y-2"><Label htmlFor="website-url">Root URL</Label><Input id="website-url" placeholder="https://www.example.com" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} /></div>
+                                                    <div className="space-y-2"><Label htmlFor="filter-keywords">Topic Keywords (optional)</Label><Input id="filter-keywords" placeholder="e.g., ITSM, compliance" value={filterKeywords} onChange={(e) => setFilterKeywords(e.target.value)} /><p className="text-xs text-muted-foreground">Comma-separated. Only pages with these keywords in the URL or title will be crawled.</p></div>
+                                                </CardContent>
+                                                <CardFooter className="pl-12 gap-2">
+                                                    <Button onClick={handleSyncWebsite} disabled={!websiteUrl || isSyncingWebsite}>{isSyncingWebsite && <Loader2 className="animate-spin mr-2"/>}Sync Website</Button>
+                                                    <Button variant="ghost" onClick={() => setConfiguringSourceType(null)}>Cancel</Button>
+                                                </CardFooter>
+                                            </Card>
+                                        );
+                                    }
 
                                     if (connected) {
                                         return (
-                                            <div key={connected.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-2">
-                                                <div className="flex items-center gap-3 flex-1">
-                                                    <Icon className="h-8 w-8 text-muted-foreground flex-shrink-0" />
-                                                    <div className="flex-1"><p className="font-semibold">{connected.name}</p><p className="text-sm text-muted-foreground">{connected.itemCount?.toLocaleString()} items synced on {connected.lastSynced}</p></div>
-                                                </div>
-                                                <div className="flex items-center gap-2 self-end sm:self-center">
-                                                    {getStatusBadge(connected.status)}
+                                            <Card key={connected.id} className="flex flex-col">
+                                                <CardHeader className="flex flex-row items-start justify-between pb-4">
+                                                    <div className="flex items-center gap-3">
+                                                        <Icon className="h-6 w-6 text-muted-foreground flex-shrink-0" />
+                                                        <CardTitle className="text-lg">{connected.name}</CardTitle>
+                                                    </div>
                                                     <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={!canManageIntegrations || connected.status === 'Syncing'}><MoreHorizontal /></Button></DropdownMenuTrigger>
+                                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" disabled={!canManageIntegrations || connected.status === 'Syncing'}><MoreHorizontal /></Button></DropdownMenuTrigger>
                                                         <DropdownMenuContent><DropdownMenuItem onSelect={() => handleResync(connected)}><RefreshCw className="mr-2"/> Sync Now</DropdownMenuItem><DropdownMenuItem><Settings className="mr-2" /> Settings</DropdownMenuItem><DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteSource(connected.id)}><Trash2 className="mr-2"/> Remove</DropdownMenuItem></DropdownMenuContent>
                                                     </DropdownMenu>
-                                                </div>
-                                            </div>
-                                        );
-                                    } else if (potential.type === 'website' && isConfiguringWebsite) {
-                                        return (
-                                            <div key={potential.name} className="p-4 bg-muted/50">
-                                                <div className="flex items-start gap-3 mb-4"><Icon className="h-8 w-8 text-muted-foreground flex-shrink-0" /><div className="flex-1"><p className="font-semibold">{potential.name}</p><p className="text-sm text-muted-foreground">{potential.description}</p></div></div>
-                                                <div className="space-y-4 pl-11">
-                                                    <div className="space-y-2"><Label htmlFor="website-url">Root URL</Label><Input id="website-url" placeholder="https://www.example.com" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} /></div>
-                                                    <div className="space-y-2"><Label htmlFor="filter-keywords">Topic Keywords (optional)</Label><Input id="filter-keywords" placeholder="e.g., ITSM, compliance" value={filterKeywords} onChange={(e) => setFilterKeywords(e.target.value)} /><p className="text-xs text-muted-foreground">Comma-separated. Only pages with these keywords in the URL or title will be crawled.</p></div>
-                                                    <div className="flex gap-2"><Button onClick={handleSyncWebsite} disabled={!websiteUrl || isSyncingWebsite}>{isSyncingWebsite && <Loader2 className="animate-spin mr-2"/>}Sync Website</Button><Button variant="ghost" onClick={() => setIsConfiguringWebsite(false)}>Cancel</Button></div>
-                                                </div>
-                                            </div>
-                                        );
-                                    } else {
-                                        return (
-                                            <div key={potential.name} className="p-4 flex flex-col sm:flex-row sm:items-center gap-2">
-                                                <div className="flex items-center gap-3 flex-1">
-                                                    <Icon className="h-8 w-8 text-muted-foreground flex-shrink-0" />
-                                                    <div className="flex-1"><p className="font-semibold">{potential.name}</p><p className="text-sm text-muted-foreground">{potential.description}</p></div>
-                                                </div>
-                                                <Button variant="outline" onClick={() => handleSelectSource(potential.type)} disabled={!canManageIntegrations}>Connect</Button>
-                                            </div>
+                                                </CardHeader>
+                                                <CardContent className="flex-1">
+                                                    <div className="space-y-2">
+                                                        {getStatusBadge(connected.status)}
+                                                        <p className="text-sm text-muted-foreground">{connected.itemCount?.toLocaleString() || 0} items synced</p>
+                                                        <p className="text-xs text-muted-foreground">Last synced: {connected.lastSynced}</p>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
                                         );
                                     }
+
+                                    return (
+                                        <Card key={potential.name} className="flex flex-col">
+                                            <CardHeader className="pb-4">
+                                                <div className="flex items-center gap-3">
+                                                    <Icon className="h-6 w-6 text-muted-foreground flex-shrink-0" />
+                                                    <CardTitle className="text-lg">{potential.name}</CardTitle>
+                                                </div>
+                                            </CardHeader>
+                                            <CardContent className="flex-1">
+                                                <p className="text-sm text-muted-foreground">{potential.description}</p>
+                                            </CardContent>
+                                            <CardFooter>
+                                                <Button className="w-full" variant="outline" onClick={() => handleSelectSource(potential.type)} disabled={!canManageIntegrations}>Connect</Button>
+                                            </CardFooter>
+                                        </Card>
+                                    );
                                 })}
                             </div>
                         </CardContent>
