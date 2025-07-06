@@ -16,6 +16,7 @@ import { notificationService } from "@/lib/notifications.service"
 import { exportService } from "@/lib/export.service";
 import { templateService, type Template, type TemplateSection } from "@/lib/template.service"
 import { detectRfpTopics } from "@/ai/flows/detect-rfp-topics"
+import { askAi } from "@/ai/flows/ask-ai-flow";
 
 import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType, PageBreak } from 'docx';
 import PDFDocument from 'pdfkit';
@@ -943,5 +944,25 @@ export async function getTenantBySubdomainAction(subdomain: string): Promise<{ t
     } catch (e: any) {
         console.error(`Action failed: getTenantBySubdomainAction for ${subdomain}`, e);
         return { error: e.message || 'Failed to retrieve tenant information.' };
+    }
+}
+
+export async function askAiAction(query: string, tenantId: string): Promise<{ answer?: string, sources?: string[], error?: string }> {
+    if (!query) {
+        return { error: "Query cannot be empty." };
+    }
+    if (!tenantId) {
+        return { error: "Tenant not found." };
+    }
+    
+    // In a real app with auth, we'd check permissions here. For now, we assume access.
+    
+    try {
+        const result = await askAi({ query, tenantId });
+        return { answer: result.answer, sources: result.sources };
+    } catch (e) {
+        console.error("Ask AI action failed:", e);
+        const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred while asking AI.";
+        return { error: errorMessage };
     }
 }
