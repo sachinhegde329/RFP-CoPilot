@@ -129,7 +129,7 @@ export function RfpSummaryCard({ isLoading, onProcessRfp }: RfpSummaryCardProps)
           </Button>
           <Button variant="outline" disabled={isLoading || isUploading || !canUpload} onClick={handleUploadClick}>
             {isUploading ? <Loader2 className="animate-spin" /> : <UploadCloud />}
-            {isUploading ? 'Uploading...' : 'Upload Document'}
+            {isUploading ? 'Uploading...' : 'Upload RFP'}
           </Button>
         </div>
       </CardContent>
