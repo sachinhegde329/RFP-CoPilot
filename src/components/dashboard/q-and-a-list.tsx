@@ -1,6 +1,7 @@
+
 'use client'
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { QuestionTableRow } from "./question-table-row"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -345,21 +346,21 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
   const areAllSelected = numDisplayed > 0 && numSelected === numDisplayed;
   const areSomeSelected = numSelected > 0 && numSelected < numDisplayed;
 
-  const handleSelectAll = (checked: boolean | 'indeterminate') => {
+  const handleSelectAll = useCallback((checked: boolean | 'indeterminate') => {
       if (checked === true) {
           setSelectedRowIds(filteredQuestions.map(q => q.id));
       } else {
           setSelectedRowIds([]);
       }
-  };
+  }, [filteredQuestions]);
   
-  const handleRowSelect = (questionId: number, isSelected: boolean) => {
+  const handleRowSelect = useCallback((questionId: number, isSelected: boolean) => {
       if (isSelected) {
           setSelectedRowIds(prev => [...prev, questionId]);
       } else {
           setSelectedRowIds(prev => prev.filter(id => id !== questionId));
       }
-  };
+  }, []);
 
   const handleBulkGenerate = async () => {
     setIsBulkProcessing(true);

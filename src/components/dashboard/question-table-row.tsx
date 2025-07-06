@@ -1,6 +1,7 @@
+
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, memo } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -34,7 +35,7 @@ type QuestionTableRowProps = {
   canEdit: boolean
 }
 
-export function QuestionTableRow({ questionData, tenantId, rfpId, members, onUpdateQuestion, isSelected, onSelectChange, canEdit }: QuestionTableRowProps) {
+export const QuestionTableRow = memo(function QuestionTableRow({ questionData, tenantId, rfpId, members, onUpdateQuestion, isSelected, onSelectChange, canEdit }: QuestionTableRowProps) {
   const { id, question, category, assignee, status, answer } = questionData;
   const { tenant } = useTenant();
   const { toast } = useToast();
@@ -395,4 +396,4 @@ export function QuestionTableRow({ questionData, tenantId, rfpId, members, onUpd
       </Sheet>
     </>
   )
-}
+});
