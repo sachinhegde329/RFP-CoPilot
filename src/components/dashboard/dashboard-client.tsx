@@ -14,7 +14,6 @@ import type { Question, RFP } from "@/lib/rfp-types"
 import { RfpSelector } from "./rfp-selector"
 import { HomepageHeader } from "./dashboard-header"
 import { DashboardSkeleton } from "./dashboard-skeleton"
-import { ComplianceCard } from "./compliance-card"
 
 type Attachment = {
   id: number;
@@ -173,23 +172,18 @@ function RfpWorkspaceView() {
             </div>
 
             {selectedRfp ? (
-              <>
-                <div className="lg:col-span-2">
-                  <QAndAList 
-                    questions={questions} 
-                    tenantId={tenant.id}
-                    rfpId={selectedRfp.id}
-                    members={tenant.members} 
-                    onUpdateQuestion={handleUpdateQuestion}
-                    onAddQuestion={handleAddQuestion}
-                    attachments={attachments}
-                    onUpdateAttachments={handleUpdateAttachments}
-                  />
-                </div>
-                 <div className="lg:col-span-1 space-y-6">
-                  <ComplianceCard />
-                </div>
-              </>
+              <div className="lg:col-span-3">
+                <QAndAList 
+                  questions={questions} 
+                  tenantId={tenant.id}
+                  rfpId={selectedRfp.id}
+                  members={tenant.members} 
+                  onUpdateQuestion={handleUpdateQuestion}
+                  onAddQuestion={handleAddQuestion}
+                  attachments={attachments}
+                  onUpdateAttachments={handleUpdateAttachments}
+                />
+              </div>
             ) : (
               <div className="lg:col-span-3">
                 <Card>

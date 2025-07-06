@@ -3,11 +3,11 @@
 
 import { useState, useMemo, useEffect, useRef } from "react"
 import { QAndAItem } from "./question-table-row"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import type { TeamMember } from "@/lib/tenant-types"
 import { useTenant } from "@/components/providers/tenant-provider"
-import { PlusCircle, ChevronDown, Loader2, Download, AlertTriangle, UserCheck, ShieldAlert, Paperclip, File, Trash2, CheckCheck } from "lucide-react"
+import { PlusCircle, ChevronDown, Loader2, Download, AlertTriangle, UserCheck, ShieldAlert, Paperclip, File, Trash2, CheckCheck, ShieldCheck, XCircle, CheckCircle2 } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import {
   DropdownMenu,
@@ -43,9 +43,17 @@ import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { canPerformAction } from "@/lib/access-control"
 import { Accordion } from "@/components/ui/accordion"
+import { Badge } from "@/components/ui/badge"
 
 
 type Acknowledgments = Record<string, { acknowledged: boolean; comment: string }>;
+
+const complianceChecks = [
+  { name: "ISO 27001", status: "passed" },
+  { name: "SOC 2 Type II", status: "passed" },
+  { name: "HIPAA", status: "passed" },
+  { name: "GDPR", status: "failed" },
+]
 
 function ExportDialog({ rfpId, questions, members }: { rfpId: string, questions: Question[], members: TeamMember[] }) {
     const { tenant } = useTenant()
@@ -54,7 +62,6 @@ function ExportDialog({ rfpId, questions, members }: { rfpId: string, questions:
     const [isExporting, setIsExporting] = useState(false)
     const [checklist, setChecklist] = useState({
         answersReviewed: false,
-        complianceVerified: false,
     });
     const [acknowledgments, setAcknowledgments] = useState<Acknowledgments>({});
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -69,6 +76,7 @@ function ExportDialog({ rfpId, questions, members }: { rfpId: string, questions:
     const allQuestionsCompleted = questions.every(q => q.status === 'Completed');
     
     const canExport = canFinalize && (allQuestionsCompleted || isAdminOrOwner);
+    const anyChecksFailed = complianceChecks.some(c => c.status === 'failed');
     
     const exportButtonTooltipContent = !canFinalize 
         ? "You do not have permission to export."
@@ -96,7 +104,7 @@ function ExportDialog({ rfpId, questions, members }: { rfpId: string, questions:
     }, [isDialogOpen, tenant.id, currentUser, toast, selectedTemplate]);
 
 
-    const handleChecklistChange = (key: 'answersReviewed' | 'complianceVerified') => {
+    const handleChecklistChange = (key: 'answersReviewed') => {
         setChecklist(prev => ({ ...prev, [key]: !prev[key] }));
     };
 
@@ -178,10 +186,34 @@ function ExportDialog({ rfpId, questions, members }: { rfpId: string, questions:
                             <Checkbox id="answersReviewed" checked={checklist.answersReviewed} onCheckedChange={() => handleChecklistChange('answersReviewed')} />
                             <Label htmlFor="answersReviewed" className="font-normal text-sm peer-disabled:cursor-not-allowed peer-disabled:opacity-70">All answers reviewed and approved</Label>
                         </div>
-                        <div className="flex items-center space-x-2 pl-1">
-                            <Checkbox id="complianceVerified" checked={checklist.complianceVerified} onCheckedChange={() => handleChecklistChange('complianceVerified')} />
-                            <Label htmlFor="complianceVerified" className="font-normal text-sm peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Compliance checks passed</Label>
-                        </div>
+                        
+                        <Separator />
+                        
+                        <div className="space-y-2">
+                             <Label className="flex items-center gap-2"><ShieldCheck /> Compliance Validation</Label>
+                             <Card className="bg-muted/50">
+                                 <CardContent className="p-3 space-y-2">
+                                     {complianceChecks.map((check) => (
+                                       <div key={check.name} className="flex items-center justify-between text-sm">
+                                         <span className="font-medium">{check.name}</span>
+                                         {check.status === "passed" ? (
+                                           <Badge variant="secondary" className="font-normal text-green-600"><CheckCircle2 className="mr-1 h-3 w-3" /> Passed</Badge>
+                                         ) : (
+                                           <Badge variant="destructive" className="font-normal"><XCircle className="mr-1 h-3 w-3" /> Failed</Badge>
+                                         )}
+                                       </div>
+                                     ))}
+                                 </CardContent>
+                             </Card>
+                             {anyChecksFailed && (
+                                 <Alert variant="destructive" className="text-xs">
+                                     <AlertTriangle className="h-4 w-4" />
+                                     <AlertDescription>
+                                         One or more compliance checks have failed. Exporting is not recommended.
+                                     </AlertDescription>
+                                 </Alert>
+                             )}
+                         </div>
 
                         <Separator />
 
