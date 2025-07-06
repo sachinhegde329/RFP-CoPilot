@@ -1,9 +1,8 @@
-
 'use client'
 
 import { useState, useMemo, useEffect } from "react"
 import { QAndAItem } from "./q-and-a-item"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import type { TeamMember } from "@/lib/tenant-types"
 import { useTenant } from "@/components/providers/tenant-provider"
@@ -163,7 +162,7 @@ function ExportDialog({ rfpId, questions, members }: { rfpId: string, questions:
             </DialogTrigger>
             <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
-                    <DialogTitle>Finalize & Export</DialogTitle>
+                    <DialogTitle>Finalize &amp; Export</DialogTitle>
                     <DialogDescription>
                     Complete the final review checklist and export the RFP response.
                     </DialogDescription>

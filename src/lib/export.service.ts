@@ -1,4 +1,3 @@
-
 import type { Role } from './tenant-types';
 import type { Question } from './rfp-types';
 

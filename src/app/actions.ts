@@ -1,4 +1,3 @@
-
 "use server"
 
 import { generateDraftAnswer } from "@/ai/flows/smart-answer-generation"
@@ -652,7 +651,7 @@ export async function exportRfpAction(payload: {
     currentUser: CurrentUser,
     exportVersion: string,
     format: 'pdf' | 'docx',
-    acknowledgments: { name: string, role: string; comment: string }[]
+    acknowledgments: { name: string; role: string; comment: string }[]
 }) {
     const { tenantId, rfpId, templateId, currentUser, exportVersion, format, acknowledgments } = payload;
     

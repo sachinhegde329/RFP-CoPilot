@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useState } from "react"
@@ -8,8 +7,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Download, MessageSquare, History, File } from "lucide-react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog"
+import { Download, History, File } from "lucide-react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
@@ -160,7 +159,7 @@ export function ExportHistoryClient({ initialHistory }: ExportHistoryClientProps
                             <div className="md:col-span-2 flex flex-col">
                                 <Card className="flex-1 flex flex-col">
                                     <CardHeader>
-                                        <CardTitle className="text-lg">Questions & Answers ({selectedRecord.questionCount})</CardTitle>
+                                        <CardTitle className="text-lg">Questions &amp; Answers ({selectedRecord.questionCount})</CardTitle>
                                     </CardHeader>
                                     <CardContent className="flex-1 overflow-hidden p-0">
                                         <ScrollArea className="h-full p-6 pt-0">
