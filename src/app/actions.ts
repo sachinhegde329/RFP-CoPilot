@@ -5,7 +5,7 @@ import { generateDraftAnswer } from "@/ai/flows/smart-answer-generation"
 import { aiExpertReview } from "@/ai/flows/ai-expert-review"
 import { extractRfpQuestions } from "@/ai/flows/extract-rfp-questions"
 import { parseDocument } from "@/ai/flows/parse-document"
-import { knowledgeBaseService, type DataSource } from "@/lib/knowledge-base"
+import { knowledgeBaseService, type DataSource, type DataSourceType } from "@/lib/knowledge-base"
 import { rfpService } from "@/lib/rfp.service"
 import type { Question, RFP } from "@/lib/rfp-types"
 import { getTenantBySubdomain, updateTenant } from "@/lib/tenants"
@@ -323,6 +323,41 @@ export async function addWebsiteSourceAction(tenantId: string, currentUser: Curr
     return { source: newSource };
 }
 
+// Helper for API-based source connections
+async function addApiBasedSourceAction(
+    tenantId: string,
+    currentUser: CurrentUser,
+    type: DataSourceType,
+    name: string,
+    config: { url: string; apiKey: string;[key: string]: any },
+    auth: { apiKey: string;[key: string]: any }
+) {
+    const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
+    if (permCheck.error) return { error: permCheck.error };
+
+    if (!config.url || !config.apiKey) {
+        return { error: `Missing required connection details for ${name}.` };
+    }
+
+    const hostname = new URL(config.url).hostname;
+
+    const newSource = await knowledgeBaseService.addDataSource({
+        tenantId,
+        type,
+        name: `${name} (${hostname})`,
+        status: 'Syncing',
+        lastSynced: 'In progress...',
+        itemCount: 0,
+        config: { url: config.url },
+        auth,
+    });
+
+    // Don't await this, let it run in the background
+    knowledgeBaseService.syncDataSource(tenantId, newSource.id);
+
+    return { source: newSource };
+}
+
 
 export async function addGitHubSourceAction(tenantId: string, currentUser: CurrentUser, config: { repo: string; token: string }) {
     const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
@@ -350,30 +385,10 @@ export async function addGitHubSourceAction(tenantId: string, currentUser: Curre
 }
 
 export async function addConfluenceSourceAction(tenantId: string, currentUser: CurrentUser, config: { url: string; username: string; apiKey: string }) {
-    const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
-    if (permCheck.error) return { error: permCheck.error };
-
-    if (!config.url || !config.username || !config.apiKey) {
-        return { error: "Missing required Confluence connection details." };
-    }
-    
-    const hostname = new URL(config.url).hostname;
-
-    const newSource = await knowledgeBaseService.addDataSource({
-        tenantId,
-        type: 'confluence',
-        name: `Confluence (${hostname})`,
-        status: 'Syncing',
-        lastSynced: 'In progress...',
-        itemCount: 0,
-        config: { url: config.url },
-        auth: { username: config.username, apiKey: config.apiKey }
+    return addApiBasedSourceAction(tenantId, currentUser, 'confluence', 'Confluence', config, {
+        username: config.username,
+        apiKey: config.apiKey,
     });
-
-    // Don't await this, let it run in the background
-    knowledgeBaseService.syncDataSource(tenantId, newSource.id);
-
-    return { source: newSource };
 }
 
 export async function addNotionSourceAction(tenantId: string, currentUser: CurrentUser, config: { apiKey: string }) {
@@ -399,6 +414,27 @@ export async function addNotionSourceAction(tenantId: string, currentUser: Curre
 
     return { source: newSource };
 }
+
+export async function addHighspotSourceAction(tenantId: string, currentUser: CurrentUser, config: { url: string; apiKey: string }) {
+    return addApiBasedSourceAction(tenantId, currentUser, 'highspot', 'Highspot', config, { apiKey: config.apiKey });
+}
+
+export async function addShowpadSourceAction(tenantId: string, currentUser: CurrentUser, config: { url: string; apiKey: string }) {
+    return addApiBasedSourceAction(tenantId, currentUser, 'showpad', 'Showpad', config, { apiKey: config.apiKey });
+}
+
+export async function addSeismicSourceAction(tenantId: string, currentUser: CurrentUser, config: { url: string; apiKey: string }) {
+    return addApiBasedSourceAction(tenantId, currentUser, 'seismic', 'Seismic', config, { apiKey: config.apiKey });
+}
+
+export async function addMindtickleSourceAction(tenantId: string, currentUser: CurrentUser, config: { url: string; apiKey: string }) {
+    return addApiBasedSourceAction(tenantId, currentUser, 'mindtickle', 'Mindtickle', config, { apiKey: config.apiKey });
+}
+
+export async function addEnableusSourceAction(tenantId: string, currentUser: CurrentUser, config: { url: string; apiKey: string }) {
+    return addApiBasedSourceAction(tenantId, currentUser, 'enableus', 'Enable.us', config, { apiKey: config.apiKey });
+}
+
 
 export async function resyncKnowledgeSourceAction(tenantId: string, sourceId: string, currentUser: CurrentUser) {
     const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');

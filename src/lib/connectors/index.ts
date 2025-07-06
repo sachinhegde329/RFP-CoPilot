@@ -13,8 +13,13 @@ import { googleDriveService } from './googleDrive.service';
 import { notionService } from './notion.service';
 import { sharepointService } from './sharepoint.service';
 import { websiteCrawlerService } from './websiteCrawler.service';
+import { highspotService } from './highspot.service';
+import { showpadService } from './showpad.service';
+import { seismicService } from './seismic.service';
+import { mindtickleService } from './mindtickle.service';
+import { enableusService } from './enableus.service';
 
-import type { DataSourceType } from '@/lib/knowledge-base';
+import type { DataSource, DataSourceType } from '@/lib/knowledge-base';
 
 // Export individual service instances
 export {
@@ -25,6 +30,11 @@ export {
   notionService,
   sharepointService,
   websiteCrawlerService,
+  highspotService,
+  showpadService,
+  seismicService,
+  mindtickleService,
+  enableusService,
 };
 
 // A dummy service for unimplemented connectors
@@ -68,11 +78,15 @@ export function getConnectorService(type: DataSourceType) {
         case 'notion':
             return notionService;
         case 'highspot':
+            return highspotService;
         case 'showpad':
+            return showpadService;
         case 'seismic':
+            return seismicService;
         case 'mindtickle':
+            return mindtickleService;
         case 'enableus':
-            return dummyConnector;
+            return enableusService;
         default:
             console.warn(`Connector for type "${type}" not found.`);
             return dummyConnector;

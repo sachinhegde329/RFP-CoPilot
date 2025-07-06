@@ -10,7 +10,7 @@ import { Loader2, Globe, FolderSync, Network, Box, BookOpen, BookText, Github, T
 import type { DataSource, DataSourceType } from '@/lib/knowledge-base';
 import { useTenant } from '@/components/providers/tenant-provider';
 import { useToast } from '@/hooks/use-toast';
-import { addWebsiteSourceAction, addGitHubSourceAction, addConfluenceSourceAction, addNotionSourceAction } from '@/app/actions';
+import { addWebsiteSourceAction, addGitHubSourceAction, addConfluenceSourceAction, addNotionSourceAction, addHighspotSourceAction, addShowpadSourceAction, addSeismicSourceAction, addMindtickleSourceAction, addEnableusSourceAction } from '@/app/actions';
 import { Checkbox } from '@/components/ui/checkbox';
 
 
@@ -51,17 +51,13 @@ export function ConnectSourceDialog({ sourceType, onOpenChange, onSourceAdded }:
   const [filterKeywords, setFilterKeywords] = useState('');
   const [tosAccepted, setTosAccepted] = useState(false);
   
-  // Confluence form state
-  const [confluenceUrl, setConfluenceUrl] = useState('');
-  const [confluenceUser, setConfluenceUser] = useState('');
-  const [confluenceToken, setConfluenceToken] = useState('');
-
+  // Generic API form state
+  const [apiUrl, setApiUrl] = useState('');
+  const [apiKey, setApiKey] = useState('');
+  const [apiUser, setApiUser] = useState('');
+  
   // GitHub form state
   const [githubRepo, setGithubRepo] = useState('');
-  const [githubToken, setGithubToken] = useState('');
-
-  // Notion form state
-  const [notionToken, setNotionToken] = useState('');
 
   
   const handleClose = () => {
@@ -77,15 +73,12 @@ export function ConnectSourceDialog({ sourceType, onOpenChange, onSourceAdded }:
         setMaxDepth(2);
         setMaxPages(10);
         setTosAccepted(false);
-        // Confluence
-        setConfluenceUrl('');
-        setConfluenceUser('');
-        setConfluenceToken('');
+        // Generic API
+        setApiUrl('');
+        setApiKey('');
+        setApiUser('');
         // GitHub
         setGithubRepo('');
-        setGithubToken('');
-        // Notion
-        setNotionToken('');
     }, 300);
   }
   
@@ -111,7 +104,8 @@ export function ConnectSourceDialog({ sourceType, onOpenChange, onSourceAdded }:
         return;
     }
     setIsLoading(true);
-    const result = await addWebsiteSourceAction(websiteUrl, tenant.id, currentUser, { 
+    const result = await addWebsiteSourceAction(tenant.id, currentUser, { 
+        url: websiteUrl,
         maxDepth, 
         maxPages,
         scopePath: scopePath.trim(),
@@ -129,56 +123,62 @@ export function ConnectSourceDialog({ sourceType, onOpenChange, onSourceAdded }:
     }
   }
 
-  const handleConnectConfluence = async () => {
-    if (!confluenceUrl || !confluenceUser || !confluenceToken) {
-        toast({ variant: 'destructive', title: 'Missing Fields', description: 'Please fill out all required fields.' });
-        return;
-    }
-    setIsLoading(true);
-    const result = await addConfluenceSourceAction(tenant.id, currentUser, { url: confluenceUrl, username: confluenceUser, apiKey: confluenceToken });
-    if(result.error || !result.source) {
-        toast({ variant: 'destructive', title: 'Connection Failed', description: result.error });
-        setIsLoading(false);
-    } else {
-        onSourceAdded(result.source);
-        toast({ title: 'Connection Successful', description: `Started syncing from ${result.source.name}`});
-        handleClose();
-    }
-  }
+  const handleConnectApiBasedSource = async () => {
+    if (!sourceType) return;
 
-  const handleConnectGithub = async () => {
-    if (!githubRepo || !githubToken) {
-        toast({ variant: 'destructive', title: 'Missing Fields', description: 'Please fill out all required fields.' });
-        return;
+    if (!apiUrl || !apiKey) {
+      toast({ variant: 'destructive', title: 'Missing Fields', description: 'Please fill out all required fields.' });
+      return;
     }
+
     setIsLoading(true);
-    const result = await addGitHubSourceAction(tenant.id, currentUser, { repo: githubRepo, token: githubToken });
-    if(result.error || !result.source) {
-        toast({ variant: 'destructive', title: 'Connection Failed', description: result.error });
+    let result;
+
+    try {
+        switch (sourceType) {
+            case 'confluence':
+                if (!apiUser) throw new Error("Username is required for Confluence.");
+                result = await addConfluenceSourceAction(tenant.id, currentUser, { url: apiUrl, username: apiUser, apiKey });
+                break;
+            case 'github':
+                result = await addGitHubSourceAction(tenant.id, currentUser, { repo: githubRepo, token: apiKey });
+                break;
+            case 'notion':
+                result = await addNotionSourceAction(tenant.id, currentUser, { apiKey });
+                break;
+            case 'highspot':
+                 result = await addHighspotSourceAction(tenant.id, currentUser, { url: apiUrl, apiKey });
+                 break;
+            case 'showpad':
+                 result = await addShowpadSourceAction(tenant.id, currentUser, { url: apiUrl, apiKey });
+                 break;
+            case 'seismic':
+                 result = await addSeismicSourceAction(tenant.id, currentUser, { url: apiUrl, apiKey });
+                 break;
+            case 'mindtickle':
+                 result = await addMindtickleSourceAction(tenant.id, currentUser, { url: apiUrl, apiKey });
+                 break;
+            case 'enableus':
+                 result = await addEnableusSourceAction(tenant.id, currentUser, { url: apiUrl, apiKey });
+                 break;
+            default:
+                throw new Error("Unsupported source type for API connection.");
+        }
+
+        if(result.error || !result.source) {
+            toast({ variant: 'destructive', title: 'Connection Failed', description: result.error });
+        } else {
+            onSourceAdded(result.source);
+            toast({ title: 'Connection Successful', description: `Started syncing from ${result.source.name}`});
+            handleClose();
+        }
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Connection Error', description: e.message });
+    } finally {
         setIsLoading(false);
-    } else {
-        onSourceAdded(result.source);
-        toast({ title: 'Connection Successful', description: `Started syncing from ${result.source.name}`});
-        handleClose();
     }
-  }
-  
-  const handleConnectNotion = async () => {
-    if (!notionToken) {
-        toast({ variant: 'destructive', title: 'Missing Field', description: 'Please provide your Notion Integration Token.' });
-        return;
-    }
-    setIsLoading(true);
-    const result = await addNotionSourceAction(tenant.id, currentUser, { apiKey: notionToken });
-     if(result.error || !result.source) {
-        toast({ variant: 'destructive', title: 'Connection Failed', description: result.error });
-        setIsLoading(false);
-    } else {
-        onSourceAdded(result.source);
-        toast({ title: 'Connection Successful', description: `Started syncing from ${result.source.name}`});
-        handleClose();
-    }
-  }
+  };
+
 
   const details = sourceType ? sourceDetails[sourceType] : null;
   const Icon = details?.icon || Globe;
@@ -250,90 +250,6 @@ export function ConnectSourceDialog({ sourceType, onOpenChange, onSourceAdded }:
       );
     }
     
-    if (sourceType === 'confluence') {
-        return (
-             <>
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2"><Icon /> Connect to Confluence</DialogTitle>
-                    <DialogDescription>Provide your Confluence Cloud credentials to sync your spaces.</DialogDescription>
-                </DialogHeader>
-                 <div className="space-y-4 py-4">
-                     <div className="space-y-2">
-                         <Label htmlFor="confluence-url">Base URL <span className="text-destructive">*</span></Label>
-                         <Input id="confluence-url" placeholder="https://your-company.atlassian.net" value={confluenceUrl} onChange={(e) => setConfluenceUrl(e.target.value)} />
-                     </div>
-                     <div className="space-y-2">
-                         <Label htmlFor="confluence-user">Username (Email) <span className="text-destructive">*</span></Label>
-                         <Input id="confluence-user" placeholder="name@company.com" value={confluenceUser} onChange={(e) => setConfluenceUser(e.target.value)} />
-                     </div>
-                     <div className="space-y-2">
-                         <Label htmlFor="confluence-token">API Token <span className="text-destructive">*</span></Label>
-                         <Input id="confluence-token" type="password" value={confluenceToken} onChange={(e) => setConfluenceToken(e.target.value)} />
-                     </div>
-                 </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={handleClose}>Cancel</Button>
-                    <Button onClick={handleConnectConfluence} disabled={isLoading}>
-                         {isLoading && <Loader2 className="animate-spin mr-2"/>}
-                        Connect and Sync
-                    </Button>
-                </DialogFooter>
-            </>
-        )
-    }
-
-    if (sourceType === 'github') {
-        return (
-             <>
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2"><Icon /> Connect to GitHub</DialogTitle>
-                    <DialogDescription>Provide repository details and a personal access token.</DialogDescription>
-                </DialogHeader>
-                 <div className="space-y-4 py-4">
-                     <div className="space-y-2">
-                         <Label htmlFor="github-repo">Repository <span className="text-destructive">*</span></Label>
-                         <Input id="github-repo" placeholder="owner/repo-name" value={githubRepo} onChange={(e) => setGithubRepo(e.target.value)} />
-                     </div>
-                     <div className="space-y-2">
-                         <Label htmlFor="github-token">Personal Access Token <span className="text-destructive">*</span></Label>
-                         <Input id="github-token" type="password" value={githubToken} onChange={(e) => setGithubToken(e.target.value)} />
-                     </div>
-                 </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={handleClose}>Cancel</Button>
-                    <Button onClick={handleConnectGithub} disabled={isLoading}>
-                         {isLoading && <Loader2 className="animate-spin mr-2"/>}
-                        Connect and Sync
-                    </Button>
-                </DialogFooter>
-            </>
-        )
-    }
-    
-    if (sourceType === 'notion') {
-        return (
-             <>
-                <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2"><Icon /> Connect to Notion</DialogTitle>
-                    <DialogDescription>Provide your Notion integration token to get started.</DialogDescription>
-                </DialogHeader>
-                 <div className="space-y-4 py-4">
-                     <div className="space-y-2">
-                         <Label htmlFor="notion-token">Integration Token <span className="text-destructive">*</span></Label>
-                         <Input id="notion-token" type="password" value={notionToken} onChange={(e) => setNotionToken(e.target.value)} />
-                     </div>
-                 </div>
-                <DialogFooter>
-                    <Button variant="outline" onClick={handleClose}>Cancel</Button>
-                    <Button onClick={handleConnectNotion} disabled={isLoading}>
-                         {isLoading && <Loader2 className="animate-spin mr-2"/>}
-                        Connect and Sync
-                    </Button>
-                </DialogFooter>
-            </>
-        )
-    }
-    
     const isOAuth = ['gdrive', 'sharepoint', 'dropbox'].includes(sourceType);
 
     if (isOAuth) {
@@ -356,8 +272,57 @@ export function ConnectSourceDialog({ sourceType, onOpenChange, onSourceAdded }:
             </>
         );
     }
+    
+    // Generic form for API-key based connectors
+    const isApiKeyBased = ['confluence', 'github', 'notion', 'highspot', 'showpad', 'seismic', 'mindtickle', 'enableus'].includes(sourceType);
 
-    // Fallback for unimplemented connectors
+    if (isApiKeyBased) {
+        const isConfluence = sourceType === 'confluence';
+        const isGithub = sourceType === 'github';
+        const isNotion = sourceType === 'notion';
+
+        return (
+            <>
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2"><Icon /> Connect to {details?.name}</DialogTitle>
+                    <DialogDescription>Provide your {details?.name} credentials to sync your content.</DialogDescription>
+                </DialogHeader>
+                 <div className="space-y-4 py-4">
+                    {!isGithub && !isNotion && (
+                        <div className="space-y-2">
+                            <Label htmlFor="api-url">Base URL <span className="text-destructive">*</span></Label>
+                            <Input id="api-url" placeholder="https://your-company.example.com" value={apiUrl} onChange={(e) => setApiUrl(e.target.value)} />
+                        </div>
+                    )}
+                    {isConfluence && (
+                        <div className="space-y-2">
+                            <Label htmlFor="api-user">Username (Email) <span className="text-destructive">*</span></Label>
+                            <Input id="api-user" placeholder="name@company.com" value={apiUser} onChange={(e) => setApiUser(e.target.value)} />
+                        </div>
+                    )}
+                     {isGithub && (
+                        <div className="space-y-2">
+                            <Label htmlFor="github-repo">Repository <span className="text-destructive">*</span></Label>
+                            <Input id="github-repo" placeholder="owner/repo-name" value={githubRepo} onChange={(e) => setGithubRepo(e.target.value)} />
+                        </div>
+                     )}
+                     <div className="space-y-2">
+                         <Label htmlFor="api-key">{isNotion ? 'Integration Token' : 'API Token'} <span className="text-destructive">*</span></Label>
+                         <Input id="api-key" type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} />
+                     </div>
+                 </div>
+                <DialogFooter>
+                    <Button variant="outline" onClick={handleClose}>Cancel</Button>
+                    <Button onClick={handleConnectApiBasedSource} disabled={isLoading}>
+                         {isLoading && <Loader2 className="animate-spin mr-2"/>}
+                        Connect and Sync
+                    </Button>
+                </DialogFooter>
+            </>
+        )
+    }
+
+    // Fallback for any other case (should not happen with current logic)
     return (
         <>
             <DialogHeader>
