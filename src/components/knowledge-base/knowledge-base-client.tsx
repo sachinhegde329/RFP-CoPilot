@@ -12,12 +12,12 @@ import { Badge } from "@/components/ui/badge"
 import { MoreHorizontal, Upload, Link as LinkIcon, FileText, CheckCircle, Clock, Search, Globe, FolderSync, BookOpen, Network, AlertTriangle, RefreshCw, Box, BookText, Github, Settings, Trash2, Loader2, Info } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { useTenant } from "@/components/providers/tenant-provider"
-import { addDocumentSourceAction, addWebsiteSourceAction, getKnowledgeSourcesAction, deleteKnowledgeSourceAction, checkSourceStatusAction, resyncKnowledgeSourceAction } from "@/app/actions"
+import { addDocumentSourceAction, getKnowledgeSourcesAction, deleteKnowledgeSourceAction, checkSourceStatusAction, resyncKnowledgeSourceAction } from "@/app/actions"
 import type { DataSource, DataSourceType, SyncStatus } from "@/lib/knowledge-base"
 import { Skeleton } from "@/components/ui/skeleton"
 import { canPerformAction } from "@/lib/access-control"
+import { ConnectSourceDialog } from "./connect-source-dialog"
 
 const knowledgeBaseStats = {
   totalAnswers: 2345,
@@ -89,18 +89,12 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
 
   const [sources, setSources] = useState<DataSource[]>(initialSources);
   const [isLoadingSources, setIsLoadingSources] = useState(false);
+  const [configuringSource, setConfiguringSource] = useState<DataSourceType | null>(null);
   
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { tenant } = useTenant();
-
-  const [configuringSourceType, setConfiguringSourceType] = useState<DataSourceType | null>(null);
-  const [websiteUrl, setWebsiteUrl] = useState('');
-  const [maxDepth, setMaxDepth] = useState(2);
-  const [maxPages, setMaxPages] = useState(10);
-  const [filterKeywords, setFilterKeywords] = useState('');
-  const [isSyncingWebsite, setIsSyncingWebsite] = useState(false);
 
   const currentUser = tenant.members[0];
   const canManageIntegrations = canPerformAction(currentUser.role, 'manageIntegrations');
@@ -133,50 +127,6 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
     return () => clearInterval(intervalId);
   }, [sources, tenant.id]);
 
-  const handleSelectSource = (sourceType: DataSourceType) => {
-    if (!canManageIntegrations) return;
-    
-    if (sourceType === 'website') {
-        setConfiguringSourceType('website');
-    } else if (sourceType === 'gdrive') {
-        window.location.href = `/api/auth/google/initiate?tenantId=${tenant.id}`;
-    } else if (sourceType === 'sharepoint') {
-      window.location.href = `/api/auth/microsoft/initiate?tenantId=${tenant.id}`;
-    } else if (sourceType === 'dropbox') {
-      window.location.href = `/api/auth/dropbox/initiate?tenantId=${tenant.id}`;
-    } else {
-        toast({
-            title: "Connector Coming Soon",
-            description: `The ${sourceType} connector is under development.`,
-        });
-    }
-  }
-
-  const handleSyncWebsite = async () => {
-    if (!websiteUrl || !/^(https?:\/\/)/.test(websiteUrl)) {
-        toast({ variant: "destructive", title: "Invalid URL", description: "Please enter a valid URL." });
-        return;
-    }
-    setIsSyncingWebsite(true);
-    const result = await addWebsiteSourceAction(websiteUrl, tenant.id, currentUser, { 
-        maxDepth, 
-        maxPages,
-        filterKeywords: filterKeywords.split(',').map(k => k.trim()).filter(Boolean)
-    });
-
-    if(result.error || !result.source) {
-        toast({ variant: "destructive", title: "Sync Failed", description: result.error });
-    } else {
-        setSources(prev => [result.source!, ...prev]);
-        toast({ title: "Sync Started", description: `Started syncing content from ${websiteUrl}` });
-        // Reset and close form
-        setConfiguringSourceType(null);
-        setWebsiteUrl('');
-        setFilterKeywords('');
-    }
-    setIsSyncingWebsite(false);
-  }
-  
   const handleResync = async (source: DataSource) => {
     setSources(prev => prev.map(s => s.id === source.id ? { ...s, status: 'Syncing' } : s));
     toast({ title: "Re-sync Started", description: `Re-syncing content from ${source.name}` });
@@ -225,6 +175,10 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
     }
   };
 
+  const handleSourceAdded = (newSource: DataSource) => {
+    setSources(prev => [newSource, ...prev]);
+  };
+
   const uploadedFiles = useMemo(() => sources.filter(s => s.type === 'document'), [sources]);
 
   return (
@@ -262,27 +216,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
                                 {potentialSources.map(potential => {
                                     const connected = sources.find(s => s.type === potential.type);
                                     const Icon = potential.icon;
-                                    const isConfiguringThis = configuringSourceType === potential.type;
-
-                                    if (isConfiguringThis) {
-                                        return (
-                                            <Card key={potential.name} className="lg:col-span-3">
-                                                <CardHeader>
-                                                    <div className="flex items-center gap-3"><Icon className="h-6 w-6 text-muted-foreground flex-shrink-0" /><CardTitle className="text-lg">{potential.name}</CardTitle></div>
-                                                    <CardDescription className="pt-2 pl-9">{potential.description}</CardDescription>
-                                                </CardHeader>
-                                                <CardContent className="space-y-4 pl-12">
-                                                    <div className="space-y-2"><Label htmlFor="website-url">Root URL</Label><Input id="website-url" placeholder="https://www.example.com" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} /></div>
-                                                    <div className="space-y-2"><Label htmlFor="filter-keywords">Topic Keywords (optional)</Label><Input id="filter-keywords" placeholder="e.g., ITSM, compliance" value={filterKeywords} onChange={(e) => setFilterKeywords(e.target.value)} /><p className="text-xs text-muted-foreground">Comma-separated. Only pages with these keywords in the URL or title will be crawled.</p></div>
-                                                </CardContent>
-                                                <CardFooter className="pl-12 gap-2">
-                                                    <Button onClick={handleSyncWebsite} disabled={!websiteUrl || isSyncingWebsite}>{isSyncingWebsite && <Loader2 className="animate-spin mr-2"/>}Sync Website</Button>
-                                                    <Button variant="ghost" onClick={() => setConfiguringSourceType(null)}>Cancel</Button>
-                                                </CardFooter>
-                                            </Card>
-                                        );
-                                    }
-
+                                    
                                     if (connected) {
                                         return (
                                             <Card key={connected.id} className="flex flex-col">
@@ -319,7 +253,14 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
                                                 <p className="text-sm text-muted-foreground">{potential.description}</p>
                                             </CardContent>
                                             <CardFooter>
-                                                <Button className="w-full" variant="outline" onClick={() => handleSelectSource(potential.type)} disabled={!canManageIntegrations}>Connect</Button>
+                                                <Button 
+                                                    className="w-full" 
+                                                    variant="outline"
+                                                    onClick={() => setConfiguringSource(potential.type)}
+                                                    disabled={!canManageIntegrations}
+                                                >
+                                                    Connect
+                                                </Button>
                                             </CardFooter>
                                         </Card>
                                     );
@@ -375,8 +316,12 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
                 </Card>
             </TabsContent>
         </Tabs>
+
+        <ConnectSourceDialog
+            sourceType={configuringSource}
+            onOpenChange={() => setConfiguringSource(null)}
+            onSourceAdded={handleSourceAdded}
+        />
     </>
   )
 }
-
-    
