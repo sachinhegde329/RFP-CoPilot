@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { RfpSelector } from "./rfp-selector"
+import { Checkbox } from "@/components/ui/checkbox"
 
 function RfpWorkspaceView() {
   const { tenant } = useTenant();
@@ -35,6 +36,7 @@ function RfpWorkspaceView() {
   const [autogenTone, setAutogenTone] = useState(tenant.defaultTone || 'Formal');
   const [autogenStyle, setAutogenStyle] = useState('a paragraph');
   const [autogenLength, setAutogenLength] = useState('medium-length');
+  const [autogenTags, setAutogenTags] = useState(true);
 
 
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -130,6 +132,7 @@ function RfpWorkspaceView() {
         tone: autogenTone,
         style: autogenStyle,
         length: autogenLength,
+        autogenerateTags: autogenTags,
       });
 
       if (result.error) {
@@ -137,7 +140,13 @@ function RfpWorkspaceView() {
         errorCount++;
       } else if (result.answer) {
         // This will optimistically update the UI and save to the backend.
-        await handleUpdateQuestion(question.id, { answer: result.answer });
+        const updates: Partial<Question> = { answer: result.answer, status: 'Completed' };
+        if (result.tags && result.tags.length > 0) {
+            const existingTags = new Set(question.tags || []);
+            result.tags.forEach(tag => existingTags.add(tag));
+            updates.tags = Array.from(existingTags);
+        }
+        await handleUpdateQuestion(question.id, updates);
         successCount++;
       }
     }
@@ -220,6 +229,22 @@ function RfpWorkspaceView() {
                       <SelectItem value="Spanish">Spanish</SelectItem>
                       <SelectItem value="French">French</SelectItem>
                       <SelectItem value="German">German</SelectItem>
+                      <SelectItem value="Mandarin Chinese">Mandarin Chinese</SelectItem>
+                      <SelectItem value="Hindi">Hindi</SelectItem>
+                      <SelectItem value="Arabic">Arabic</SelectItem>
+                      <SelectItem value="Portuguese">Portuguese</SelectItem>
+                      <SelectItem value="Bengali">Bengali</SelectItem>
+                      <SelectItem value="Russian">Russian</SelectItem>
+                      <SelectItem value="Japanese">Japanese</SelectItem>
+                      <SelectItem value="Punjabi">Punjabi</SelectItem>
+                      <SelectItem value="Javanese">Javanese</SelectItem>
+                      <SelectItem value="Korean">Korean</SelectItem>
+                      <SelectItem value="Turkish">Turkish</SelectItem>
+                      <SelectItem value="Vietnamese">Vietnamese</SelectItem>
+                      <SelectItem value="Telugu">Telugu</SelectItem>
+                      <SelectItem value="Marathi">Marathi</SelectItem>
+                      <SelectItem value="Tamil">Tamil</SelectItem>
+                      <SelectItem value="Italian">Italian</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -265,6 +290,12 @@ function RfpWorkspaceView() {
                           <Label htmlFor="len-long">Detailed</Label>
                       </div>
                   </RadioGroup>
+              </div>
+               <div className="space-y-2">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox id="autogen-tags" checked={autogenTags} onCheckedChange={(checked) => setAutogenTags(Boolean(checked))} />
+                    <Label htmlFor="autogen-tags">Automatically generate tags</Label>
+                  </div>
               </div>
             </div>
             <DialogFooter>

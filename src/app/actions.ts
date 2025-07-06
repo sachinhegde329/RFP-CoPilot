@@ -78,8 +78,9 @@ export async function generateAnswerAction(payload: {
     tone?: string;
     style?: string;
     length?: string;
+    autogenerateTags?: boolean;
 }) {
-  const { question, rfpId, tenantId, currentUser, language, tone, style, length } = payload;
+  const { question, rfpId, tenantId, currentUser, language, tone, style, length, autogenerateTags } = payload;
   
   const permCheck = await checkPermission(tenantId, currentUser, 'editContent');
   if (permCheck.error) return { error: permCheck.error };
@@ -118,8 +119,9 @@ export async function generateAnswerAction(payload: {
       tone: tone || tenant.defaultTone || 'Formal',
       style: style || 'a paragraph',
       length: length || 'medium-length',
+      autogenerateTags: autogenerateTags,
     })
-    return { answer: result.draftAnswer, sources: result.sources, confidenceScore: result.confidenceScore }
+    return { answer: result.draftAnswer, sources: result.sources, confidenceScore: result.confidenceScore, tags: result.tags }
   } catch (e) {
     console.error(e)
     return { error: "Failed to generate answer." }

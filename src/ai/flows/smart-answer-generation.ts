@@ -25,6 +25,7 @@ const GenerateDraftAnswerInputSchema = z.object({
   tone: z.string().describe('The desired tone of the answer (e.g., formal, technical, consultative).').optional().default('Formal'),
   style: z.string().describe('The desired format of the answer (e.g., a paragraph, bullet points).').optional().default('a paragraph'),
   length: z.string().describe('The desired length of the answer (e.g., short, medium-length, detailed).').optional().default('medium-length'),
+  autogenerateTags: z.boolean().describe('Whether to automatically generate relevant tags for the question and answer.').optional().default(false),
 });
 export type GenerateDraftAnswerInput = z.infer<typeof GenerateDraftAnswerInputSchema>;
 
@@ -32,6 +33,7 @@ const GenerateDraftAnswerOutputSchema = z.object({
   draftAnswer: z.string().describe('The generated draft answer to the RFP question.'),
   confidenceScore: z.number().describe('A score from 0.0 to 1.0 indicating how well the provided context answered the question.').optional(),
   sources: z.array(z.string()).describe('A list of sources used to generate the answer.').optional(),
+  tags: z.array(z.string()).describe('A list of 1-3 automatically generated keyword tags relevant to the question and answer.').optional(),
 });
 export type GenerateDraftAnswerOutput = z.infer<typeof GenerateDraftAnswerOutputSchema>;
 
@@ -61,6 +63,10 @@ Instructions for answering from Knowledge Base:
 4. In your generated answer, cite the sources you used in parentheses, like this: (source: Security Policy 2023).
 5. In the output, provide a \`confidenceScore\` from 0.0 to 1.0, representing how well the context answered the question.
 6. In the output, list all the \`sources\` you used to formulate the answer.
+{{#if autogenerateTags}}
+7. Additionally, analyze the question and your generated answer, and provide a list of 1-3 relevant keyword tags in the \`tags\` output field.
+{{/if}}
+
 {{else}}
 ---
 Question: {{{rfpQuestion}}}
@@ -71,6 +77,9 @@ Instructions for answering from General Knowledge:
 3. **Crucially, begin your answer with the disclaimer (in the requested language): "This answer was generated from general knowledge and not from your internal knowledge base."**
 4. If you cannot provide a confident and accurate answer from your general knowledge, you MUST respond with only this exact phrase: "No answer is available in the knowledge base, and I am unable to provide a confident answer from my general knowledge."
 5. Do not provide a confidence score or sources.
+{{#if autogenerateTags}}
+6. Additionally, analyze the question and your generated answer, and provide a list of 1-3 relevant keyword tags in the \`tags\` output field.
+{{/if}}
 {{/if}}
 `,
 });
