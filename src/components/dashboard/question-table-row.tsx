@@ -138,54 +138,58 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
                  <Badge variant="outline" className="hidden sm:inline-flex">{category}</Badge>
                  <TooltipProvider delayDuration={100}>
                     <Tooltip>
-                    <TooltipTrigger asChild>
                         <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <button disabled={!canAssign} className={cn("flex h-6 w-6 items-center justify-center rounded-full", canAssign ? "hover:bg-accent/50" : "cursor-not-allowed")}>
-                            {assignee ? (
-                                <Avatar className="h-full w-full">
-                                {assignee.avatar && <AvatarImage src={assignee.avatar} alt={assignee.name} />}
-                                <AvatarFallback className="text-xs">{assignee.name.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                            ) : (
-                                <div className="flex h-full w-full items-center justify-center rounded-full border-2 border-dashed">
-                                <UserPlus className="h-3 w-3 text-muted-foreground" />
-                                </div>
-                            )}
-                            </button>
-                        </DropdownMenuTrigger>
-                        {canAssign && (
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Assign to</DropdownMenuLabel>
-                                <DropdownMenuSeparator />
-                                <DropdownMenuItem onSelect={() => handleAssigneeChange('unassigned')}>
-                                    <UserPlus className="mr-2 h-4 w-4"/>
-                                    Unassigned
-                                </DropdownMenuItem>
-                                {members.map(member => (
-                                    <DropdownMenuItem key={member.id} onSelect={() => handleAssigneeChange(member.id.toString())}>
-                                    <Avatar className="h-5 w-5 mr-2">
-                                        {member.avatar && <AvatarImage src={member.avatar} alt={member.name} />}
-                                        <AvatarFallback className="text-xs">{member.name.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                    {member.name}
+                            <TooltipTrigger asChild>
+                                <DropdownMenuTrigger
+                                    disabled={!canAssign}
+                                    className={cn("flex h-6 w-6 items-center justify-center rounded-full", canAssign ? "hover:bg-accent/50" : "cursor-not-allowed")}
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    {assignee ? (
+                                        <Avatar className="h-full w-full">
+                                            {assignee.avatar && <AvatarImage src={assignee.avatar} alt={assignee.name} />}
+                                            <AvatarFallback className="text-xs">{assignee.name.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                    ) : (
+                                        <div className="flex h-full w-full items-center justify-center rounded-full border-2 border-dashed">
+                                            <UserPlus className="h-3 w-3 text-muted-foreground" />
+                                        </div>
+                                    )}
+                                </DropdownMenuTrigger>
+                            </TooltipTrigger>
+                             {canAssign && (
+                                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                    <DropdownMenuLabel>Assign to</DropdownMenuLabel>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onSelect={() => handleAssigneeChange('unassigned')}>
+                                        <UserPlus className="mr-2 h-4 w-4"/>
+                                        Unassigned
                                     </DropdownMenuItem>
-                                ))}
-                            </DropdownMenuContent>
-                        )}
+                                    {members.map(member => (
+                                        <DropdownMenuItem key={member.id} onSelect={() => handleAssigneeChange(member.id.toString())}>
+                                        <Avatar className="h-5 w-5 mr-2">
+                                            {member.avatar && <AvatarImage src={member.avatar} alt={member.name} />}
+                                            <AvatarFallback className="text-xs">{member.name.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        {member.name}
+                                        </DropdownMenuItem>
+                                    ))}
+                                </DropdownMenuContent>
+                            )}
                         </DropdownMenu>
-                    </TooltipTrigger>
-                    <TooltipContent><p>{assignee ? `Assigned to ${assignee.name}` : 'Unassigned'}</p></TooltipContent>
+                        <TooltipContent><p>{assignee ? `Assigned to ${assignee.name}` : 'Unassigned'}</p></TooltipContent>
                     </Tooltip>
                 </TooltipProvider>
 
                 <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" className="h-auto p-1 font-normal capitalize flex items-center gap-1" disabled={!canEdit}>
-                           <span className="hidden sm:inline-flex">{status}</span>
-                        </Button>
+                    <DropdownMenuTrigger
+                        className="h-auto p-1 font-normal capitalize flex items-center gap-1 rounded-md hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:pointer-events-none"
+                        disabled={!canEdit}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <span className="hidden sm:inline-flex">{status}</span>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
+                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                     <DropdownMenuItem onSelect={() => handleStatusChange('Unassigned')}>
                         <Circle className="mr-2 h-4 w-4 text-muted-foreground" /> Unassigned
                     </DropdownMenuItem>
