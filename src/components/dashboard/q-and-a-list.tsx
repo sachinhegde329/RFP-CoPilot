@@ -1,8 +1,8 @@
 
 'use client'
 
-import { useState, useMemo, useEffect, useCallback } from "react"
-import { QuestionTableRow } from "./question-table-row"
+import { useState, useMemo, useEffect } from "react"
+import { QAndAItem } from "./question-table-row"
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import type { TeamMember } from "@/lib/tenant-types"
@@ -15,7 +15,6 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
-  DropdownMenuItem
 } from "@/components/ui/dropdown-menu"
 import {
   Dialog,
@@ -32,7 +31,7 @@ import { useToast } from "@/hooks/use-toast"
 import type { Question } from "@/lib/rfp-types"
 import type { Template } from "@/lib/template.service"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { exportRfpAction, getTemplatesAction, generateAnswerAction, updateQuestionAction } from "@/app/actions"
+import { exportRfpAction, getTemplatesAction } from "@/app/actions"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -40,7 +39,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { canPerformAction } from "@/lib/access-control"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import { Accordion } from "@/components/ui/accordion"
 
 
 type Acknowledgments = Record<string, { acknowledged: boolean; comment: string }>;
@@ -309,16 +308,8 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
   const [isAddingQuestion, setIsAddingQuestion] = useState(false);
   const [newQuestionText, setNewQuestionText] = useState('');
   const [newQuestionCategory, setNewQuestionCategory] = useState('Product');
-  
-  const [selectedRowIds, setSelectedRowIds] = useState<number[]>([]);
-  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
 
   const canEditContent = canPerformAction(currentUser.role, 'editContent');
-
-  // Reset selection when filter or questions change
-  useEffect(() => {
-    setSelectedRowIds([]);
-  }, [activeFilter, questions]);
 
   const filteredQuestions = useMemo(() => {
     switch (activeFilter) {
@@ -340,68 +331,6 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
   const completedCount = useMemo(() => questions.filter(q => q.status === 'Completed').length, [questions]);
   const totalCount = questions.length;
   const progressPercentage = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
-
-  const numSelected = selectedRowIds.length;
-  const numDisplayed = filteredQuestions.length;
-  const areAllSelected = numDisplayed > 0 && numSelected === numDisplayed;
-  const areSomeSelected = numSelected > 0 && numSelected < numDisplayed;
-
-  const handleSelectAll = useCallback((checked: boolean | 'indeterminate') => {
-      if (checked === true) {
-          setSelectedRowIds(filteredQuestions.map(q => q.id));
-      } else {
-          setSelectedRowIds([]);
-      }
-  }, [filteredQuestions]);
-  
-  const handleRowSelect = useCallback((questionId: number, isSelected: boolean) => {
-      if (isSelected) {
-          setSelectedRowIds(prev => [...prev, questionId]);
-      } else {
-          setSelectedRowIds(prev => prev.filter(id => id !== questionId));
-      }
-  }, []);
-
-  const handleBulkGenerate = async () => {
-    setIsBulkProcessing(true);
-    const questionsToGenerate = questions.filter(q => selectedRowIds.includes(q.id));
-    let successCount = 0;
-    
-    toast({ title: "Bulk Generation Started", description: `Generating answers for ${questionsToGenerate.length} questions.` });
-    
-    const promises = questionsToGenerate.map(async (q) => {
-        const result = await generateAnswerAction(q.question, rfpId, tenantId, currentUser);
-        if (!result.error && result.answer) {
-            await onUpdateQuestion(q.id, { answer: result.answer });
-            successCount++;
-        }
-    });
-    
-    await Promise.all(promises);
-    
-    toast({ title: "Bulk Generation Complete", description: `Successfully generated ${successCount} of ${questionsToGenerate.length} answers.` });
-    
-    setIsBulkProcessing(false);
-    setSelectedRowIds([]);
-  };
-
-  const handleBulkMarkComplete = async () => {
-      setIsBulkProcessing(true);
-      toast({ title: "Bulk Update Started", description: `Marking ${numSelected} questions as complete.` });
-      
-      const promises = selectedRowIds.map(id => updateQuestionAction(tenantId, rfpId, id, { status: 'Completed' }, currentUser));
-      
-      const results = await Promise.all(promises);
-      const successCount = results.filter(r => !r.error).length;
-      
-      // Manually trigger a state update for all completed questions
-      selectedRowIds.forEach(id => onUpdateQuestion(id, { status: 'Completed' }));
-
-      toast({ title: "Bulk Update Complete", description: `Successfully marked ${successCount} of ${numSelected} questions as complete.` });
-      
-      setIsBulkProcessing(false);
-      setSelectedRowIds([]);
-  };
 
   const isAssignmentFilterActive = activeFilter === 'assignedToMe' || activeFilter === 'unassigned';
   const assignmentFilterLabel = useMemo(() => {
@@ -498,25 +427,6 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
                 </DropdownMenu>
             </div>
             <div className="ml-auto flex items-center gap-2">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm" disabled={numSelected === 0 || isBulkProcessing}>
-                      {isBulkProcessing ? <Loader2 className="mr-2 animate-spin" /> : <CheckCheck className="mr-2" />}
-                      Bulk Actions ({numSelected})
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    <DropdownMenuItem onSelect={handleBulkGenerate} disabled={!canEditContent || isBulkProcessing}>
-                      <Sparkles className="mr-2" />
-                      Generate Answers
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={handleBulkMarkComplete} disabled={!canEditContent || isBulkProcessing}>
-                      <CheckCheck className="mr-2" />
-                      Mark as Complete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                
                 <Dialog open={isAddQuestionDialogOpen} onOpenChange={setIsAddQuestionDialogOpen}>
                     <DialogTrigger asChild>
                         <Button variant="outline" size="sm" disabled={!canEditContent}>
@@ -574,47 +484,24 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
         </div>
       </CardHeader>
       <CardContent className="p-0 flex-1">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12 px-4">
-                  <Checkbox
-                    checked={areAllSelected ? true : areSomeSelected ? 'indeterminate' : false}
-                    onCheckedChange={handleSelectAll}
-                    aria-label="Select all"
-                    disabled={!canEditContent || numDisplayed === 0}
-                  />
-                </TableHead>
-                <TableHead>Question</TableHead>
-                <TableHead className="hidden md:table-cell">Category</TableHead>
-                <TableHead className="hidden lg:table-cell">Assignee</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredQuestions.length > 0 ? (
-                filteredQuestions.map(q => (
-                  <QuestionTableRow
-                    key={q.id}
-                    questionData={q}
-                    tenantId={tenantId}
-                    rfpId={rfpId}
-                    members={members}
-                    onUpdateQuestion={onUpdateQuestion}
-                    isSelected={selectedRowIds.includes(q.id)}
-                    onSelectChange={handleRowSelect}
-                    canEdit={canEditContent}
-                  />
-                ))
-              ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-24 text-center">
-                      No questions match the current filter.
-                    </TableCell>
-                  </TableRow>
-              )}
-            </TableBody>
-          </Table>
+        <Accordion type="multiple" className="w-full">
+            {filteredQuestions.length > 0 ? (
+            filteredQuestions.map(q => (
+                <QAndAItem
+                key={q.id}
+                questionData={q}
+                tenantId={tenantId}
+                rfpId={rfpId}
+                members={members}
+                onUpdateQuestion={onUpdateQuestion}
+                />
+            ))
+            ) : (
+                <div className="text-center p-8 text-muted-foreground">
+                    No questions match the current filter.
+                </div>
+            )}
+        </Accordion>
       </CardContent>
     </Card>
   )
