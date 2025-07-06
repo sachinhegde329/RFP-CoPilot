@@ -7,7 +7,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { Button } from "@/components/ui/button"
 import type { TeamMember } from "@/lib/tenant-types"
 import { useTenant } from "@/components/providers/tenant-provider"
-import { PlusCircle, ChevronDown, Loader2, Download, AlertTriangle, UserCheck, ShieldAlert, Sparkles, CheckCheck, Paperclip, File, Trash2 } from "lucide-react"
+import { PlusCircle, ChevronDown, Loader2, Download, AlertTriangle, UserCheck, ShieldAlert, Paperclip, File, Trash2, CheckCheck } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import {
   DropdownMenu,
@@ -438,64 +438,76 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
 
   return (
     <Card className="flex flex-col">
-      <CardHeader>
+      <CardHeader className="space-y-4">
+        {/* Row 1: Title and Primary Actions */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <CardTitle>Extracted Questions</CardTitle>
             <CardDescription>
-              Filter, assign, and answer the questions for this RFP.
+              Manage, answer, and export questions for this RFP.
             </CardDescription>
           </div>
-          <div className="flex items-center gap-2">
-             <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFileChange}
-                className="hidden"
-              />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline">
-                  <Paperclip className="mr-2" />
-                  Documents ({attachments.length})
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-80">
-                <DropdownMenuLabel>Supporting Documents</DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                {attachments.length > 0 ? (
-                  attachments.map(attachment => (
-                    <DropdownMenuItem key={attachment.id} className="justify-between" onSelect={(e) => e.preventDefault()}>
-                        <a href={attachment.url} download={attachment.name} className="flex items-center gap-2 hover:underline truncate">
-                          <File className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                          <div className="truncate">
-                            <span className="font-medium truncate text-sm">{attachment.name}</span>
-                            <span className="text-xs text-muted-foreground block">{attachment.size}</span>
-                          </div>
-                        </a>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={() => handleDeleteAttachment(attachment.id)}>
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </DropdownMenuItem>
-                  ))
-                ) : (
-                  <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                    No documents attached.
-                  </div>
-                )}
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onSelect={handleAddAttachmentClick} disabled={attachments.length >= 3}>
-                  <PlusCircle className="mr-2 h-4 w-4" />
-                  Add Document
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+          <div className="flex items-center gap-2 flex-shrink-0">
+             <Dialog open={isAddQuestionDialogOpen} onOpenChange={setIsAddQuestionDialogOpen}>
+                <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={!canEditContent}>
+                        <PlusCircle className="mr-2" />
+                        Add Question
+                    </Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Add a New Question</DialogTitle>
+                        <DialogDescription>
+                            Manually add a question that was missed during extraction.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="question-text">Question</Label>
+                            <Textarea 
+                                id="question-text" 
+                                placeholder="Enter the question text..." 
+                                value={newQuestionText}
+                                onChange={(e) => setNewQuestionText(e.target.value)}
+                                disabled={isAddingQuestion} 
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="question-category">Category</Label>
+                            <Select 
+                                value={newQuestionCategory}
+                                onValueChange={setNewQuestionCategory}
+                                disabled={isAddingQuestion}
+                            >
+                                <SelectTrigger id="question-category">
+                                    <SelectValue placeholder="Select a category" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="Product">Product</SelectItem>
+                                    <SelectItem value="Legal">Legal</SelectItem>
+                                    <SelectItem value="Security">Security</SelectItem>
+                                    <SelectItem value="Pricing">Pricing</SelectItem>
+                                    <SelectItem value="Company">Company</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button type="submit" onClick={handleAddQuestion} disabled={isAddingQuestion}>
+                            {isAddingQuestion && <Loader2 className="mr-2 animate-spin" />}
+                            Add Question
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
             <ExportDialog rfpId={rfpId} questions={questions} members={members} />
           </div>
         </div>
 
+        {/* Row 2: Progress */}
         {totalCount > 0 && (
-          <div className="pt-4 space-y-2">
+          <div className="space-y-2">
               <div className="flex justify-between items-center text-sm text-muted-foreground">
                   <span>Overall Progress</span>
                   <span>{completedCount} of {totalCount} Completed</span>
@@ -504,7 +516,8 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
           </div>
         )}
 
-        <div className="flex flex-wrap items-center gap-2 pt-4">
+        {/* Row 3: Toolbar - Filters and Secondary Actions */}
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t -mx-6 px-6 -mb-6 pb-6">
             <div className="flex gap-2 flex-wrap">
                 <Button variant={activeFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('all')}>All ({questions.length})</Button>
                 
@@ -538,60 +551,50 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
                 </DropdownMenuContent>
                 </DropdownMenu>
             </div>
-            <div className="ml-auto flex items-center gap-2">
-                <Dialog open={isAddQuestionDialogOpen} onOpenChange={setIsAddQuestionDialogOpen}>
-                    <DialogTrigger asChild>
-                        <Button variant="outline" size="sm" disabled={!canEditContent}>
-                            <PlusCircle className="mr-2" />
-                            Add Question
+            <div className="flex items-center gap-2">
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
+                />
+                <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm">
+                    <Paperclip className="mr-2" />
+                    Documents ({attachments.length})
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80">
+                    <DropdownMenuLabel>Supporting Documents</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    {attachments.length > 0 ? (
+                    attachments.map(attachment => (
+                        <DropdownMenuItem key={attachment.id} className="justify-between" onSelect={(e) => e.preventDefault()}>
+                            <a href={attachment.url} download={attachment.name} className="flex items-center gap-2 hover:underline truncate">
+                            <File className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                            <div className="truncate">
+                                <span className="font-medium truncate text-sm">{attachment.name}</span>
+                                <span className="text-xs text-muted-foreground block">{attachment.size}</span>
+                            </div>
+                            </a>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={() => handleDeleteAttachment(attachment.id)}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Add a New Question</DialogTitle>
-                            <DialogDescription>
-                                Manually add a question that was missed during extraction.
-                            </DialogDescription>
-                        </DialogHeader>
-                        <div className="grid gap-4 py-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="question-text">Question</Label>
-                                <Textarea 
-                                    id="question-text" 
-                                    placeholder="Enter the question text..." 
-                                    value={newQuestionText}
-                                    onChange={(e) => setNewQuestionText(e.target.value)}
-                                    disabled={isAddingQuestion} 
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <Label htmlFor="question-category">Category</Label>
-                                <Select 
-                                    value={newQuestionCategory}
-                                    onValueChange={setNewQuestionCategory}
-                                    disabled={isAddingQuestion}
-                                >
-                                    <SelectTrigger id="question-category">
-                                        <SelectValue placeholder="Select a category" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="Product">Product</SelectItem>
-                                        <SelectItem value="Legal">Legal</SelectItem>
-                                        <SelectItem value="Security">Security</SelectItem>
-                                        <SelectItem value="Pricing">Pricing</SelectItem>
-                                        <SelectItem value="Company">Company</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-                        </div>
-                        <DialogFooter>
-                            <Button type="submit" onClick={handleAddQuestion} disabled={isAddingQuestion}>
-                                {isAddingQuestion && <Loader2 className="mr-2 animate-spin" />}
-                                Add Question
-                            </Button>
-                        </DialogFooter>
-                    </DialogContent>
-                </Dialog>
+                        </DropdownMenuItem>
+                    ))
+                    ) : (
+                    <div className="px-2 py-4 text-center text-sm text-muted-foreground">
+                        No documents attached.
+                    </div>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onSelect={handleAddAttachmentClick} disabled={attachments.length >= 3}>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Add Document
+                    </DropdownMenuItem>
+                </DropdownMenuContent>
+                </DropdownMenu>
             </div>
         </div>
       </CardHeader>
