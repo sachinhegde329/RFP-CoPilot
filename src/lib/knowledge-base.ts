@@ -29,6 +29,8 @@ export interface DataSource {
     maxDepth?: number;
     maxPages?: number;
     filterKeywords?: string[];
+    scopePath?: string;
+    excludePaths?: string[];
   };
 }
 

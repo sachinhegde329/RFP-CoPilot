@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview A service to fetch, parse, and extract content from a given website URL.
  * This acts as the connector for 'website' type data sources.
@@ -173,10 +174,12 @@ class WebsiteCrawlerService {
     console.log(`Starting sync for website source: ${source.name}`);
     await knowledgeBaseService.deleteChunksBySourceId(source.tenantId, source.id);
 
-    const { maxDepth = 2, maxPages = 10, filterKeywords = [] } = source.config || {};
+    const { maxDepth = 2, maxPages = 10, filterKeywords = [], scopePath = '', excludePaths = [] } = source.config || {};
     const rateLimitMs = 1000;
 
     const rootUrl = new URL(source.name);
+    const fullScopeUrl = (rootUrl.origin + (scopePath.startsWith('/') ? '' : '/') + scopePath).replace(/\/$/, '');
+    
     const robotsTxtUrl = new URL('/robots.txt', rootUrl.origin).href;
     let robots;
     try {
@@ -203,7 +206,7 @@ class WebsiteCrawlerService {
         return filterKeywords.some(keyword => text.toLowerCase().includes(keyword.toLowerCase()));
     };
     
-    // Scaling Tip: Use sitemap to avoid over-crawling and discover important pages first.
+    // Attempt to use sitemap first
     try {
         const sitemapUrl = new URL('/sitemap.xml', rootUrl.origin).href;
         console.log(`Attempting to fetch sitemap from: ${sitemapUrl}`);
@@ -216,7 +219,7 @@ class WebsiteCrawlerService {
                 const sitemapLoc = $(el).text();
                 try {
                    const parsedUrl = new URL(sitemapLoc);
-                   if (parsedUrl.origin === rootUrl.origin && !visited.has(sitemapLoc)) {
+                   if (parsedUrl.href.startsWith(fullScopeUrl) && !excludePaths.some(p => parsedUrl.pathname.startsWith(p))) {
                         if (matchesKeywords(sitemapLoc)) {
                             queue.push({ url: sitemapLoc, depth: 0 });
                             visited.add(sitemapLoc);
@@ -224,16 +227,16 @@ class WebsiteCrawlerService {
                    }
                 } catch (e) { /* Ignore invalid URLs in sitemap */ }
             });
-            console.log(`Successfully parsed sitemap.xml, enqueued ${queue.length} URLs that match keywords.`);
+            console.log(`Parsed sitemap.xml, enqueued ${queue.length} URLs that match config.`);
         }
     } catch (error) {
         console.warn(`Could not fetch sitemap.xml. Falling back to root URL crawl.`);
     }
 
-    // Always add the root URL if it wasn't already in the visited set from the sitemap.
-    if (!visited.has(source.name)) {
-        queue.unshift({ url: source.name, depth: 0 });
-        visited.add(source.name);
+    // Always add the root/scope URL if it wasn't already in the visited set
+    if (!visited.has(fullScopeUrl)) {
+        queue.unshift({ url: fullScopeUrl, depth: 0 });
+        visited.add(fullScopeUrl);
     }
 
     while (queue.length > 0 && pagesCrawled < maxPages) {
@@ -262,7 +265,7 @@ class WebsiteCrawlerService {
 
             if (depth < maxDepth) {
                 for (const link of pageData.links) {
-                    if (!visited.has(link)) {
+                    if (!visited.has(link) && link.startsWith(fullScopeUrl) && !excludePaths.some(p => new URL(link).pathname.startsWith(p))) {
                         visited.add(link);
                         if (matchesKeywords(link)) {
                            queue.push({ url: link, depth: depth + 1 });

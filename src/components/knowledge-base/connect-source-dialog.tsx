@@ -11,6 +11,8 @@ import type { DataSource, DataSourceType } from '@/lib/knowledge-base';
 import { useTenant } from '@/components/providers/tenant-provider';
 import { useToast } from '@/hooks/use-toast';
 import { addWebsiteSourceAction } from '@/app/actions';
+import { Checkbox } from '@/components/ui/checkbox';
+
 
 const sourceDetails = {
   website: { name: "Website", description: "Crawl and index content from a public website.", icon: Globe },
@@ -36,9 +38,12 @@ export function ConnectSourceDialog({ sourceType, onOpenChange, onSourceAdded }:
 
   // State for Website form
   const [websiteUrl, setWebsiteUrl] = useState('');
+  const [scopePath, setScopePath] = useState('');
+  const [excludePaths, setExcludePaths] = useState('');
   const [maxDepth, setMaxDepth] = useState(2);
   const [maxPages, setMaxPages] = useState(10);
   const [filterKeywords, setFilterKeywords] = useState('');
+  const [tosAccepted, setTosAccepted] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   
   const handleClose = () => {
@@ -46,7 +51,12 @@ export function ConnectSourceDialog({ sourceType, onOpenChange, onSourceAdded }:
     // Reset form state after a delay to allow for fade-out animation
     setTimeout(() => {
         setWebsiteUrl('');
+        setScopePath('');
+        setExcludePaths('');
         setFilterKeywords('');
+        setMaxDepth(2);
+        setMaxPages(10);
+        setTosAccepted(false);
         setIsLoading(false);
     }, 300);
   }
@@ -76,10 +86,16 @@ export function ConnectSourceDialog({ sourceType, onOpenChange, onSourceAdded }:
         toast({ variant: "destructive", title: "Invalid URL", description: "Please enter a valid URL." });
         return;
     }
+     if (!tosAccepted) {
+        toast({ variant: "destructive", title: "Accept Terms", description: "You must confirm you have the right to crawl this domain." });
+        return;
+    }
     setIsLoading(true);
     const result = await addWebsiteSourceAction(websiteUrl, tenant.id, currentUser, { 
         maxDepth, 
         maxPages,
+        scopePath: scopePath.trim(),
+        excludePaths: excludePaths.split(',').map(p => p.trim()).filter(Boolean),
         filterKeywords: filterKeywords.split(',').map(k => k.trim()).filter(Boolean)
     });
 
@@ -103,18 +119,60 @@ export function ConnectSourceDialog({ sourceType, onOpenChange, onSourceAdded }:
       return (
         <>
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><Icon /> Connect to {details?.name}</DialogTitle>
-            <DialogDescription>{details?.description}</DialogDescription>
+            <DialogTitle className="flex items-center gap-2"><Icon /> Connect Website</DialogTitle>
+            <DialogDescription>Configure the settings to crawl and ingest a public website.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
-              <div className="space-y-2"><Label htmlFor="website-url">Root URL</Label><Input id="website-url" placeholder="https://www.example.com" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} /></div>
-              <div className="space-y-2"><Label htmlFor="filter-keywords">Topic Keywords (optional)</Label><Input id="filter-keywords" placeholder="e.g., ITSM, compliance" value={filterKeywords} onChange={(e) => setFilterKeywords(e.target.value)} /><p className="text-xs text-muted-foreground">Comma-separated. Only pages with these keywords in the URL or title will be crawled.</p></div>
+          <div className="space-y-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
+              <div className="space-y-2">
+                  <Label htmlFor="website-url">Root URL <span className="text-destructive">*</span></Label>
+                  <Input id="website-url" placeholder="https://www.example.com" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                      <Label htmlFor="scope-path">Scope Path (Optional)</Label>
+                      <Input id="scope-path" placeholder="/docs" value={scopePath} onChange={(e) => setScopePath(e.target.value)} />
+                  </div>
+                  <div className="space-y-2">
+                      <Label htmlFor="exclude-paths">Exclude Paths (Optional)</Label>
+                      <Input id="exclude-paths" placeholder="/legal, /private" value={excludePaths} onChange={(e) => setExcludePaths(e.target.value)} />
+                  </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                      <Label htmlFor="max-depth">Crawl Depth</Label>
+                      <Input id="max-depth" type="number" min="0" value={maxDepth} onChange={(e) => setMaxDepth(parseInt(e.target.value, 10) || 0)} />
+                  </div>
+                  <div className="space-y-2">
+                      <Label htmlFor="max-pages">Max Pages</Label>
+                      <Input id="max-pages" type="number" min="1" value={maxPages} onChange={(e) => setMaxPages(parseInt(e.target.value, 10) || 1)} />
+                  </div>
+              </div>
+              
+              <div className="space-y-2">
+                  <Label htmlFor="filter-keywords">Topic Keywords (Optional)</Label>
+                  <Input id="filter-keywords" placeholder="e.g., ITSM, compliance" value={filterKeywords} onChange={(e) => setFilterKeywords(e.target.value)} />
+                  <p className="text-xs text-muted-foreground">Comma-separated. Only pages with these keywords in the URL or title will be crawled.</p>
+              </div>
+              
+              <div className="flex items-start space-x-2 pt-2">
+                <Checkbox id="tos" checked={tosAccepted} onCheckedChange={(checked) => setTosAccepted(Boolean(checked))} />
+                <div className="grid gap-1.5 leading-none">
+                  <label htmlFor="tos" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    I confirm I have the right to crawl this domain.
+                  </label>
+                  <p className="text-sm text-muted-foreground">
+                    Please ensure you comply with the website's terms of service and robots.txt.
+                  </p>
+                </div>
+              </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={handleClose}>Cancel</Button>
-            <Button onClick={handleSyncWebsite} disabled={!websiteUrl || isLoading}>
+            <Button onClick={handleSyncWebsite} disabled={!websiteUrl || !tosAccepted || isLoading}>
               {isLoading && <Loader2 className="animate-spin mr-2"/>}
-              Sync Website
+              Start Ingestion
             </Button>
           </DialogFooter>
         </>
@@ -164,7 +222,7 @@ export function ConnectSourceDialog({ sourceType, onOpenChange, onSourceAdded }:
 
   return (
     <Dialog open={!!sourceType} onOpenChange={(isOpen) => !isOpen && handleClose()}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-xl">
             {renderContent()}
         </DialogContent>
     </Dialog>
