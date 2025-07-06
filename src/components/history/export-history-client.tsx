@@ -26,8 +26,8 @@ export function ExportHistoryClient({ initialHistory }: ExportHistoryClientProps
         <>
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">RFP Management</h1>
-                    <p className="text-muted-foreground">Manage your RFPs and view their version history.</p>
+                    <h1 className="text-3xl font-bold tracking-tight">RFP Export History</h1>
+                    <p className="text-muted-foreground">View the complete version history for all of your workspace's RFPs.</p>
                 </div>
             </div>
             <Card>
@@ -41,6 +41,7 @@ export function ExportHistoryClient({ initialHistory }: ExportHistoryClientProps
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>Version</TableHead>
+                                    <TableHead>RFP Name</TableHead>
                                     <TableHead>Date</TableHead>
                                     <TableHead>Exported By</TableHead>
                                     <TableHead>Format</TableHead>
@@ -54,6 +55,7 @@ export function ExportHistoryClient({ initialHistory }: ExportHistoryClientProps
                                         <TableCell>
                                             <Badge variant="outline">{record.version}</Badge>
                                         </TableCell>
+                                        <TableCell className="font-medium">{record.rfpName}</TableCell>
                                         <TableCell>
                                             <TooltipProvider>
                                                 <Tooltip>
@@ -84,7 +86,7 @@ export function ExportHistoryClient({ initialHistory }: ExportHistoryClientProps
                         <div className="flex flex-col items-center justify-center gap-4 text-center p-8 border-2 border-dashed border-muted rounded-lg">
                             <History className="size-12 text-muted-foreground" />
                             <h3 className="font-semibold">No RFP History</h3>
-                            <p className="text-sm text-muted-foreground">When you export an RFP, its version history will appear here.</p>
+                            <p className="text-sm text-muted-foreground">When you export an RFP from the main dashboard, its version history will appear here.</p>
                         </div>
                     )}
                 </CardContent>
@@ -93,7 +95,7 @@ export function ExportHistoryClient({ initialHistory }: ExportHistoryClientProps
             <Dialog open={!!selectedRecord} onOpenChange={(isOpen) => !isOpen && setSelectedRecord(null)}>
                 <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
                     <DialogHeader>
-                        <DialogTitle>Export Details: {selectedRecord?.version}</DialogTitle>
+                        <DialogTitle>Export Details: {selectedRecord?.version} for {selectedRecord?.rfpName}</DialogTitle>
                         <DialogDescription>
                             Snapshot of the RFP exported on {selectedRecord && format(new Date(selectedRecord.exportedAt), "PPp")} by {selectedRecord?.exportedBy.name}.
                         </DialogDescription>

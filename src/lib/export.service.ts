@@ -8,6 +8,7 @@ export interface ExportRecord {
     id: string;
     tenantId: string;
     rfpId: string;
+    rfpName: string;
     version: string;
     format: 'pdf' | 'docx';
     exportedAt: string; // ISO string
@@ -35,9 +36,14 @@ class ExportService {
         return newRecord;
     }
 
-    public async getExportHistory(tenantId: string, rfpId: string): Promise<ExportRecord[]> {
+    public async getExportHistory(tenantId: string, rfpId?: string): Promise<ExportRecord[]> {
         const history = inMemoryExportHistory
-            .filter(r => r.tenantId === tenantId && r.rfpId === rfpId)
+            .filter(r => {
+                if (rfpId) {
+                    return r.tenantId === tenantId && r.rfpId === rfpId
+                }
+                return r.tenantId === tenantId;
+            })
             .sort((a, b) => new Date(b.exportedAt).getTime() - new Date(a.exportedAt).getTime());
         return history;
     }

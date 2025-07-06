@@ -803,6 +803,7 @@ export async function exportRfpAction(payload: {
         
         await exportService.addExportRecord(tenantId, {
             rfpId,
+            rfpName: rfp.name,
             version: exportVersion,
             format,
             exportedAt: new Date().toISOString(),
@@ -825,8 +826,8 @@ export async function exportRfpAction(payload: {
 }
 
 
-export async function getExportHistoryAction(tenantId: string, rfpId: string) {
-    if (!tenantId || !rfpId) {
+export async function getExportHistoryAction(tenantId: string, rfpId?: string) {
+    if (!tenantId) {
         return { error: "Missing required parameters." };
     }
     try {
