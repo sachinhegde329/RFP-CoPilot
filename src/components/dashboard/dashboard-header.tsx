@@ -3,14 +3,6 @@
 
 import { useState, useEffect } from "react"
 import { useTheme } from "next-themes"
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -25,7 +17,7 @@ import {
   DropdownMenuPortal
 } from "@/components/ui/dropdown-menu"
 import { SidebarTrigger } from "@/components/ui/sidebar"
-import { Bell, Bot, CheckCircle, CircleUserRound, MessageSquare, UserPlus, Loader2, Sun, Moon, Search } from "lucide-react"
+import { Bell, Bot, CheckCircle, CircleUserRound, MessageSquare, UserPlus, Loader2, Sun, Moon, Search, Command } from "lucide-react"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { getNotificationsAction, markNotificationsAsReadAction } from "@/app/actions"
 import type { Notification } from "@/lib/notifications.service"
@@ -46,14 +38,13 @@ function getNotificationIcon(type: string) {
 }
 
 
-export function HomepageHeader({ rfpName }: { rfpName?: string }) {
+export function HomepageHeader() {
   const { tenant } = useTenant()
   const { toast } = useToast()
   const { setTheme } = useTheme()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
-  // Assuming current user is the first member for this demo
   const currentUser = tenant.members[0];
 
   const unreadCount = notifications.filter(n => !n.isRead).length
@@ -80,7 +71,6 @@ export function HomepageHeader({ rfpName }: { rfpName?: string }) {
   
   const handleMarkAllAsRead = async () => {
     if (!currentUser) return;
-    // Optimistically update UI
     setNotifications(prev => prev.map(n => ({...n, isRead: true})));
 
     const result = await markNotificationsAsReadAction(tenant.id, currentUser.id);
@@ -90,48 +80,35 @@ export function HomepageHeader({ rfpName }: { rfpName?: string }) {
             title: "Error",
             description: "Could not mark notifications as read.",
         });
-        // Revert optimistic update on error
         setNotifications(prev => prev.map(n => ({...n, isRead: false})));
     }
   }
 
 
   return (
-    <header className="sticky top-0 z-10 flex h-16 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 md:px-6">
+    <header className="flex h-16 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 md:px-6 shrink-0">
       <div className="flex items-center gap-4">
           <SidebarTrigger />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="#">{tenant.name}</BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator />
-              <BreadcrumbItem>
-                <BreadcrumbPage>{ rfpName ? rfpName : 'Home'}</BreadcrumbPage>
-              </BreadcrumbItem>
-            </BreadcrumbList>
-          </Breadcrumb>
       </div>
 
       <div className="flex w-full flex-1 items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
-        <form className="ml-auto flex-1 sm:flex-initial">
-          <div className="relative">
-            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Search RFPs, answers..."
-              className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px]"
-            />
-          </div>
-        </form>
+        <div className="ml-auto flex-1 sm:flex-initial">
+          <Button variant="outline" className="w-full justify-start text-muted-foreground sm:w-64">
+            <Search className="mr-2"/>
+            Quick Ask AI...
+            <kbd className="pointer-events-none ml-auto hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
+              <span className="text-xs">⌘</span>K
+            </kbd>
+          </Button>
+        </div>
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon" className="rounded-full relative">
+                <Button variant="ghost" size="icon" className="rounded-full relative">
                     <Bell className="h-5 w-5"/>
                     {unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                        <span className="absolute top-1 right-1 flex h-2 w-2">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-primary"></span>
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-primary"></span>
                         </span>
                     )}
                     <span className="sr-only">Toggle notifications</span>
@@ -171,7 +148,7 @@ export function HomepageHeader({ rfpName }: { rfpName?: string }) {
 
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-            <Button variant="secondary" size="icon" className="rounded-full">
+            <Button variant="ghost" size="icon" className="rounded-full">
                 <CircleUserRound />
                 <span className="sr-only">Toggle user menu</span>
             </Button>

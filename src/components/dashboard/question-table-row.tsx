@@ -2,12 +2,11 @@
 "use client"
 
 import { useState, memo } from "react"
-import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import { Sparkles, CheckCircle2, AlertTriangle, History, Loader2, Bot, Clipboard, ClipboardCheck, BookOpenCheck, UserPlus, Circle, CheckCircle, CircleDotDashed, Bold, Italic, Underline, List, MessageSquare } from "lucide-react"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Sparkles, CheckCircle2, AlertTriangle, Bot, Clipboard, ClipboardCheck, BookOpenCheck, UserPlus, Bold, Italic, Underline, List, MessageSquare } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { generateAnswerAction, reviewAnswerAction } from "@/app/actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -16,11 +15,11 @@ import { hasFeatureAccess, canPerformAction } from "@/lib/access-control"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Input } from "../ui/input"
 import { cn } from "@/lib/utils"
 import type { Question } from "@/lib/rfp-types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Checkbox } from "@/components/ui/checkbox"
+import { TeamMember } from "@/lib/tenant-types"
+
 
 type QAndAItemProps = {
   questionData: Question
@@ -31,10 +30,11 @@ type QAndAItemProps = {
 }
 
 export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId, members, onUpdateQuestion }: QAndAItemProps) {
-  const { id, question, category, assignee, status, answer } = questionData;
+  const { id, question, assignee, status, answer } = questionData;
   const { tenant } = useTenant();
   const { toast } = useToast();
   
+  const [isOpen, setIsOpen] = useState(false);
   const [currentAnswer, setCurrentAnswer] = useState(answer);
   const [sources, setSources] = useState<string[]>([]);
   const [confidence, setConfidence] = useState<number | null>(null);
@@ -48,8 +48,6 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
   const canEdit = canPerformAction(currentUser.role, 'editContent');
   const canAssign = canPerformAction(currentUser.role, 'assignQuestions');
   
-  const [comment, setComment] = useState("");
-
   const handleGenerateAnswer = async () => {
     setIsGenerating(true);
     setReview("");
@@ -82,21 +80,13 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
 
   const handleReviewAnswer = async () => {
     if (!currentAnswer) {
-      toast({
-        variant: "destructive",
-        title: "Cannot Review",
-        description: "Please provide an answer before requesting a review.",
-      });
+      toast({ variant: "destructive", title: "Cannot Review", description: "Please provide an answer." });
       return;
     }
     setIsReviewing(true);
     const result = await reviewAnswerAction(question, currentAnswer, tenant.id, currentUser);
     if (result.error) {
-      toast({
-        variant: "destructive",
-        title: "Error",
-        description: result.error,
-      });
+      toast({ variant: "destructive", title: "Error", description: result.error });
     } else {
       setReview(result.review || "");
     }
@@ -118,206 +108,158 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
     onUpdateQuestion(id, { status: newStatus });
   };
   
-  const StatusIcon = ({ status, className }: { status: Question['status'], className?: string }) => {
-    switch (status) {
-      case 'Completed': return <CheckCircle className={cn("h-4 w-4 text-green-600", className)} />;
-      case 'In Progress': return <CircleDotDashed className={cn("h-4 w-4 text-yellow-600", className)} />;
-      case 'Unassigned':
-      default: return <Circle className={cn("h-4 w-4 text-muted-foreground", className)} />;
-    }
+  const StatusBadge = ({ status }: { status: Question['status'] }) => {
+    const variant = {
+      'Completed': 'secondary',
+      'In Progress': 'outline',
+      'Unassigned': 'outline',
+    }[status];
+  
+    const color = {
+      'Completed': 'text-green-400',
+      'In Progress': 'text-yellow-400',
+      'Unassigned': 'text-muted-foreground',
+    }[status];
+
+    return (
+      <Badge variant={variant as any} className="capitalize border-border">
+        <span className={cn("mr-2 h-2 w-2 rounded-full", {
+            'bg-green-400': status === 'Completed',
+            'bg-yellow-400': status === 'In Progress',
+            'bg-gray-400': status === 'Unassigned',
+        })}/>
+        {status}
+      </Badge>
+    );
   };
 
   return (
-    <AccordionItem value={`item-${id}`} className="border-b-0">
-        <Card>
-        <AccordionTrigger className="p-4 hover:no-underline [&[data-state=open]]:border-b">
-            <div className="flex items-center gap-4 flex-1 text-left">
-                <StatusIcon status={status} className="flex-shrink-0" />
-                <span className="font-medium">Q{id}: {question}</span>
-            </div>
-            <div className="flex items-center gap-4 pl-4">
-                 <Badge variant="outline" className="hidden sm:inline-flex">{category}</Badge>
-                 <TooltipProvider delayDuration={100}>
-                    <Tooltip>
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                                <button disabled={!canAssign} className={cn("flex h-6 w-6 items-center justify-center rounded-full", canAssign ? "hover:bg-accent/50" : "cursor-not-allowed")} onClick={(e) => e.stopPropagation()}>
-                                    {assignee ? (
-                                        <Avatar className="h-full w-full">
-                                            {assignee.avatar && <AvatarImage src={assignee.avatar} alt={assignee.name} />}
-                                            <AvatarFallback className="text-xs">{assignee.name.charAt(0)}</AvatarFallback>
-                                        </Avatar>
-                                    ) : (
-                                        <div className="flex h-full w-full items-center justify-center rounded-full border-2 border-dashed">
-                                            <UserPlus className="h-3 w-3 text-muted-foreground" />
-                                        </div>
-                                    )}
-                                </button>
-                            </DropdownMenuTrigger>
-                             {canAssign && (
-                                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                                    <DropdownMenuLabel>Assign to</DropdownMenuLabel>
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onSelect={() => handleAssigneeChange('unassigned')}>
-                                        <UserPlus className="mr-2 h-4 w-4"/>
-                                        Unassigned
-                                    </DropdownMenuItem>
-                                    {members.map(member => (
-                                        <DropdownMenuItem key={member.id} onSelect={() => handleAssigneeChange(member.id.toString())}>
-                                        <Avatar className="h-5 w-5 mr-2">
-                                            {member.avatar && <AvatarImage src={member.avatar} alt={member.name} />}
-                                            <AvatarFallback className="text-xs">{member.name.charAt(0)}</AvatarFallback>
-                                        </Avatar>
-                                        {member.name}
-                                        </DropdownMenuItem>
-                                    ))}
-                                </DropdownMenuContent>
-                            )}
-                        </DropdownMenu>
-                        <TooltipContent><p>{assignee ? `Assigned to ${assignee.name}` : 'Unassigned'}</p></TooltipContent>
-                    </Tooltip>
-                </TooltipProvider>
-
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                         <button
-                            className="h-auto p-1 font-normal capitalize flex items-center gap-1 rounded-md hover:bg-accent hover:text-accent-foreground disabled:opacity-50 disabled:pointer-events-none"
-                            disabled={!canEdit}
-                            onClick={(e) => e.stopPropagation()}
-                         >
-                           <span className="hidden sm:inline-flex">{status}</span>
-                         </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                    <DropdownMenuItem onSelect={() => handleStatusChange('Unassigned')}>
-                        <Circle className="mr-2 h-4 w-4 text-muted-foreground" /> Unassigned
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => handleStatusChange('In Progress')}>
-                        <CircleDotDashed className="mr-2 h-4 w-4 text-yellow-600" /> In Progress
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={() => handleStatusChange('Completed')}>
-                        <CheckCircle className="mr-2 h-4 w-4 text-green-600" /> Completed
-                    </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
-        </AccordionTrigger>
-        <AccordionContent className="p-4">
-          <Tabs defaultValue="answer" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="answer">Answer</TabsTrigger>
-              <TabsTrigger value="activity">Activity & Comments</TabsTrigger>
-            </TabsList>
-            <TabsContent value="answer" className="mt-4 space-y-4">
-              <div className="rounded-md border bg-background">
-                <div className="p-2 border-b flex items-center gap-1">
-                  <Button variant="ghost" size="icon" disabled={!canEdit}><Bold /></Button>
-                  <Button variant="ghost" size="icon" disabled={!canEdit}><Italic /></Button>
-                  <Button variant="ghost" size="icon" disabled={!canEdit}><Underline /></Button>
-                  <Button variant="ghost" size="icon" disabled={!canEdit}><List /></Button>
-                </div>
-                <div className="relative">
-                  <Textarea
-                    placeholder="Draft your answer here..."
-                    value={currentAnswer}
-                    onChange={(e) => setCurrentAnswer(e.target.value)}
-                    className="min-h-[200px] w-full resize-y border-0 pr-10 focus-visible:ring-0"
-                    disabled={!canEdit}
-                  />
-                  <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={handleCopy}>
-                    {isCopied ? <ClipboardCheck className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
-                    <span className="sr-only">Copy</span>
-                  </Button>
-                </div>
-              </div>
-              <div className="flex flex-col-reverse sm:flex-row gap-2 justify-between items-center">
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <Button onClick={handleGenerateAnswer} disabled={isGenerating || !canEdit} className="w-full sm:w-auto">
-                    {isGenerating ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                    Generate
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleReviewAnswer}
-                    disabled={isReviewing || !currentAnswer || !canUseAiReview || !canEdit}
-                    className="w-full sm:w-auto"
-                  >
-                    {isReviewing ? <Loader2 className="animate-spin" /> : <Bot />}
-                    Review
-                  </Button>
-                </div>
-                <Button 
-                  variant="default"
-                  onClick={handleAcceptAnswer}
-                  disabled={!currentAnswer || isGenerating || isReviewing || !canEdit}
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="border-t">
+      <CollapsibleTrigger asChild>
+        <div className="grid grid-cols-12 gap-4 items-center p-4 cursor-pointer hover:bg-muted/50 text-sm">
+          <div className="col-span-6 flex items-center gap-3">
+            <Checkbox checked={isOpen}/>
+            <span className="font-medium">{question}</span>
+          </div>
+          <div className="col-span-2">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  onClick={(e) => e.stopPropagation()}
+                  disabled={!canAssign}
+                  className="flex items-center gap-2 text-left w-full disabled:pointer-events-none"
                 >
-                  <CheckCircle2 className="mr-2" />
-                  Accept Answer
+                  {assignee ? (
+                    <>
+                      <Avatar className="h-6 w-6">
+                        {assignee.avatar && <AvatarImage src={assignee.avatar} alt={assignee.name} />}
+                        <AvatarFallback className="text-xs">{assignee.name.charAt(0)}</AvatarFallback>
+                      </Avatar>
+                      <span className="truncate">{assignee.name}</span>
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground">None</span>
+                  )}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuLabel>Assign to</DropdownMenuLabel>
+                <DropdownMenuItem onSelect={() => handleAssigneeChange('unassigned')}>Unassigned</DropdownMenuItem>
+                <DropdownMenuSeparator />
+                {members.map(member => (
+                  <DropdownMenuItem key={member.id} onSelect={() => handleAssigneeChange(member.id.toString())}>
+                    {member.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <div className="col-span-2">
+            <Badge variant="outline">No tags</Badge>
+          </div>
+          <div className="col-span-2">
+            <StatusBadge status={status} />
+          </div>
+        </div>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <div className="bg-background p-4 space-y-4">
+          <div className="rounded-md border bg-card">
+              <div className="p-2 border-b flex items-center gap-1">
+                <Button variant="ghost" size="icon" disabled={!canEdit}><Bold /></Button>
+                <Button variant="ghost" size="icon" disabled={!canEdit}><Italic /></Button>
+                <Button variant="ghost" size="icon" disabled={!canEdit}><Underline /></Button>
+                <Button variant="ghost" size="icon" disabled={!canEdit}><List /></Button>
+              </div>
+              <div className="relative">
+                <Textarea
+                  placeholder="Draft your answer here..."
+                  value={currentAnswer}
+                  onChange={(e) => setCurrentAnswer(e.target.value)}
+                  className="min-h-[150px] w-full resize-y border-0 pr-10 focus-visible:ring-0 bg-card"
+                  disabled={!canEdit}
+                />
+                <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={handleCopy}>
+                  {isCopied ? <ClipboardCheck className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
                 </Button>
               </div>
+          </div>
+          <div className="flex flex-col-reverse sm:flex-row gap-2 justify-between items-center">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button onClick={handleGenerateAnswer} disabled={isGenerating || !canEdit} className="w-full sm:w-auto">
+                {isGenerating ? "..." : <Sparkles />}
+                Generate
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleReviewAnswer}
+                disabled={isReviewing || !currentAnswer || !canUseAiReview || !canEdit}
+                className="w-full sm:w-auto"
+              >
+                {isReviewing ? "..." : <Bot />}
+                Review
+              </Button>
+            </div>
+            <Button 
+              variant="default"
+              onClick={handleAcceptAnswer}
+              disabled={!currentAnswer || isGenerating || isReviewing || !canEdit}
+            >
+              <CheckCircle2 className="mr-2" />
+              Accept Answer
+            </Button>
+          </div>
 
-              {review && (
-                <Alert variant="secondary">
-                  <Bot className="h-4 w-4" />
-                  <AlertTitle>AI Expert Review</AlertTitle>
-                  <AlertDescription className="text-sm font-mono whitespace-pre-wrap">
-                    {review}
-                  </AlertDescription>
-                </Alert>
-              )}
-              {sources.length > 0 && (
-                <Alert variant="secondary">
-                  <BookOpenCheck className="h-4 w-4" />
-                  <AlertTitle>Sources Used</AlertTitle>
-                  <AlertDescription>
-                    <ul className="list-disc list-inside text-xs font-mono">
-                      {sources.map((source, index) => (
-                        <li key={index}>{source}</li>
-                      ))}
-                    </ul>
-                    {confidence !== null && (
-                      <div className="flex items-center gap-2 text-xs font-semibold whitespace-nowrap text-muted-foreground pt-2 mt-2 border-t border-muted-foreground/20">
-                        {confidence > 0.8 ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <AlertTriangle className="h-4 w-4 text-yellow-600" />}
-                        <span>Confidence Score: {(confidence * 100).toFixed(0)}%</span>
-                      </div>
-                    )}
-                  </AlertDescription>
-                </Alert>
-              )}
-            </TabsContent>
-            <TabsContent value="activity" className="mt-4 space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold text-sm flex items-center gap-2"><MessageSquare /> Comments</h4>
-                <span className="text-xs text-muted-foreground">2 comments</span>
-              </div>
-              <div className="space-y-3">
-                <div className="flex items-start gap-2 text-sm">
-                  <Avatar className="h-6 w-6"><AvatarImage src="https://placehold.co/100x100" /><AvatarFallback>PG</AvatarFallback></Avatar>
-                  <div><span className="font-medium">Priya</span>: Good start, but let's add pricing for the premium support tier.</div>
-                </div>
-                <div className="flex items-start gap-2 text-sm">
-                  <Avatar className="h-6 w-6"><AvatarImage src="https://placehold.co/100x100" /><AvatarFallback>AJ</AvatarFallback></Avatar>
-                  <div><span className="font-medium">Alex</span>: Good point, updated.</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <Input placeholder="Add a comment..." value={comment} onChange={(e) => setComment(e.target.value)} />
-                <Button variant="outline" size="sm" disabled={!comment.trim()}>Send</Button>
-              </div>
-
-              <div className="space-y-2 pt-4 border-t">
-                <h4 className="font-semibold text-sm flex items-center gap-2"><History /> Activity</h4>
-                <ul className="text-xs text-muted-foreground space-y-1.5">
-                  <li><span className="font-medium text-foreground">Alex</span> generated an answer <span className="italic">2 hours ago</span></li>
-                  <li><span className="font-medium text-foreground">Maria</span> assigned this to <span className="font-medium text-foreground">Alex</span> <span className="italic">4 hours ago</span></li>
+          {review && (
+            <Alert variant="secondary">
+              <Bot className="h-4 w-4" />
+              <AlertTitle>AI Expert Review</AlertTitle>
+              <AlertDescription className="text-sm font-mono whitespace-pre-wrap">
+                {review}
+              </AlertDescription>
+            </Alert>
+          )}
+          {sources.length > 0 && (
+            <Alert variant="secondary">
+              <BookOpenCheck className="h-4 w-4" />
+              <AlertTitle>Sources Used</AlertTitle>
+              <AlertDescription>
+                <ul className="list-disc list-inside text-xs font-mono">
+                  {sources.map((source, index) => (
+                    <li key={index}>{source}</li>
+                  ))}
                 </ul>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </AccordionContent>
-      </Card>
-    </AccordionItem>
+                {confidence !== null && (
+                  <div className="flex items-center gap-2 text-xs font-semibold whitespace-nowrap text-muted-foreground pt-2 mt-2 border-t border-muted-foreground/20">
+                    {confidence > 0.8 ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <AlertTriangle className="h-4 w-4 text-yellow-600" />}
+                    <span>Confidence Score: {(confidence * 100).toFixed(0)}%</span>
+                  </div>
+                )}
+              </AlertDescription>
+            </Alert>
+          )}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
   )
 });
-
-    

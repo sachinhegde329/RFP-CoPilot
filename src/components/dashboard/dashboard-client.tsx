@@ -4,16 +4,14 @@
 import { useState, useEffect, useCallback } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
 import { useTenant } from "@/components/providers/tenant-provider"
-import { RfpSummaryCard } from "@/components/dashboard/rfp-summary-card"
 import { QAndAList } from "@/components/dashboard/q-and-a-list"
 import { getRfpsAction, extractQuestionsAction, updateQuestionAction, addQuestionAction } from "@/app/actions"
 import { useToast } from "@/hooks/use-toast"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { FileText } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Progress } from "@/components/ui/progress"
 import type { Question, RFP } from "@/lib/rfp-types"
-import { RfpSelector } from "./rfp-selector"
-import { HomepageHeader } from "./dashboard-header"
 import { DashboardSkeleton } from "./dashboard-skeleton"
+import { File, PlusCircle, Sparkles, Upload } from "lucide-react"
 
 type Attachment = {
   id: number;
@@ -87,8 +85,6 @@ function RfpWorkspaceView() {
     const result = await updateQuestionAction(tenant.id, selectedRfp.id, questionId, updates, currentUser);
     if (result.error) {
         toast({ variant: "destructive", title: "Update Failed", description: result.error });
-        // Note: Reverting optimistic UI is complex and omitted here for simplicity.
-        // A full implementation might refetch data or use a more robust state management.
     }
   }, [selectedRfp, tenant.id, currentUser, toast]);
 
@@ -108,115 +104,72 @@ function RfpWorkspaceView() {
     }
   }, [selectedRfp, tenant.id, currentUser, toast]);
 
-  const handleProcessRfp = async (rfpText: string, file?: File) => {
-    if (!rfpText.trim()) {
-      toast({ variant: "destructive", title: "Input required" });
-      return;
-    }
-    setIsProcessing(true);
-    const rfpName = file ? file.name : `Pasted RFP - ${new Date().toLocaleDateString()}`;
-    const result = await extractQuestionsAction(rfpText, rfpName, tenant.id, currentUser);
-
-    if (result.error || !result.rfp) {
-      toast({ variant: "destructive", title: "Extraction Error", description: result.error || "Could not process RFP" });
-    } else {
-      const newRfp = result.rfp;
-      setRfps(prev => [newRfp, ...prev]);
-      
-      if (file) {
-        const newAttachment: Attachment = {
-          id: Date.now(),
-          name: file.name,
-          size: file.size > 1024 * 1024 ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : `${(file.size / 1024).toFixed(0)} KB`,
-          type: file.type,
-          url: URL.createObjectURL(file),
-        };
-        setRfpAttachments(prev => ({ ...prev, [newRfp.id]: [newAttachment] }));
-      }
-      
-      toast({ title: "RFP Processed", description: `Created new RFP: ${newRfp.name}` });
-      router.push(`${pathname}?rfpId=${newRfp.id}`);
-    }
-    setIsProcessing(false);
-  }
-
-  const handleUpdateAttachments = (updatedAttachments: Attachment[]) => {
-    if (!selectedRfp) return;
-    const currentAttachments = rfpAttachments[selectedRfp.id] || [];
-    currentAttachments.forEach(att => {
-        if (!updatedAttachments.some(updatedAtt => updatedAtt.id === att.id)) {
-            URL.revokeObjectURL(att.url);
-        }
-    });
-    setRfpAttachments(prev => ({ ...prev, [selectedRfp.id]: updatedAttachments }));
-  };
-
   if (isDataLoading) {
     return <DashboardSkeleton />;
   }
-
+  
+  const progressPercentage = selectedRfp?.questions ? (selectedRfp.questions.filter(q => q.status === 'Completed').length / selectedRfp.questions.length) * 100 : 0;
   const attachments = selectedRfp ? (rfpAttachments[selectedRfp.id] || []) : [];
 
     return (
-        <div className="space-y-6">
-          {rfps.length > 0 && selectedRfp ? (
-            <RfpSelector rfps={rfps} selectedRfpId={selectedRfp.id} />
-          ) : null}
+        <main className="flex-1 grid grid-cols-12 overflow-hidden">
+          {/* Left Panel */}
+          <div className="col-span-3 bg-card border-r border-border p-4 flex flex-col gap-6">
+              <h2 className="text-lg font-semibold">{selectedRfp?.name || 'Select an RFP'}</h2>
+              <div className="space-y-2">
+                <Progress value={progressPercentage} className="h-2"/>
+                <p className="text-xs text-muted-foreground">{Math.round(progressPercentage)}% complete</p>
+              </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-3">
-              <RfpSummaryCard
-                isLoading={isProcessing}
-                onProcessRfp={handleProcessRfp}
-              />
-            </div>
-
+              <div className="flex flex-col gap-2">
+                <Button><Sparkles className="mr-2"/> Autogenerate All</Button>
+                <Button variant="outline">Autogeneration Runs</Button>
+                <Button variant="outline">Export</Button>
+              </div>
+              
+              <div className="flex-1 flex flex-col gap-2 overflow-y-auto">
+                <div className="flex justify-between items-center">
+                    <h3 className="font-semibold text-sm">Files</h3>
+                    <Button variant="ghost" size="sm"><PlusCircle className="mr-2"/> Files</Button>
+                </div>
+                 {attachments.length > 0 ? attachments.map(att => (
+                  <div key={att.id} className="flex items-center gap-2 text-sm p-2 rounded-md hover:bg-muted/50">
+                    <File className="h-4 w-4 text-muted-foreground"/>
+                    <span className="truncate">{att.name}</span>
+                  </div>
+                 )) : (
+                  <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
+                    No files attached.
+                  </div>
+                 )}
+              </div>
+          </div>
+          
+          {/* Right Panel */}
+          <div className="col-span-9 flex flex-col overflow-y-auto p-6">
             {selectedRfp ? (
-              <div className="lg:col-span-3">
-                <QAndAList 
+              <QAndAList 
                   questions={questions} 
                   tenantId={tenant.id}
                   rfpId={selectedRfp.id}
                   members={tenant.members} 
                   onUpdateQuestion={handleUpdateQuestion}
                   onAddQuestion={handleAddQuestion}
-                  attachments={attachments}
-                  onUpdateAttachments={handleUpdateAttachments}
                 />
-              </div>
             ) : (
-              <div className="lg:col-span-3">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>No RFPs Found</CardTitle>
-                        <CardDescription>
-                            Get started by processing your first RFP using the card above.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex flex-col items-center justify-center gap-4 text-center p-8 border-2 border-dashed border-muted rounded-lg min-h-[200px]">
-                          <FileText className="size-12 text-muted-foreground" />
-                          <h3 className="font-semibold">Your Questions Will Appear Here</h3>
-                          <p className="text-sm text-muted-foreground max-w-md">Once you process an RFP, we'll use AI to extract and list all the questions for you to answer.</p>
-                        </div>
-                    </CardContent>
-                  </Card>
+              <div className="flex-1 flex items-center justify-center text-center">
+                <div>
+                  <h3 className="text-2xl font-bold">Welcome to RFP CoPilot</h3>
+                  <p className="text-muted-foreground">Select an RFP from the list or upload a new one to get started.</p>
+                  <Button className="mt-4"><Upload className="mr-2"/> Upload New RFP</Button>
+                </div>
               </div>
             )}
           </div>
-        </div>
+        </main>
     )
 }
 
 export function HomepageClient() {
-  const rfpName = "Home";
-
-  return (
-    <>
-      <HomepageHeader rfpName={rfpName} />
-      <main className="p-4 sm:p-6 lg:p-8">
-        <RfpWorkspaceView />
-      </main>
-    </>
-  )
+  return <RfpWorkspaceView />;
 }

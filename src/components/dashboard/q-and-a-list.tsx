@@ -1,334 +1,19 @@
 
 'use client'
 
-import { useState, useMemo, useEffect, useRef } from "react"
+import { useState, useMemo } from "react"
 import { QAndAItem } from "./question-table-row"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import type { TeamMember } from "@/lib/tenant-types"
+import { PlusCircle, Settings, Switch } from "lucide-react"
 import { useTenant } from "@/components/providers/tenant-provider"
-import { PlusCircle, ChevronDown, Loader2, Download, AlertTriangle, UserCheck, ShieldAlert, Paperclip, File, Trash2, CheckCheck, ShieldCheck, XCircle, CheckCircle2 } from "lucide-react"
-import { Progress } from "@/components/ui/progress"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogTrigger,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import type { Question } from "@/lib/rfp-types"
-import type { Template } from "@/lib/template.service"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { exportRfpAction, getTemplatesAction } from "@/app/actions"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Input } from "@/components/ui/input"
-import { Alert, AlertDescription } from "@/components/ui/alert"
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
-import { Separator } from "@/components/ui/separator"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Input } from "../ui/input"
 import { canPerformAction } from "@/lib/access-control"
 import { Accordion } from "@/components/ui/accordion"
-import { Badge } from "@/components/ui/badge"
-
-
-type Acknowledgments = Record<string, { acknowledged: boolean; comment: string }>;
-
-const complianceChecks = [
-  { name: "ISO 27001", status: "passed" },
-  { name: "SOC 2 Type II", status: "passed" },
-  { name: "HIPAA", status: "passed" },
-  { name: "GDPR", status: "failed" },
-]
-
-function ExportDialog({ rfpId, questions, members }: { rfpId: string, questions: Question[], members: TeamMember[] }) {
-    const { tenant } = useTenant()
-    const { toast } = useToast()
-    const [exportVersion, setExportVersion] = useState("v1.0")
-    const [isExporting, setIsExporting] = useState(false)
-    const [checklist, setChecklist] = useState({
-        answersReviewed: false,
-    });
-    const [acknowledgments, setAcknowledgments] = useState<Acknowledgments>({});
-    const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [templates, setTemplates] = useState<Template[]>([]);
-    const [selectedTemplate, setSelectedTemplate] = useState('system-default-categorized');
-    const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
-
-
-    const currentUser = tenant.members[0]; // For demo
-    const canFinalize = canPerformAction(currentUser.role, 'finalizeExport');
-    const isAdminOrOwner = currentUser.role === 'Admin' || currentUser.role === 'Owner';
-    const allQuestionsCompleted = questions.every(q => q.status === 'Completed');
-    
-    const canExport = canFinalize && (allQuestionsCompleted || isAdminOrOwner);
-    const anyChecksFailed = complianceChecks.some(c => c.status === 'failed');
-    
-    const exportButtonTooltipContent = !canFinalize 
-        ? "You do not have permission to export."
-        : !allQuestionsCompleted && !isAdminOrOwner
-        ? "All questions must be 'Completed' before a non-admin can export."
-        : "Ready to export.";
-    
-    useEffect(() => {
-        if (isDialogOpen) {
-            const fetchTemplates = async () => {
-                setIsLoadingTemplates(true);
-                const result = await getTemplatesAction(tenant.id, currentUser);
-                if (result.templates) {
-                    setTemplates(result.templates);
-                    if (result.templates.length > 0 && !result.templates.find(t => t.id === selectedTemplate)) {
-                        setSelectedTemplate(result.templates[0].id);
-                    }
-                } else {
-                    toast({ variant: 'destructive', title: "Could not load templates" });
-                }
-                setIsLoadingTemplates(false);
-            };
-            fetchTemplates();
-        }
-    }, [isDialogOpen, tenant.id, currentUser, toast, selectedTemplate]);
-
-
-    const handleChecklistChange = (key: 'answersReviewed') => {
-        setChecklist(prev => ({ ...prev, [key]: !prev[key] }));
-    };
-
-    const handleAcknowledgeChange = (memberId: string, checked: boolean | 'indeterminate') => {
-        if (typeof checked !== 'boolean') return;
-        setAcknowledgments(prev => ({
-            ...prev,
-            [memberId]: { ...(prev[memberId] || { comment: '' }), acknowledged: checked }
-        }));
-    };
-
-    const handleCommentChange = (memberId: string, comment: string) => {
-        setAcknowledgments(prev => ({
-            ...prev,
-            [memberId]: { ...(prev[memberId] || { acknowledged: false }), comment: comment }
-        }));
-    };
-    
-    const handleExport = async (format: 'pdf' | 'docx') => {
-        setIsExporting(true);
-        
-        const acknowledgmentsData = members
-            .filter(member => acknowledgments[member.id]?.acknowledged)
-            .map(member => ({
-                name: member.name,
-                role: member.role,
-                comment: acknowledgments[member.id]?.comment || "Reviewed and approved."
-            }));
-
-        const result = await exportRfpAction({
-            tenantId: tenant.id,
-            rfpId,
-            templateId: selectedTemplate,
-            currentUser: { name: currentUser.name, role: currentUser.role, id: currentUser.id },
-            exportVersion,
-            format,
-            acknowledgments: acknowledgmentsData,
-        });
-
-        if (result.error || !result.fileData || !result.fileName || !result.mimeType) {
-            toast({
-                variant: "destructive",
-                title: "Export Failed",
-                description: result.error || "Could not generate file for download.",
-            });
-        } else {
-            toast({
-                title: "Export Successful",
-                description: `Started download for ${result.fileName}.`,
-            });
-            const link = document.createElement('a');
-            link.href = `data:${result.mimeType};base64,${result.fileData}`;
-            link.download = result.fileName;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        setIsExporting(false);
-        setIsDialogOpen(false);
-    };
-
-    return (
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <DialogTrigger asChild>
-                <Button variant="default" disabled={questions.length === 0}><Download className="mr-2" />Export RFP</Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-2xl">
-                <DialogHeader>
-                    <DialogTitle>Finalize &amp; Export</DialogTitle>
-                    <DialogDescription>
-                    Complete the final review checklist and export the RFP response.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="grid md:grid-cols-2 gap-6 py-4 max-h-[70vh] overflow-y-auto pr-4">
-                    <div className="space-y-4">
-                        <Label>Pre-Export Checklist</Label>
-                        <div className="flex items-center space-x-2 pl-1">
-                            <Checkbox id="answersReviewed" checked={checklist.answersReviewed} onCheckedChange={() => handleChecklistChange('answersReviewed')} />
-                            <Label htmlFor="answersReviewed" className="font-normal text-sm peer-disabled:cursor-not-allowed peer-disabled:opacity-70">All answers reviewed and approved</Label>
-                        </div>
-                        
-                        <Separator />
-                        
-                        <div className="space-y-2">
-                             <Label className="flex items-center gap-2"><ShieldCheck /> Compliance Validation</Label>
-                             <Card className="bg-muted/50">
-                                 <CardContent className="p-3 space-y-2">
-                                     {complianceChecks.map((check) => (
-                                       <div key={check.name} className="flex items-center justify-between text-sm">
-                                         <span className="font-medium">{check.name}</span>
-                                         {check.status === "passed" ? (
-                                           <Badge variant="secondary" className="font-normal text-green-600"><CheckCircle2 className="mr-1 h-3 w-3" /> Passed</Badge>
-                                         ) : (
-                                           <Badge variant="destructive" className="font-normal"><XCircle className="mr-1 h-3 w-3" /> Failed</Badge>
-                                         )}
-                                       </div>
-                                     ))}
-                                 </CardContent>
-                             </Card>
-                             {anyChecksFailed && (
-                                 <Alert variant="destructive" className="text-xs">
-                                     <AlertTriangle className="h-4 w-4" />
-                                     <AlertDescription>
-                                         One or more compliance checks have failed. Exporting is not recommended.
-                                     </AlertDescription>
-                                 </Alert>
-                             )}
-                         </div>
-
-                        <Separator />
-
-                        <div className="space-y-2">
-                            <Label className="flex items-center gap-2"><UserCheck /> Team Acknowledgments</Label>
-                            <div className="space-y-3 pt-2">
-                                {members.map((member) => (
-                                <div key={member.id} className="space-y-2">
-                                    <div className="flex items-center gap-3">
-                                        <Checkbox id={`ack-${member.id}`} checked={acknowledgments[member.id]?.acknowledged || false} onCheckedChange={(c) => handleAcknowledgeChange(member.id, c)} />
-                                        <Avatar className="h-6 w-6">
-                                            {member.avatar && <AvatarImage src={member.avatar} />}
-                                            <AvatarFallback className="text-xs">{member.name.charAt(0)}</AvatarFallback>
-                                        </Avatar>
-                                        <Label htmlFor={`ack-${member.id}`} className="font-normal text-sm peer-disabled:cursor-not-allowed peer-disabled:opacity-70">{member.name}</Label>
-                                    </div>
-                                    {acknowledgments[member.id]?.acknowledged && (
-                                        <Input 
-                                            placeholder="Optional comment (e.g., 'Section 5 reviewed and approved.')" 
-                                            className="h-8 ml-9 text-xs"
-                                            value={acknowledgments[member.id]?.comment || ''}
-                                            onChange={(e) => handleCommentChange(member.id, e.target.value)}
-                                        />
-                                    )}
-                                </div>
-                                ))}
-                            </div>
-                        </div>
-                    </div>
-                    <div className="space-y-4">
-                        {!canExport && (
-                          <Alert variant="destructive">
-                              <ShieldAlert className="h-4 w-4" />
-                              <AlertDescription>
-                                  {exportButtonTooltipContent}
-                              </AlertDescription>
-                          </Alert>
-                        )}
-                        {!allQuestionsCompleted && isAdminOrOwner && (
-                            <Alert variant="default">
-                                <AlertTriangle className="h-4 w-4"/>
-                                <AlertDescription>
-                                Admin Override: You can export with incomplete questions.
-                                </AlertDescription>
-                            </Alert>
-                        )}
-
-                        <div className="space-y-2">
-                            <Label htmlFor="export-template">Export Template</Label>
-                            <Select value={selectedTemplate} onValueChange={setSelectedTemplate} disabled={isLoadingTemplates}>
-                                <SelectTrigger id="export-template">
-                                    <SelectValue placeholder="Select a template" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                     {isLoadingTemplates ? (
-                                        <SelectItem value="loading" disabled>Loading templates...</SelectItem>
-                                    ) : (
-                                        templates.map(template => (
-                                            <SelectItem key={template.id} value={template.id}>{template.name}</SelectItem>
-                                        ))
-                                    )}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                         <div className="space-y-2">
-                            <Label htmlFor="export-version">Export Version Tag</Label>
-                            <Input 
-                                id="export-version" 
-                                value={exportVersion} 
-                                onChange={(e) => setExportVersion(e.target.value)}
-                            />
-                        </div>
-                    </div>
-                </div>
-                <DialogFooter>
-                     <TooltipProvider>
-                        <Tooltip delayDuration={0}>
-                            <TooltipTrigger asChild>
-                                {/* The div wrapper is necessary for the tooltip to work on a disabled button */}
-                                <div className="w-full sm:w-auto">
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                    <Button className="w-full" disabled={!canExport || isExporting}>
-                                        {isExporting ? <Loader2 className="mr-2 animate-spin" /> : <Download className="mr-2" />}
-                                        {isExporting ? 'Exporting...' : 'Export Response'}
-                                    </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end" className="w-[--radix-dropdown-menu-trigger-width]">
-                                    <DropdownMenuItem onSelect={() => handleExport('pdf')}>
-                                        Export as PDF
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onSelect={() => handleExport('docx')}>
-                                        Export as Word (.docx)
-                                    </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                                </div>
-                            </TooltipTrigger>
-                            {!canExport && <TooltipContent><p>{exportButtonTooltipContent}</p></TooltipContent>}
-                        </Tooltip>
-                    </TooltipProvider>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
-}
-
-type Attachment = {
-  id: number;
-  name: string;
-  size: string;
-  type: string;
-  url: string;
-};
+import { Label } from "@/components/ui/label"
+import { Checkbox } from "../ui/checkbox"
 
 type QAndAListProps = {
   questions: Question[]
@@ -337,319 +22,72 @@ type QAndAListProps = {
   members: TeamMember[]
   onUpdateQuestion: (questionId: number, updates: Partial<Question>) => void;
   onAddQuestion: (questionData: Omit<Question, 'id'>) => Promise<boolean>;
-  attachments: Attachment[];
-  onUpdateAttachments: (attachments: Attachment[]) => void;
 }
 
-type FilterType = "all" | "assignedToMe" | "unassigned" | "inProgress" | "completed"
-
-export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestion, onAddQuestion, attachments, onUpdateAttachments }: QAndAListProps) {
-  const [activeFilter, setActiveFilter] = useState<FilterType>("all")
+export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestion, onAddQuestion }: QAndAListProps) {
   const { tenant } = useTenant(); 
-  const { toast } = useToast();
-  const currentUser = tenant.members[0]; // For demo, assume current user is the first member
+  const currentUser = tenant.members[0];
 
-  const [isAddQuestionDialogOpen, setIsAddQuestionDialogOpen] = useState(false);
-  const [isAddingQuestion, setIsAddingQuestion] = useState(false);
-  const [newQuestionText, setNewQuestionText] = useState('');
-  const [newQuestionCategory, setNewQuestionCategory] = useState('Product');
-
-  const canEditContent = canPerformAction(currentUser.role, 'editContent');
+  const groupedQuestions = useMemo(() => {
+    return questions.reduce((acc, q) => {
+      const category = q.category || 'Uncategorized';
+      if (!acc[category]) {
+        acc[category] = [];
+      }
+      acc[category].push(q);
+      return acc;
+    }, {} as Record<string, Question[]>);
+  }, [questions]);
   
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleAddAttachmentClick = () => {
-    fileInputRef.current?.click();
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (attachments.length >= 3) {
-      toast({
-        variant: 'destructive',
-        title: 'Attachment Limit Reached',
-        description: 'You can only upload a maximum of 3 supporting documents.',
-      });
-      return;
-    }
-
-    const newAttachment: Attachment = {
-      id: Date.now(),
-      name: file.name,
-      size: file.size > 1024 * 1024
-          ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
-          : `${(file.size / 1024).toFixed(0)} KB`,
-      type: file.type,
-      url: URL.createObjectURL(file),
-    };
-
-    onUpdateAttachments([...attachments, newAttachment]);
-
-    toast({
-      title: 'Attachment Added',
-      description: `${file.name} has been added.`,
-    });
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
-  };
-
-  const handleDeleteAttachment = (id: number) => {
-    const attachmentToRemove = attachments.find(att => att.id === id);
-    const newAttachments = attachments.filter(att => att.id !== id);
-    onUpdateAttachments(newAttachments);
-    
-    if (attachmentToRemove) {
-        toast({
-          title: 'Attachment Removed',
-          description: `${attachmentToRemove.name} has been removed.`,
-        });
-    }
-  };
-
-  const filteredQuestions = useMemo(() => {
-    switch (activeFilter) {
-      case "assignedToMe":
-        return questions.filter(q => q.assignee?.id === currentUser.id)
-      case "unassigned":
-        return questions.filter(q => !q.assignee)
-      case "inProgress":
-        return questions.filter(q => q.status === 'In Progress')
-      case "completed":
-        return questions.filter(q => q.status === 'Completed')
-      case "all":
-      default:
-        return questions
-    }
-  }, [questions, activeFilter, currentUser.id])
-  
-  // Progress calculation
-  const completedCount = useMemo(() => questions.filter(q => q.status === 'Completed').length, [questions]);
-  const totalCount = questions.length;
-  const progressPercentage = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
-
-  const isAssignmentFilterActive = activeFilter === 'assignedToMe' || activeFilter === 'unassigned';
-  const assignmentFilterLabel = useMemo(() => {
-    if (activeFilter === 'assignedToMe') return 'Assigned to Me';
-    if (activeFilter === 'unassigned') return 'Unassigned';
-    return 'Filter by Assignee';
-  }, [activeFilter]);
-
-  const isStatusFilterActive = activeFilter === 'inProgress' || activeFilter === 'completed';
-  const statusFilterLabel = useMemo(() => {
-    if (activeFilter === 'inProgress') return 'In Progress';
-    if (activeFilter === 'completed') return 'Completed';
-    return 'Filter by Status';
-  }, [activeFilter]);
-
-  const handleAddQuestion = async () => {
-    if (!newQuestionText.trim()) {
-        toast({ variant: 'destructive', title: 'Question text is required' });
-        return;
-    }
-    setIsAddingQuestion(true);
-    const questionData: Omit<Question, 'id'> = {
-        question: newQuestionText,
-        category: newQuestionCategory,
-        answer: '',
-        compliance: 'pending',
-        assignee: null,
-        status: 'Unassigned',
-    };
-    const success = await onAddQuestion(questionData);
-    if (success) {
-        setIsAddQuestionDialogOpen(false);
-        setNewQuestionText('');
-        setNewQuestionCategory('Product');
-    }
-    setIsAddingQuestion(false);
-  };
+  const categoryKeys = Object.keys(groupedQuestions);
 
   return (
-    <Card className="flex flex-col">
-      <CardHeader className="space-y-4">
-        {/* Row 1: Title and Primary Actions */}
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <CardTitle>Extracted Questions</CardTitle>
-            <CardDescription>
-              Manage, answer, and export questions for this RFP.
-            </CardDescription>
-          </div>
-          <div className="flex items-center gap-2 flex-shrink-0">
-             <Dialog open={isAddQuestionDialogOpen} onOpenChange={setIsAddQuestionDialogOpen}>
-                <DialogTrigger asChild>
-                    <Button variant="outline" size="sm" disabled={!canEditContent}>
-                        <PlusCircle className="mr-2" />
-                        Add Question
-                    </Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Add a New Question</DialogTitle>
-                        <DialogDescription>
-                            Manually add a question that was missed during extraction.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="question-text">Question</Label>
-                            <Textarea 
-                                id="question-text" 
-                                placeholder="Enter the question text..." 
-                                value={newQuestionText}
-                                onChange={(e) => setNewQuestionText(e.target.value)}
-                                disabled={isAddingQuestion} 
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="question-category">Category</Label>
-                            <Select 
-                                value={newQuestionCategory}
-                                onValueChange={setNewQuestionCategory}
-                                disabled={isAddingQuestion}
-                            >
-                                <SelectTrigger id="question-category">
-                                    <SelectValue placeholder="Select a category" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Product">Product</SelectItem>
-                                    <SelectItem value="Legal">Legal</SelectItem>
-                                    <SelectItem value="Security">Security</SelectItem>
-                                    <SelectItem value="Pricing">Pricing</SelectItem>
-                                    <SelectItem value="Company">Company</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button type="submit" onClick={handleAddQuestion} disabled={isAddingQuestion}>
-                            {isAddingQuestion && <Loader2 className="mr-2 animate-spin" />}
-                            Add Question
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-            <ExportDialog rfpId={rfpId} questions={questions} members={members} />
-          </div>
+    <div className="flex flex-col gap-4 h-full">
+      {/* Header */}
+      <div className="flex items-center gap-4">
+        <Input placeholder="Search questions..." className="bg-card"/>
+        <Button variant="outline">Filters</Button>
+        <div className="flex items-center space-x-2 ml-auto">
+            <Switch id="compact-mode" />
+            <Label htmlFor="compact-mode">Compact</Label>
         </div>
-
-        {/* Row 2: Progress */}
-        {totalCount > 0 && (
-          <div className="space-y-2">
-              <div className="flex justify-between items-center text-sm text-muted-foreground">
-                  <span>Overall Progress</span>
-                  <span>{completedCount} of {totalCount} Completed</span>
-              </div>
-              <Progress value={progressPercentage} className="h-2" />
-          </div>
-        )}
-
-        {/* Row 3: Toolbar - Filters and Secondary Actions */}
-        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t -mx-6 px-6 -mb-6 pb-6">
-            <div className="flex gap-2 flex-wrap">
-                <Button variant={activeFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('all')}>All ({questions.length})</Button>
-                
-                <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant={isAssignmentFilterActive ? 'default' : 'outline'} size="sm" className="flex items-center">
-                    {assignmentFilterLabel}
-                    <ChevronDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                    <DropdownMenuRadioGroup value={activeFilter} onValueChange={(value) => setActiveFilter(value as FilterType)}>
-                        <DropdownMenuRadioItem value="assignedToMe">Assigned to Me ({questions.filter(q => q.assignee?.id === currentUser.id).length})</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="unassigned">Unassigned ({questions.filter(q => !q.assignee).length})</DropdownMenuRadioItem>
-                    </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-                </DropdownMenu>
-
-                <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant={isStatusFilterActive ? 'default' : 'outline'} size="sm" className="flex items-center">
-                    {statusFilterLabel}
-                    <ChevronDown className="ml-2 h-4 w-4" />
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start">
-                    <DropdownMenuRadioGroup value={activeFilter} onValueChange={(value) => setActiveFilter(value as FilterType)}>
-                        <DropdownMenuRadioItem value="inProgress">In Progress ({questions.filter(q => q.status === 'In Progress').length})</DropdownMenuRadioItem>
-                        <DropdownMenuRadioItem value="completed">Completed ({questions.filter(q => q.status === 'Completed').length})</DropdownMenuRadioItem>
-                    </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
-            <div className="flex items-center gap-2">
-                <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    className="hidden"
-                />
-                <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button variant="outline" size="sm">
-                    <Paperclip className="mr-2" />
-                    Documents ({attachments.length})
-                    </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-80">
-                    <DropdownMenuLabel>Supporting Documents</DropdownMenuLabel>
-                    <DropdownMenuSeparator />
-                    {attachments.length > 0 ? (
-                    attachments.map(attachment => (
-                        <DropdownMenuItem key={attachment.id} className="justify-between" onSelect={(e) => e.preventDefault()}>
-                            <a href={attachment.url} download={attachment.name} className="flex items-center gap-2 hover:underline truncate">
-                            <File className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                            <div className="truncate">
-                                <span className="font-medium truncate text-sm">{attachment.name}</span>
-                                <span className="text-xs text-muted-foreground block">{attachment.size}</span>
-                            </div>
-                            </a>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 flex-shrink-0" onClick={() => handleDeleteAttachment(attachment.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                        </DropdownMenuItem>
-                    ))
-                    ) : (
-                    <div className="px-2 py-4 text-center text-sm text-muted-foreground">
-                        No documents attached.
-                    </div>
-                    )}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onSelect={handleAddAttachmentClick} disabled={attachments.length >= 3}>
-                    <PlusCircle className="mr-2 h-4 w-4" />
-                    Add Document
-                    </DropdownMenuItem>
-                </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
-        </div>
-      </CardHeader>
-      <CardContent className="p-0 flex-1">
-        <Accordion type="multiple" className="w-full">
-            {filteredQuestions.length > 0 ? (
-            filteredQuestions.map(q => (
-                <QAndAItem
-                key={q.id}
-                questionData={q}
-                tenantId={tenantId}
-                rfpId={rfpId}
-                members={members}
-                onUpdateQuestion={onUpdateQuestion}
-                />
-            ))
-            ) : (
-                <div className="text-center p-8 text-muted-foreground">
-                    No questions match the current filter.
+        <Button variant="outline" size="icon"><Settings /></Button>
+      </div>
+      
+      {/* Table Header */}
+      <div className="grid grid-cols-12 gap-4 px-4 text-sm font-medium text-muted-foreground">
+        <div className="col-span-6 flex items-center gap-3"><Checkbox disabled/> Question</div>
+        <div className="col-span-2">Assignee</div>
+        <div className="col-span-2">Tags</div>
+        <div className="col-span-2">Status</div>
+      </div>
+      
+      {/* Question List */}
+      <div className="flex-1 overflow-y-auto pr-2">
+        <Accordion type="multiple" defaultValue={categoryKeys} className="w-full space-y-4">
+          {categoryKeys.map((category) => (
+            <AccordionItem key={category} value={category} className="bg-card rounded-lg border">
+              <AccordionTrigger className="p-4 text-base font-semibold hover:no-underline">
+                {category} ({groupedQuestions[category].length})
+              </AccordionTrigger>
+              <AccordionContent className="p-0">
+                <div className="flex flex-col">
+                  {groupedQuestions[category].map((q) => (
+                    <QAndAItem
+                      key={q.id}
+                      questionData={q}
+                      tenantId={tenantId}
+                      rfpId={rfpId}
+                      members={members}
+                      onUpdateQuestion={onUpdateQuestion}
+                    />
+                  ))}
                 </div>
-            )}
+              </AccordionContent>
+            </AccordionItem>
+          ))}
         </Accordion>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   )
 }
