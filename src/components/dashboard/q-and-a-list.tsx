@@ -1,13 +1,12 @@
 'use client'
 
 import { useState, useMemo, useEffect } from "react"
-import { QAndAItem } from "./q-and-a-item"
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card"
+import { QuestionTableRow } from "./question-table-row"
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import type { TeamMember } from "@/lib/tenant-types"
 import { useTenant } from "@/components/providers/tenant-provider"
-import { PlusCircle, ChevronDown, Loader2, Download, AlertTriangle, UserCheck, ShieldAlert } from "lucide-react"
-import { Accordion } from "@/components/ui/accordion"
+import { PlusCircle, ChevronDown, Loader2, Download, AlertTriangle, UserCheck, ShieldAlert, Sparkles, CheckCheck } from "lucide-react"
 import { Progress } from "@/components/ui/progress"
 import {
   DropdownMenu,
@@ -32,7 +31,7 @@ import { useToast } from "@/hooks/use-toast"
 import type { Question } from "@/lib/rfp-types"
 import type { Template } from "@/lib/template.service"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
-import { exportRfpAction, getTemplatesAction } from "@/app/actions"
+import { exportRfpAction, getTemplatesAction, generateAnswerAction, updateQuestionAction } from "@/app/actions"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Alert, AlertDescription } from "@/components/ui/alert"
@@ -40,6 +39,8 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar"
 import { Separator } from "@/components/ui/separator"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { canPerformAction } from "@/lib/access-control"
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+
 
 type Acknowledgments = Record<string, { acknowledged: boolean; comment: string }>;
 
@@ -307,8 +308,16 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
   const [isAddingQuestion, setIsAddingQuestion] = useState(false);
   const [newQuestionText, setNewQuestionText] = useState('');
   const [newQuestionCategory, setNewQuestionCategory] = useState('Product');
+  
+  const [selectedRowIds, setSelectedRowIds] = useState<number[]>([]);
+  const [isBulkProcessing, setIsBulkProcessing] = useState(false);
 
   const canEditContent = canPerformAction(currentUser.role, 'editContent');
+
+  // Reset selection when filter or questions change
+  useEffect(() => {
+    setSelectedRowIds([]);
+  }, [activeFilter, questions]);
 
   const filteredQuestions = useMemo(() => {
     switch (activeFilter) {
@@ -331,8 +340,69 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
   const totalCount = questions.length;
   const progressPercentage = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
-  const isAssignmentFilterActive = activeFilter === 'assignedToMe' || activeFilter === 'unassigned';
+  const numSelected = selectedRowIds.length;
+  const numDisplayed = filteredQuestions.length;
+  const areAllSelected = numDisplayed > 0 && numSelected === numDisplayed;
+  const areSomeSelected = numSelected > 0 && numSelected < numDisplayed;
+
+  const handleSelectAll = (checked: boolean | 'indeterminate') => {
+      if (checked === true) {
+          setSelectedRowIds(filteredQuestions.map(q => q.id));
+      } else {
+          setSelectedRowIds([]);
+      }
+  };
   
+  const handleRowSelect = (questionId: number, isSelected: boolean) => {
+      if (isSelected) {
+          setSelectedRowIds(prev => [...prev, questionId]);
+      } else {
+          setSelectedRowIds(prev => prev.filter(id => id !== questionId));
+      }
+  };
+
+  const handleBulkGenerate = async () => {
+    setIsBulkProcessing(true);
+    const questionsToGenerate = questions.filter(q => selectedRowIds.includes(q.id));
+    let successCount = 0;
+    
+    toast({ title: "Bulk Generation Started", description: `Generating answers for ${questionsToGenerate.length} questions.` });
+    
+    const promises = questionsToGenerate.map(async (q) => {
+        const result = await generateAnswerAction(q.question, rfpId, tenantId, currentUser);
+        if (!result.error && result.answer) {
+            await onUpdateQuestion(q.id, { answer: result.answer });
+            successCount++;
+        }
+    });
+    
+    await Promise.all(promises);
+    
+    toast({ title: "Bulk Generation Complete", description: `Successfully generated ${successCount} of ${questionsToGenerate.length} answers.` });
+    
+    setIsBulkProcessing(false);
+    setSelectedRowIds([]);
+  };
+
+  const handleBulkMarkComplete = async () => {
+      setIsBulkProcessing(true);
+      toast({ title: "Bulk Update Started", description: `Marking ${numSelected} questions as complete.` });
+      
+      const promises = selectedRowIds.map(id => updateQuestionAction(tenantId, rfpId, id, { status: 'Completed' }, currentUser));
+      
+      const results = await Promise.all(promises);
+      const successCount = results.filter(r => !r.error).length;
+      
+      // Manually trigger a state update for all completed questions
+      selectedRowIds.forEach(id => onUpdateQuestion(id, { status: 'Completed' }));
+
+      toast({ title: "Bulk Update Complete", description: `Successfully marked ${successCount} of ${numSelected} questions as complete.` });
+      
+      setIsBulkProcessing(false);
+      setSelectedRowIds([]);
+  };
+
+  const isAssignmentFilterActive = activeFilter === 'assignedToMe' || activeFilter === 'unassigned';
   const assignmentFilterLabel = useMemo(() => {
     if (activeFilter === 'assignedToMe') return 'Assigned to Me';
     if (activeFilter === 'unassigned') return 'Unassigned';
@@ -340,7 +410,6 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
   }, [activeFilter]);
 
   const isStatusFilterActive = activeFilter === 'inProgress' || activeFilter === 'completed';
-  
   const statusFilterLabel = useMemo(() => {
     if (activeFilter === 'inProgress') return 'In Progress';
     if (activeFilter === 'completed') return 'Completed';
@@ -353,7 +422,6 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
         return;
     }
     setIsAddingQuestion(true);
-
     const questionData: Omit<Question, 'id'> = {
         question: newQuestionText,
         category: newQuestionCategory,
@@ -362,7 +430,6 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
         assignee: null,
         status: 'Unassigned',
     };
-
     const success = await onAddQuestion(questionData);
     if (success) {
         setIsAddQuestionDialogOpen(false);
@@ -372,9 +439,8 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
     setIsAddingQuestion(false);
   };
 
-
   return (
-    <Card>
+    <Card className="flex flex-col">
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
@@ -485,25 +551,65 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
             </DropdownMenu>
         </div>
       </CardHeader>
-      <CardContent className="p-0">
-        <Accordion type="multiple" className="w-full border-t">
-            {filteredQuestions.map((q) => (
-            <QAndAItem
-                key={q.id}
-                questionData={q}
-                tenantId={tenantId}
-                rfpId={rfpId}
-                members={members}
-                onUpdateQuestion={onUpdateQuestion}
-            />
-            ))}
-        </Accordion>
-         {filteredQuestions.length === 0 && (
-            <div className="text-center text-muted-foreground p-8">
-                No questions match the current filter.
-            </div>
-        )}
+      <CardContent className="p-0 flex-1">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12 px-4">
+                  <Checkbox
+                    checked={areAllSelected ? true : areSomeSelected ? 'indeterminate' : false}
+                    onCheckedChange={handleSelectAll}
+                    aria-label="Select all"
+                    disabled={!canEditContent || numDisplayed === 0}
+                  />
+                </TableHead>
+                <TableHead>Question</TableHead>
+                <TableHead className="hidden md:table-cell">Category</TableHead>
+                <TableHead className="hidden lg:table-cell">Assignee</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="w-12 text-right"><span className="sr-only">Expand</span></TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredQuestions.length > 0 ? (
+                filteredQuestions.map(q => (
+                  <QuestionTableRow
+                    key={q.id}
+                    questionData={q}
+                    tenantId={tenantId}
+                    rfpId={rfpId}
+                    members={members}
+                    onUpdateQuestion={onUpdateQuestion}
+                    isSelected={selectedRowIds.includes(q.id)}
+                    onSelectChange={handleRowSelect}
+                    canEdit={canEditContent}
+                  />
+                ))
+              ) : (
+                  <TableRow>
+                    <TableCell colSpan={6} className="h-24 text-center">
+                      No questions match the current filter.
+                    </TableCell>
+                  </TableRow>
+              )}
+            </TableBody>
+          </Table>
       </CardContent>
+      {numSelected > 0 && (
+          <CardFooter className="p-3 border-t bg-muted/50 justify-between items-center sticky bottom-0">
+              <span className="text-sm text-muted-foreground">{numSelected} selected</span>
+              <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={handleBulkGenerate} disabled={isBulkProcessing || !canEditContent}>
+                      {isBulkProcessing ? <Loader2 className="mr-2 animate-spin" /> : <Sparkles className="mr-2" />}
+                      Generate Answers
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleBulkMarkComplete} disabled={isBulkProcessing || !canEditContent}>
+                      {isBulkProcessing ? <Loader2 className="mr-2 animate-spin" /> : <CheckCheck className="mr-2" />}
+                      Mark as Complete
+                  </Button>
+              </div>
+          </CardFooter>
+      )}
     </Card>
   )
 }
