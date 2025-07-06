@@ -9,23 +9,21 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { MoreHorizontal, PlusCircle, Upload, Link as LinkIcon, FileText, CheckCircle, Clock, Search, Globe, FolderSync, BookOpen, Network, AlertTriangle, RefreshCw, Box, BookText, Github, Settings, Trash2, Loader2, ChevronLeft, Info } from "lucide-react"
+import { MoreHorizontal, Upload, Link as LinkIcon, FileText, CheckCircle, Clock, Search, Globe, FolderSync, BookOpen, Network, AlertTriangle, RefreshCw, Box, BookText, Github, Settings, Trash2, Loader2, Info } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { addDocumentSourceAction, addWebsiteSourceAction, getKnowledgeSourcesAction, deleteKnowledgeSourceAction, checkSourceStatusAction, resyncKnowledgeSourceAction } from "@/app/actions"
-import type { DataSource, SyncStatus } from "@/lib/knowledge-base"
+import type { DataSource, DataSourceType, SyncStatus } from "@/lib/knowledge-base"
 import { Skeleton } from "@/components/ui/skeleton"
 import { canPerformAction } from "@/lib/access-control"
 
-// Mock data for the components
 const knowledgeBaseStats = {
   totalAnswers: 2345,
   approvedAnswers: 2100,
   needsReview: 45,
-  contentHealth: 89, // percentage
+  contentHealth: 89,
 }
 
 const initialAnswerLibrary = [
@@ -36,14 +34,14 @@ const initialAnswerLibrary = [
   { id: 5, question: "Can we export our data?", snippet: "Yes, data can be exported in CSV or JSON format at any time.", category: "Product", usage: 34, status: "Draft" },
 ]
 
-const potentialSources = [
-  { name: "Website", description: "Crawl and index content from a public website.", icon: Globe },
-  { name: "Confluence", description: "Sync pages from your Confluence workspace.", icon: BookOpen },
-  { name: "SharePoint", description: "Connect to your organization's SharePoint sites.", icon: Network },
-  { name: "Google Drive", description: "Ingest documents from selected Drive folders.", icon: FolderSync },
-  { name: "Notion", description: "Import pages and databases from your Notion workspace.", icon: BookText },
-  { name: "Dropbox", description: "Sync files and folders from your Dropbox account.", icon: Box },
-  { name: "GitHub", description: "Index content from repository wikis or markdown files.", icon: Github },
+const potentialSources: { name: string; type: DataSourceType, description: string; icon: React.ElementType }[] = [
+  { name: "Website", type: 'website', description: "Crawl and index content from a public website.", icon: Globe },
+  { name: "SharePoint", type: 'sharepoint', description: "Connect to your organization's SharePoint sites.", icon: Network },
+  { name: "Google Drive", type: 'gdrive', description: "Ingest documents from selected Drive folders.", icon: FolderSync },
+  { name: "Dropbox", type: 'dropbox', description: "Sync files and folders from your Dropbox account.", icon: Box },
+  { name: "Confluence", type: 'confluence', description: "Sync pages from your Confluence workspace.", icon: BookOpen },
+  { name: "Notion", type: 'notion', description: "Import pages and databases from your Notion workspace.", icon: BookText },
+  { name: "GitHub", type: 'github', description: "Index content from repository wikis or markdown files.", icon: Github },
 ];
 
 const initialReviewQueue = [
@@ -92,18 +90,17 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
   const [sources, setSources] = useState<DataSource[]>(initialSources);
   const [isLoadingSources, setIsLoadingSources] = useState(false);
   
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const { tenant } = useTenant();
 
-  const [configStep, setConfigStep] = useState<'select' | 'configure'>('select');
-  const [sourceToConfigure, setSourceToConfigure] = useState<string | null>(null);
+  const [isConfiguringWebsite, setIsConfiguringWebsite] = useState(false);
   const [websiteUrl, setWebsiteUrl] = useState('');
   const [maxDepth, setMaxDepth] = useState(2);
   const [maxPages, setMaxPages] = useState(10);
   const [filterKeywords, setFilterKeywords] = useState('');
+  const [isSyncingWebsite, setIsSyncingWebsite] = useState(false);
 
   const currentUser = tenant.members[0];
   const canManageIntegrations = canPerformAction(currentUser.role, 'manageIntegrations');
@@ -121,7 +118,6 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
   };
 
    useEffect(() => {
-    // Polling for status updates
     const syncingSources = sources.filter(s => s.status === 'Syncing');
     if (syncingSources.length === 0) return;
 
@@ -132,38 +128,36 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
                 setSources(prevSources => prevSources.map(s => s.id === result.source?.id ? result.source : s));
             }
         });
-    }, 3000); // Poll every 3 seconds
+    }, 3000);
 
     return () => clearInterval(intervalId);
   }, [sources, tenant.id]);
 
-
-  const handleSelectSource = (sourceName: string) => {
-    if (sourceName === 'Website') {
-        setSourceToConfigure('Website');
-        setConfigStep('configure');
-    } else if (sourceName === 'Google Drive') {
+  const handleSelectSource = (sourceType: DataSourceType) => {
+    if (!canManageIntegrations) return;
+    
+    if (sourceType === 'website') {
+        setIsConfiguringWebsite(true);
+    } else if (sourceType === 'gdrive') {
         window.location.href = `/api/auth/google/initiate?tenantId=${tenant.id}`;
-    } else if (sourceName === 'SharePoint') {
+    } else if (sourceType === 'sharepoint') {
       window.location.href = `/api/auth/microsoft/initiate?tenantId=${tenant.id}`;
-    } else if (sourceName === 'Dropbox') {
+    } else if (sourceType === 'dropbox') {
       window.location.href = `/api/auth/dropbox/initiate?tenantId=${tenant.id}`;
     } else {
         toast({
             title: "Connector Coming Soon",
-            description: `The ${sourceName} connector is under development. This is a placeholder for the real integration.`,
+            description: `The ${sourceType} connector is under development.`,
         });
     }
   }
 
   const handleSyncWebsite = async () => {
     if (!websiteUrl || !/^(https?:\/\/)/.test(websiteUrl)) {
-        toast({ variant: "destructive", title: "Invalid URL", description: "Please enter a valid URL starting with http:// or https://" });
+        toast({ variant: "destructive", title: "Invalid URL", description: "Please enter a valid URL." });
         return;
     }
-    
-    setIsDialogOpen(false);
-    
+    setIsSyncingWebsite(true);
     const result = await addWebsiteSourceAction(websiteUrl, tenant.id, currentUser, { 
         maxDepth, 
         maxPages,
@@ -175,7 +169,12 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
     } else {
         setSources(prev => [result.source!, ...prev]);
         toast({ title: "Sync Started", description: `Started syncing content from ${websiteUrl}` });
+        // Reset and close form
+        setIsConfiguringWebsite(false);
+        setWebsiteUrl('');
+        setFilterKeywords('');
     }
+    setIsSyncingWebsite(false);
   }
   
   const handleResync = async (source: DataSource) => {
@@ -222,24 +221,10 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
         setSources(originalSources);
         toast({ variant: "destructive", title: "Delete Failed", description: result.error });
     } else {
-        toast({ title: "Source Removed", description: "The source has been removed from your knowledge base." });
+        toast({ title: "Source Removed" });
     }
   };
 
-  useEffect(() => {
-    if (!isDialogOpen) {
-      setTimeout(() => {
-        setConfigStep('select');
-        setSourceToConfigure(null);
-        setWebsiteUrl('');
-        setMaxDepth(2);
-        setMaxPages(10);
-        setFilterKeywords('');
-      }, 300);
-    }
-  }, [isDialogOpen]);
-
-  const connectedSources = useMemo(() => sources.filter(s => s.type !== 'document'), [sources]);
   const uploadedFiles = useMemo(() => sources.filter(s => s.type === 'document'), [sources]);
 
   return (
@@ -249,199 +234,104 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
                 <h1 className="text-3xl font-bold">Knowledge Base</h1>
                 <p className="text-muted-foreground">Your central repository of approved answers and company information.</p>
             </div>
-            <Button disabled={!canEditContent}>
-                <PlusCircle className="mr-2" />
-                Add New Answer
-            </Button>
+            <Button disabled={!canEditContent}>Add New Answer</Button>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Answers</CardTitle>
-                    <FileText className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{knowledgeBaseStats.totalAnswers.toLocaleString()}</div>
-                    <p className="text-xs text-muted-foreground">+20.1% from last month</p>
-                </CardContent>
-            </Card>
-             <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Approved Answers</CardTitle>
-                    <CheckCircle className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{knowledgeBaseStats.approvedAnswers.toLocaleString()}</div>
-                    <p className="text-xs text-muted-foreground">{((knowledgeBaseStats.approvedAnswers/knowledgeBaseStats.totalAnswers)*100).toFixed(0)}% of total</p>
-                </CardContent>
-            </Card>
-             <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Needs Review</CardTitle>
-                    <Clock className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{knowledgeBaseStats.needsReview}</div>
-                    <p className="text-xs text-muted-foreground">+5 since yesterday</p>
-                </CardContent>
-            </Card>
-             <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Content Health</CardTitle>
-                    <Badge className="text-xs" variant={knowledgeBaseStats.contentHealth > 80 ? 'secondary' : 'destructive'}>{knowledgeBaseStats.contentHealth}%</Badge>
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">{knowledgeBaseStats.contentHealth}%</div>
-                     <p className="text-xs text-muted-foreground">Based on recency & usage</p>
-                </CardContent>
-            </Card>
+            <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Answers</CardTitle><FileText className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{knowledgeBaseStats.totalAnswers.toLocaleString()}</div><p className="text-xs text-muted-foreground">+20.1% from last month</p></CardContent></Card>
+            <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Approved Answers</CardTitle><CheckCircle className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{knowledgeBaseStats.approvedAnswers.toLocaleString()}</div><p className="text-xs text-muted-foreground">{((knowledgeBaseStats.approvedAnswers/knowledgeBaseStats.totalAnswers)*100).toFixed(0)}% of total</p></CardContent></Card>
+            <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Needs Review</CardTitle><Clock className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{knowledgeBaseStats.needsReview}</div><p className="text-xs text-muted-foreground">+5 since yesterday</p></CardContent></Card>
+            <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Content Health</CardTitle><Badge className="text-xs" variant={knowledgeBaseStats.contentHealth > 80 ? 'secondary' : 'destructive'}>{knowledgeBaseStats.contentHealth}%</Badge></CardHeader><CardContent><div className="text-2xl font-bold">{knowledgeBaseStats.contentHealth}%</div><p className="text-xs text-muted-foreground">Based on recency & usage</p></CardContent></Card>
         </div>
 
-        <Tabs defaultValue="library">
+        <Tabs defaultValue="sources">
             <TabsList className="mb-4 h-auto flex-wrap">
-                <TabsTrigger value="library">Answer Library</TabsTrigger>
                 <TabsTrigger value="sources">Content Sources</TabsTrigger>
+                <TabsTrigger value="library">Answer Library</TabsTrigger>
                 <TabsTrigger value="review">Review Queue <Badge className="ml-2">{reviewQueue.length}</Badge></TabsTrigger>
             </TabsList>
 
-            <TabsContent value="library">
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Answer Library</CardTitle>
-                        <CardDescription>Search and manage your curated list of reusable answers.</CardDescription>
-                         <div className="relative mt-2">
-                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="Search answers..." className="pl-8" />
-                        </div>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead className="w-[40%]">Question</TableHead>
-                                    <TableHead>Category</TableHead>
-                                    <TableHead>Usage</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {answerLibrary.map(item => (
-                                    <TableRow key={item.id}>
-                                        <TableCell>
-                                            <div className="font-medium">{item.question}</div>
-                                            <div className="text-sm text-muted-foreground truncate">{item.snippet}</div>
-                                        </TableCell>
-                                        <TableCell><Badge variant="outline">{item.category}</Badge></TableCell>
-                                        <TableCell>{item.usage}</TableCell>
-                                        <TableCell>{getStatusBadge(item.status)}</TableCell>
-                                        <TableCell className="text-right">
-                                            <DropdownMenu>
-                                                <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={!canEditContent}><MoreHorizontal /></Button></DropdownMenuTrigger>
-                                                <DropdownMenuContent><DropdownMenuItem>Edit</DropdownMenuItem><DropdownMenuItem>View History</DropdownMenuItem><DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem></DropdownMenuContent>
-                                            </DropdownMenu>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+            <TabsContent value="sources">
+                <div className="space-y-6">
+                    <Card>
+                        <CardHeader><CardTitle>Automated Integrations</CardTitle><CardDescription>Connect to your existing tools to keep your knowledge base automatically up-to-date.</CardDescription></CardHeader>
+                        <CardContent className="p-0">
+                            <div className="divide-y divide-border">
+                                {potentialSources.map(potential => {
+                                    const connected = sources.find(s => s.type === potential.type);
+                                    const Icon = potential.icon;
+
+                                    if (connected) {
+                                        return (
+                                            <div key={connected.id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-2">
+                                                <div className="flex items-center gap-3 flex-1">
+                                                    <Icon className="h-8 w-8 text-muted-foreground flex-shrink-0" />
+                                                    <div className="flex-1"><p className="font-semibold">{connected.name}</p><p className="text-sm text-muted-foreground">{connected.itemCount?.toLocaleString()} items synced on {connected.lastSynced}</p></div>
+                                                </div>
+                                                <div className="flex items-center gap-2 self-end sm:self-center">
+                                                    {getStatusBadge(connected.status)}
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={!canManageIntegrations || connected.status === 'Syncing'}><MoreHorizontal /></Button></DropdownMenuTrigger>
+                                                        <DropdownMenuContent><DropdownMenuItem onSelect={() => handleResync(connected)}><RefreshCw className="mr-2"/> Sync Now</DropdownMenuItem><DropdownMenuItem><Settings className="mr-2" /> Settings</DropdownMenuItem><DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteSource(connected.id)}><Trash2 className="mr-2"/> Remove</DropdownMenuItem></DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
+                                            </div>
+                                        );
+                                    } else if (potential.type === 'website' && isConfiguringWebsite) {
+                                        return (
+                                            <div key={potential.name} className="p-4 bg-muted/50">
+                                                <div className="flex items-start gap-3 mb-4"><Icon className="h-8 w-8 text-muted-foreground flex-shrink-0" /><div className="flex-1"><p className="font-semibold">{potential.name}</p><p className="text-sm text-muted-foreground">{potential.description}</p></div></div>
+                                                <div className="space-y-4 pl-11">
+                                                    <div className="space-y-2"><Label htmlFor="website-url">Root URL</Label><Input id="website-url" placeholder="https://www.example.com" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} /></div>
+                                                    <div className="space-y-2"><Label htmlFor="filter-keywords">Topic Keywords (optional)</Label><Input id="filter-keywords" placeholder="e.g., ITSM, compliance" value={filterKeywords} onChange={(e) => setFilterKeywords(e.target.value)} /><p className="text-xs text-muted-foreground">Comma-separated. Only pages with these keywords in the URL or title will be crawled.</p></div>
+                                                    <div className="flex gap-2"><Button onClick={handleSyncWebsite} disabled={!websiteUrl || isSyncingWebsite}>{isSyncingWebsite && <Loader2 className="animate-spin mr-2"/>}Sync Website</Button><Button variant="ghost" onClick={() => setIsConfiguringWebsite(false)}>Cancel</Button></div>
+                                                </div>
+                                            </div>
+                                        );
+                                    } else {
+                                        return (
+                                            <div key={potential.name} className="p-4 flex flex-col sm:flex-row sm:items-center gap-2">
+                                                <div className="flex items-center gap-3 flex-1">
+                                                    <Icon className="h-8 w-8 text-muted-foreground flex-shrink-0" />
+                                                    <div className="flex-1"><p className="font-semibold">{potential.name}</p><p className="text-sm text-muted-foreground">{potential.description}</p></div>
+                                                </div>
+                                                <Button variant="outline" onClick={() => handleSelectSource(potential.type)} disabled={!canManageIntegrations}>Connect</Button>
+                                            </div>
+                                        );
+                                    }
+                                })}
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    <Card>
+                        <CardHeader className="flex-row items-center justify-between">
+                            <div><CardTitle>Uploaded Documents</CardTitle><CardDescription>Manage manually uploaded files.</CardDescription></div>
+                            <div><input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".pdf,.docx,.xlsx,.md,.txt,.html" disabled={isUploading || !canManageIntegrations}/><Button variant="outline" onClick={handleUploadClick} disabled={isUploading || !canManageIntegrations}>{isUploading ? <Loader2 className="mr-2 animate-spin" /> : <Upload className="mr-2" />}{isUploading ? 'Uploading...' : 'Upload Document'}</Button></div>
+                        </CardHeader>
+                        <CardContent>
+                            <Table>
+                                <TableHeader><TableRow><TableHead className="w-[50%]">File Name</TableHead><TableHead>Uploader</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                                <TableBody>
+                                    {isLoadingSources && initialSources.length === 0 ? (Array.from({length: 3}).map((_, i) => (<TableRow key={`skel-up-${i}`}><TableCell><Skeleton className="h-5 w-48" /></TableCell><TableCell><Skeleton className="h-5 w-24" /></TableCell><TableCell><Skeleton className="h-5 w-20" /></TableCell><TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell></TableRow>))) 
+                                    : uploadedFiles.length === 0 ? (<TableRow><TableCell colSpan={4} className="h-24 text-center">No documents uploaded yet.</TableCell></TableRow>) 
+                                    : (uploadedFiles.map(file => (<TableRow key={file.id}><TableCell className="font-medium flex items-center gap-2">{getSourceIcon(file.type)}{file.name}</TableCell><TableCell>{file.uploader}</TableCell><TableCell>{getStatusBadge(file.status)}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={!canManageIntegrations}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem>View Content</DropdownMenuItem><DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteSource(file.id)}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>)))}
+                                </TableBody>
+                            </Table>
+                        </CardContent>
+                    </Card>
+                </div>
             </TabsContent>
 
-            <TabsContent value="sources">
-                 <Card>
-                    <CardHeader className="flex flex-wrap items-center justify-between gap-4">
-                        <div>
-                            <CardTitle>Content Sources</CardTitle>
-                            <CardDescription>Manage automated and manual content sources for your knowledge base.</CardDescription>
-                        </div>
-                        <div className="flex gap-2">
-                             <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                                <DialogTrigger asChild><Button disabled={!canManageIntegrations}><LinkIcon className="mr-2"/>Connect Source</Button></DialogTrigger>
-                                <DialogContent className="sm:max-w-2xl">
-                                    <DialogHeader>
-                                        {configStep === 'configure' && sourceToConfigure && (<Button variant="ghost" size="sm" className="absolute left-4 top-4 h-auto p-1 text-sm" onClick={() => { setConfigStep('select'); setSourceToConfigure(null); }}><ChevronLeft className="h-4 w-4 mr-1" />Back</Button>)}
-                                        <DialogTitle className="text-center sm:text-left">{configStep === 'select' ? 'Connect a new data source' : `Configure ${sourceToConfigure}`}</DialogTitle>
-                                        <DialogDescription className="text-center sm:text-left">{configStep === 'select' ? 'Select a source to sync content with your Knowledge Base.' : `Enter the required information to connect to your ${sourceToConfigure} source.`}</DialogDescription>
-                                    </DialogHeader>
-
-                                    {configStep === 'select' ? (
-                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
-                                            {potentialSources.map(source => (
-                                                <div key={source.name} className="flex items-center gap-4 p-3 border rounded-lg hover:border-primary hover:bg-muted/50 transition-colors">
-                                                    {getSourceIcon(source.name.toLowerCase(), "h-8 w-8 flex-shrink-0")}
-                                                    <div className="flex-1">
-                                                        <p className="font-semibold">{source.name}</p>
-                                                        <p className="text-sm text-muted-foreground">{source.description}</p>
-                                                    </div>
-                                                    <Button variant="outline" onClick={() => handleSelectSource(source.name)}>Connect</Button>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : sourceToConfigure === 'Website' ? (
-                                        <div className="py-4 space-y-4">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="website-url">Root URL</Label>
-                                                <Input id="website-url" placeholder="https://www.example.com" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="filter-keywords">Topic Keywords (optional)</Label>
-                                                <Input id="filter-keywords" placeholder="e.g., ITSM, incident, compliance" value={filterKeywords} onChange={(e) => setFilterKeywords(e.target.value)} />
-                                                <p className="text-xs text-muted-foreground">Comma-separated keywords. Only pages with a keyword in the URL or title will be crawled.</p>
-                                            </div>
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="max-depth">Max Depth</Label>
-                                                    <Input id="max-depth" type="number" value={maxDepth} onChange={(e) => setMaxDepth(parseInt(e.target.value, 10) || 0)} />
-                                                    <p className="text-xs text-muted-foreground">How many links deep to crawl. 0 means only the root URL.</p>
-                                                </div>
-                                                <div className="space-y-2">
-                                                    <Label htmlFor="max-pages">Max Pages</Label>
-                                                    <Input id="max-pages" type="number" value={maxPages} onChange={(e) => setMaxPages(parseInt(e.target.value, 10) || 0)} />
-                                                    <p className="text-xs text-muted-foreground">The maximum number of pages to ingest.</p>
-                                                </div>
-                                            </div>
-                                            <Button onClick={handleSyncWebsite} disabled={!websiteUrl}>Sync Website</Button>
-                                        </div>
-                                    ) : null}
-
-                                </DialogContent>
-                            </Dialog>
-                             <input type="file" ref={fileInputRef} onChange={handleFileUpload} className="hidden" accept=".pdf,.docx,.xlsx,.md,.txt,.html" disabled={isUploading}/>
-                            <Button variant="outline" onClick={handleUploadClick} disabled={isUploading || !canManageIntegrations}>
-                                {isUploading ? <Loader2 className="mr-2 animate-spin" /> : <Upload className="mr-2" />}
-                                {isUploading ? 'Uploading...' : 'Upload Files'}
-                            </Button>
-                        </div>
-                    </CardHeader>
+            <TabsContent value="library">
+                <Card>
+                    <CardHeader><CardTitle>Answer Library</CardTitle><CardDescription>Search and manage your curated list of reusable answers.</CardDescription><div className="relative mt-2"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Search answers..." className="pl-8" /></div></CardHeader>
                     <CardContent>
-                         <Tabs defaultValue="connected">
-                            <TabsList className="h-auto flex-wrap">
-                                <TabsTrigger value="connected">Connected Integrations</TabsTrigger>
-                                <TabsTrigger value="uploaded">Uploaded Documents</TabsTrigger>
-                            </TabsList>
-                            <TabsContent value="connected" className="mt-4">
-                               <Table>
-                                    <TableHeader><TableRow><TableHead className="w-[40%]">Source</TableHead><TableHead>Status</TableHead><TableHead>Items Synced</TableHead><TableHead>Last Synced</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                                    <TableBody>
-                                        {isLoadingSources && initialSources.length === 0 ? (Array.from({length: 2}).map((_, i) => (<TableRow key={`skel-conn-${i}`}><TableCell><Skeleton className="h-5 w-40" /></TableCell><TableCell><Skeleton className="h-5 w-20" /></TableCell><TableCell><Skeleton className="h-5 w-12" /></TableCell><TableCell><Skeleton className="h-5 w-24" /></TableCell><TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell></TableRow>))) 
-                                        : connectedSources.length === 0 ? (<TableRow><TableCell colSpan={5} className="h-24 text-center">No integrations connected yet.</TableCell></TableRow>) 
-                                        : (connectedSources.map(source => (<TableRow key={source.id}><TableCell className="flex items-center gap-3">{getSourceIcon(source.type)}<span className="font-medium truncate">{source.name}</span></TableCell><TableCell>{getStatusBadge(source.status)}</TableCell><TableCell>{source.itemCount?.toLocaleString()}</TableCell><TableCell>{source.lastSynced}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={!canManageIntegrations}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem onSelect={() => handleResync(source)} disabled={source.status === 'Syncing'}><RefreshCw className="mr-2"/> Sync Now</DropdownMenuItem><DropdownMenuItem><Settings className="mr-2" /> Settings</DropdownMenuItem><DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteSource(source.id)}><Trash2 className="mr-2"/> Remove</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>)))}
-                                    </TableBody>
-                                </Table>
-                            </TabsContent>
-                             <TabsContent value="uploaded" className="mt-4">
-                               <Table>
-                                    <TableHeader><TableRow><TableHead className="w-[50%]">File Name</TableHead><TableHead>Uploader</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                                    <TableBody>
-                                        {isLoadingSources && initialSources.length === 0 ? (Array.from({length: 3}).map((_, i) => (<TableRow key={`skel-up-${i}`}><TableCell><Skeleton className="h-5 w-48" /></TableCell><TableCell><Skeleton className="h-5 w-24" /></TableCell><TableCell><Skeleton className="h-5 w-20" /></TableCell><TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell></TableRow>))) 
-                                        : uploadedFiles.length === 0 ? (<TableRow><TableCell colSpan={4} className="h-24 text-center">No documents uploaded yet.</TableCell></TableRow>) 
-                                        : (uploadedFiles.map(file => (<TableRow key={file.id}><TableCell className="font-medium flex items-center gap-2">{getSourceIcon(file.type)}{file.name}</TableCell><TableCell>{file.uploader}</TableCell><TableCell>{getStatusBadge(file.status)}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={!canManageIntegrations}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem>View Content</DropdownMenuItem><DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteSource(file.id)}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>)))}
-                                    </TableBody>
-                                </Table>
-                            </TabsContent>
-                        </Tabs>
+                        <Table>
+                            <TableHeader><TableRow><TableHead className="w-[40%]">Question</TableHead><TableHead>Category</TableHead><TableHead>Usage</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
+                            <TableBody>
+                                {answerLibrary.map(item => (<TableRow key={item.id}><TableCell><div className="font-medium">{item.question}</div><div className="text-sm text-muted-foreground truncate">{item.snippet}</div></TableCell><TableCell><Badge variant="outline">{item.category}</Badge></TableCell><TableCell>{item.usage}</TableCell><TableCell>{getStatusBadge(item.status)}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={!canEditContent}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem>Edit</DropdownMenuItem><DropdownMenuItem>View History</DropdownMenuItem><DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}
+                            </TableBody>
+                        </Table>
                     </CardContent>
                 </Card>
             </TabsContent>
@@ -463,3 +353,5 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
     </>
   )
 }
+
+    
