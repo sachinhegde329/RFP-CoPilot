@@ -4,7 +4,7 @@ import { useState, useMemo } from "react"
 import { QAndAItem } from "./question-table-row"
 import { Button } from "@/components/ui/button"
 import type { TeamMember } from "@/lib/tenant-types"
-import { PlusCircle, Settings, Switch } from "lucide-react"
+import { PlusCircle, Settings } from "lucide-react"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { useToast } from "@/hooks/use-toast"
 import type { Question } from "@/lib/rfp-types"
@@ -13,6 +13,7 @@ import { canPerformAction } from "@/lib/access-control"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "../ui/checkbox"
+import { Switch } from "@/components/ui/switch"
 
 type QAndAListProps = {
   questions: Question[]
