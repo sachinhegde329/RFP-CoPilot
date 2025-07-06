@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useState, useMemo } from "react"
@@ -11,7 +10,7 @@ import { useToast } from "@/hooks/use-toast"
 import type { Question } from "@/lib/rfp-types"
 import { Input } from "../ui/input"
 import { canPerformAction } from "@/lib/access-control"
-import { Accordion } from "@/components/ui/accordion"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
 import { Label } from "@/components/ui/label"
 import { Checkbox } from "../ui/checkbox"
 
