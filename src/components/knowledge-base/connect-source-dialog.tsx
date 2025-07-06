@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Globe, FolderSync, Network, Box, BookOpen, BookText, Github } from 'lucide-react';
+import { Loader2, Globe, FolderSync, Network, Box, BookOpen, BookText, Github, TrendingUp, Presentation, Activity, BrainCircuit, Zap } from 'lucide-react';
 import type { DataSource, DataSourceType } from '@/lib/knowledge-base';
 import { useTenant } from '@/components/providers/tenant-provider';
 import { useToast } from '@/hooks/use-toast';
@@ -22,6 +22,11 @@ const sourceDetails = {
   confluence: { name: "Confluence", description: "Sync pages from your Confluence workspace.", icon: BookOpen },
   notion: { name: "Notion", description: "Import pages and databases from your Notion workspace.", icon: BookText },
   github: { name: "GitHub", description: "Index content from repository wikis or markdown files.", icon: Github },
+  highspot: { name: "Highspot", description: "Sync content from your Highspot spaces.", icon: TrendingUp },
+  showpad: { name: "Showpad", description: "Connect to your Showpad experiences and assets.", icon: Presentation },
+  seismic: { name: "Seismic", description: "Pull documents and pages from Seismic libraries.", icon: Activity },
+  mindtickle: { name: "Mindtickle", description: "Ingest training materials and sales content.", icon: BrainCircuit },
+  enableus: { name: "Enable.us", description: "Sync playbooks and other sales collateral.", icon: Zap },
 };
 
 

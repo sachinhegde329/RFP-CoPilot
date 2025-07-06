@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview This file serves as the entry point for all data source connectors.
  * It exports an instance of each connector service and provides a factory function
@@ -66,6 +67,12 @@ export function getConnectorService(type: DataSourceType) {
             return githubService;
         case 'notion':
             return notionService;
+        case 'highspot':
+        case 'showpad':
+        case 'seismic':
+        case 'mindtickle':
+        case 'enableus':
+            return dummyConnector;
         default:
             console.warn(`Connector for type "${type}" not found.`);
             return dummyConnector;

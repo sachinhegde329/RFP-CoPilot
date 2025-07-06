@@ -6,7 +6,7 @@ import { tagContent } from '@/ai/flows/tag-content-flow';
 // NOTE: With Firebase removed, this service now uses a temporary in-memory store.
 // Data will NOT persist across server restarts or be shared across requests.
 
-export type DataSourceType = 'website' | 'document' | 'confluence' | 'sharepoint' | 'gdrive' | 'notion' | 'github' | 'dropbox';
+export type DataSourceType = 'website' | 'document' | 'confluence' | 'sharepoint' | 'gdrive' | 'notion' | 'github' | 'dropbox' | 'highspot' | 'showpad' | 'seismic' | 'mindtickle' | 'enableus';
 export type SyncStatus = 'Synced' | 'Syncing' | 'Error' | 'Pending';
 
 export interface DataSource {

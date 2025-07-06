@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { MoreHorizontal, Upload, Link as LinkIcon, FileText, CheckCircle, Clock, Search, Globe, FolderSync, BookOpen, Network, AlertTriangle, RefreshCw, Box, BookText, Github, Settings, Trash2, Loader2, Info } from "lucide-react"
+import { MoreHorizontal, Upload, Link as LinkIcon, FileText, CheckCircle, Clock, Search, Globe, FolderSync, BookOpen, Network, AlertTriangle, RefreshCw, Box, BookText, Github, Settings, Trash2, Loader2, Info, TrendingUp, Presentation, Activity, BrainCircuit, Zap } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { useTenant } from "@/components/providers/tenant-provider"
@@ -45,6 +45,14 @@ const potentialSources: { name: string; type: DataSourceType, description: strin
   { name: "GitHub", type: 'github', description: "Index content from repository wikis or markdown files.", icon: Github },
 ];
 
+const salesEnablementSources: { name: string; type: DataSourceType, description: string; icon: React.ElementType }[] = [
+  { name: "Highspot", type: 'highspot', description: "Sync content from your Highspot spaces.", icon: TrendingUp },
+  { name: "Showpad", type: 'showpad', description: "Connect to your Showpad experiences and assets.", icon: Presentation },
+  { name: "Seismic", type: 'seismic', description: "Pull documents and pages from Seismic libraries.", icon: Activity },
+  { name: "Mindtickle", type: 'mindtickle', description: "Ingest training materials and sales content.", icon: BrainCircuit },
+  { name: "Enable.us", type: 'enableus', description: "Sync playbooks and other sales collateral.", icon: Zap },
+];
+
 const initialReviewQueue = [
     { id: 1, type: "New Answer", content: "What is the process for GDPR data deletion requests?", author: "John Doe", date: "2024-06-29" },
     { id: 2, type: "Document Update", content: "Security Whitepaper Q2 2024.pdf", author: "Alex Green", date: "2024-06-28" },
@@ -76,6 +84,11 @@ function getSourceIcon(type: string, className?: string) {
         case 'notion': return <BookText className={cn(classes, "text-black dark:text-white")} />;
         case 'dropbox': return <Box className={cn(classes, "text-blue-500")} />;
         case 'document': return <FileText className={cn(classes, "text-muted-foreground")} />;
+        case 'highspot': return <TrendingUp className={cn(classes, "text-green-500")} />;
+        case 'showpad': return <Presentation className={cn(classes, "text-purple-500")} />;
+        case 'seismic': return <Activity className={cn(classes, "text-orange-500")} />;
+        case 'mindtickle': return <BrainCircuit className={cn(classes, "text-pink-500")} />;
+        case 'enableus': return <Zap className={cn(classes, "text-yellow-400")} />;
         default: return <Info className={cn(classes, "text-muted-foreground")}/>
     }
 }
@@ -202,6 +215,66 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
   };
 
   const uploadedFiles = useMemo(() => sources.filter(s => s.type === 'document'), [sources]);
+  
+  const renderSourceGrid = (sourceList: typeof potentialSources) => {
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {sourceList.map(potential => {
+                const connected = sources.find(s => s.type === potential.type);
+                const Icon = potential.icon;
+                
+                if (connected) {
+                    return (
+                        <Card key={connected.id} className="flex flex-col">
+                            <CardHeader className="flex flex-row items-start justify-between pb-4">
+                                <div className="flex items-center gap-3">
+                                    <Icon className="h-6 w-6 text-muted-foreground flex-shrink-0" />
+                                    <CardTitle className="text-lg">{connected.name}</CardTitle>
+                                </div>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" disabled={!canManageIntegrations || connected.status === 'Syncing'}><MoreHorizontal /></Button></DropdownMenuTrigger>
+                                    <DropdownMenuContent><DropdownMenuItem onSelect={() => handleResync(connected)}><RefreshCw className="mr-2"/> Sync Now</DropdownMenuItem><DropdownMenuItem><Settings className="mr-2" /> Settings</DropdownMenuItem><DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteSource(connected.id)}><Trash2 className="mr-2"/> Remove</DropdownMenuItem></DropdownMenuContent>
+                                </DropdownMenu>
+                            </CardHeader>
+                            <CardContent className="flex-1">
+                                <div className="space-y-2">
+                                    {getStatusBadge(connected.status)}
+                                    <p className="text-sm text-muted-foreground">{connected.itemCount?.toLocaleString() || 0} items synced</p>
+                                    <p className="text-xs text-muted-foreground">Last synced: {connected.lastSynced}</p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    );
+                }
+
+                return (
+                    <Card key={potential.name} className="flex flex-col">
+                        <CardHeader className="pb-4">
+                            <div className="flex items-center gap-3">
+                                <Icon className="h-6 w-6 text-muted-foreground flex-shrink-0" />
+                                <CardTitle className="text-lg">{potential.name}</CardTitle>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="flex-1">
+                            <p className="text-sm text-muted-foreground">{potential.description}</p>
+                        </CardContent>
+                        <CardFooter>
+                            <Button 
+                                className="w-full" 
+                                variant="outline"
+                                onClick={() => setConfiguringSource(potential.type)}
+                                disabled={!canManageIntegrations}
+                            >
+                                Connect
+                            </Button>
+                        </CardFooter>
+                    </Card>
+                );
+            })}
+        </div>
+    );
+  };
+
 
   return (
     <>
@@ -230,64 +303,21 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
                 <div className="space-y-6">
                     <Card>
                         <CardHeader>
-                            <CardTitle>Automated Integrations</CardTitle>
-                            <CardDescription>Connect to your existing tools to keep your knowledge base automatically up-to-date.</CardDescription>
+                            <CardTitle>Cloud Storage & Docs</CardTitle>
+                            <CardDescription>Connect to services like Google Drive, SharePoint, and Confluence.</CardDescription>
                         </CardHeader>
                         <CardContent>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {potentialSources.map(potential => {
-                                    const connected = sources.find(s => s.type === potential.type);
-                                    const Icon = potential.icon;
-                                    
-                                    if (connected) {
-                                        return (
-                                            <Card key={connected.id} className="flex flex-col">
-                                                <CardHeader className="flex flex-row items-start justify-between pb-4">
-                                                    <div className="flex items-center gap-3">
-                                                        <Icon className="h-6 w-6 text-muted-foreground flex-shrink-0" />
-                                                        <CardTitle className="text-lg">{connected.name}</CardTitle>
-                                                    </div>
-                                                    <DropdownMenu>
-                                                        <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" disabled={!canManageIntegrations || connected.status === 'Syncing'}><MoreHorizontal /></Button></DropdownMenuTrigger>
-                                                        <DropdownMenuContent><DropdownMenuItem onSelect={() => handleResync(connected)}><RefreshCw className="mr-2"/> Sync Now</DropdownMenuItem><DropdownMenuItem><Settings className="mr-2" /> Settings</DropdownMenuItem><DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteSource(connected.id)}><Trash2 className="mr-2"/> Remove</DropdownMenuItem></DropdownMenuContent>
-                                                    </DropdownMenu>
-                                                </CardHeader>
-                                                <CardContent className="flex-1">
-                                                    <div className="space-y-2">
-                                                        {getStatusBadge(connected.status)}
-                                                        <p className="text-sm text-muted-foreground">{connected.itemCount?.toLocaleString() || 0} items synced</p>
-                                                        <p className="text-xs text-muted-foreground">Last synced: {connected.lastSynced}</p>
-                                                    </div>
-                                                </CardContent>
-                                            </Card>
-                                        );
-                                    }
-
-                                    return (
-                                        <Card key={potential.name} className="flex flex-col">
-                                            <CardHeader className="pb-4">
-                                                <div className="flex items-center gap-3">
-                                                    <Icon className="h-6 w-6 text-muted-foreground flex-shrink-0" />
-                                                    <CardTitle className="text-lg">{potential.name}</CardTitle>
-                                                </div>
-                                            </CardHeader>
-                                            <CardContent className="flex-1">
-                                                <p className="text-sm text-muted-foreground">{potential.description}</p>
-                                            </CardContent>
-                                            <CardFooter>
-                                                <Button 
-                                                    className="w-full" 
-                                                    variant="outline"
-                                                    onClick={() => setConfiguringSource(potential.type)}
-                                                    disabled={!canManageIntegrations}
-                                                >
-                                                    Connect
-                                                </Button>
-                                            </CardFooter>
-                                        </Card>
-                                    );
-                                })}
-                            </div>
+                            {renderSourceGrid(potentialSources)}
+                        </CardContent>
+                    </Card>
+                    
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Sales Enablement Platforms</CardTitle>
+                            <CardDescription>Connect to services like Highspot, Showpad, and Seismic.</CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {renderSourceGrid(salesEnablementSources)}
                         </CardContent>
                     </Card>
 
