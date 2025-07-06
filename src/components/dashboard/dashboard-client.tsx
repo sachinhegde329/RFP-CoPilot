@@ -123,7 +123,6 @@ function RfpWorkspaceView() {
 
               <div className="flex flex-col gap-2">
                 <Button><Sparkles className="mr-2"/> Autogenerate All</Button>
-                <Button variant="outline">Autogeneration Runs</Button>
                 <Button variant="outline">Export</Button>
               </div>
               
