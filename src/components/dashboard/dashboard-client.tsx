@@ -1,4 +1,3 @@
-
 'use client'
 
 import { useState, useEffect, useCallback } from "react"
@@ -12,6 +11,7 @@ import { Progress } from "@/components/ui/progress"
 import type { Question, RFP } from "@/lib/rfp-types"
 import { DashboardSkeleton } from "./dashboard-skeleton"
 import { File, PlusCircle, Sparkles, Upload } from "lucide-react"
+import { ExportRfpDialog } from "./export-rfp-dialog"
 
 type Attachment = {
   id: number;
@@ -34,6 +34,7 @@ function RfpWorkspaceView() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [rfpAttachments, setRfpAttachments] = useState<Record<string, Attachment[]>>({});
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const { toast } = useToast();
 
   const currentUser = tenant.members[0];
@@ -112,6 +113,7 @@ function RfpWorkspaceView() {
   const attachments = selectedRfp ? (rfpAttachments[selectedRfp.id] || []) : [];
 
     return (
+      <>
         <main className="flex-1 grid grid-cols-12 overflow-hidden">
           {/* Left Panel */}
           <div className="col-span-3 bg-card border-r border-border p-4 flex flex-col gap-6">
@@ -123,7 +125,7 @@ function RfpWorkspaceView() {
 
               <div className="flex flex-col gap-2">
                 <Button><Sparkles className="mr-2"/> Autogenerate All</Button>
-                <Button variant="outline">Export</Button>
+                <Button variant="outline" onClick={() => selectedRfp && setIsExportDialogOpen(true)} disabled={!selectedRfp}>Export</Button>
               </div>
               
               <div className="flex-1 flex flex-col gap-2 overflow-y-auto">
@@ -166,6 +168,8 @@ function RfpWorkspaceView() {
             )}
           </div>
         </main>
+        {selectedRfp && <ExportRfpDialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen} rfp={selectedRfp} />}
+      </>
     )
 }
 
