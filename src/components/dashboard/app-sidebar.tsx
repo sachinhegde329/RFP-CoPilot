@@ -1,4 +1,3 @@
-
 "use client"
 
 import {
@@ -9,6 +8,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  SidebarTrigger,
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -21,7 +21,6 @@ import {
   CircleUserRound,
 } from "lucide-react"
 import { useTenant } from "@/components/providers/tenant-provider"
-import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -29,9 +28,7 @@ export function AppSidebar() {
   const { tenant } = useTenant();
   const pathname = usePathname();
 
-  const homepagePath = `/${tenant.subdomain}`;
   const settingsPath = `/${tenant.subdomain}/settings`;
-  const isHomepageActive = pathname === homepagePath;
   const isSettingsActive = pathname.startsWith(settingsPath);
 
   const navItems = [
@@ -45,14 +42,7 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="p-4 flex items-center justify-center">
-        <Image 
-          src={tenant.branding.logoUrl} 
-          alt={`${tenant.name} Logo`}
-          width={128}
-          height={32}
-          className="h-8 w-auto"
-          data-ai-hint={tenant.branding.logoDataAiHint}
-        />
+        <SidebarTrigger />
       </SidebarHeader>
       <SidebarContent className="p-4">
         <SidebarMenu>

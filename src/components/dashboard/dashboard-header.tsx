@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState, useEffect } from "react"
@@ -16,7 +15,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuPortal
 } from "@/components/ui/dropdown-menu"
-import { SidebarTrigger } from "@/components/ui/sidebar"
+import Image from "next/image"
 import { Bell, Bot, CheckCircle, CircleUserRound, MessageSquare, UserPlus, Loader2, Sun, Moon, Search, Command } from "lucide-react"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { getNotificationsAction, markNotificationsAsReadAction } from "@/app/actions"
@@ -102,7 +101,14 @@ export function HomepageHeader() {
     <>
       <header className="flex h-16 items-center gap-4 border-b bg-background/80 backdrop-blur-sm px-4 md:px-6 shrink-0">
         <div className="flex items-center gap-4">
-            <SidebarTrigger />
+            <Image 
+              src={tenant.branding.logoUrl} 
+              alt={`${tenant.name} Logo`}
+              width={128}
+              height={32}
+              className="h-8 w-auto"
+              data-ai-hint={tenant.branding.logoDataAiHint}
+            />
         </div>
 
         <div className="flex w-full flex-1 items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
