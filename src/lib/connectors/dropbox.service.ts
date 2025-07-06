@@ -28,8 +28,10 @@ class DropboxService {
         let hasMore = true;
         let cursor: string | undefined = undefined;
 
+        const syncPath = source.config?.path || ''; // Default to root
+
         while (hasMore) {
-            const response = await (cursor ? dbx.filesListFolderContinue({ cursor }) : dbx.filesListFolder({ path: '', recursive: true, limit: 100 }));
+            const response = await (cursor ? dbx.filesListFolderContinue({ cursor }) : dbx.filesListFolder({ path: syncPath, recursive: true, limit: 100 }));
             const files = response.result.entries.filter(entry => entry['.tag'] === 'file') as files.FileMetadataReference[];
             allFiles = allFiles.concat(files);
             hasMore = response.result.has_more;

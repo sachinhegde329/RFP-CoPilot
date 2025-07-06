@@ -19,6 +19,7 @@ import type { DataSource, DataSourceType, SyncStatus } from "@/lib/knowledge-bas
 import { Skeleton } from "@/components/ui/skeleton"
 import { canPerformAction } from "@/lib/access-control"
 import { ConnectSourceDialog } from "./connect-source-dialog"
+import { ConfigureSourceDialog } from "./configure-source-dialog"
 
 const knowledgeBaseStats = {
   totalAnswers: 2345,
@@ -104,6 +105,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
   const [sources, setSources] = useState<DataSource[]>(initialSources);
   const [isLoadingSources, setIsLoadingSources] = useState(false);
   const [configuringSource, setConfiguringSource] = useState<DataSourceType | null>(null);
+  const [editingSource, setEditingSource] = useState<DataSource | null>(null);
   
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -213,6 +215,10 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
   const handleSourceAdded = (newSource: DataSource) => {
     setSources(prev => [newSource, ...prev]);
   };
+  
+  const handleSourceUpdated = (updatedSource: DataSource) => {
+    setSources(prev => prev.map(s => s.id === updatedSource.id ? updatedSource : s));
+  };
 
   const uploadedFiles = useMemo(() => sources.filter(s => s.type === 'document'), [sources]);
   
@@ -228,12 +234,12 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
                         <Card key={connected.id} className="flex flex-col">
                             <CardHeader className="flex flex-row items-start justify-between pb-4">
                                 <div className="flex items-center gap-3">
-                                    <Icon className="h-6 w-6 text-muted-foreground flex-shrink-0" />
+                                    {getSourceIcon(connected.type, "h-6 w-6 flex-shrink-0")}
                                     <CardTitle className="text-lg">{connected.name}</CardTitle>
                                 </div>
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" disabled={!canManageIntegrations || connected.status === 'Syncing'}><MoreHorizontal /></Button></DropdownMenuTrigger>
-                                    <DropdownMenuContent><DropdownMenuItem onSelect={() => handleResync(connected)}><RefreshCw className="mr-2"/> Sync Now</DropdownMenuItem><DropdownMenuItem><Settings className="mr-2" /> Settings</DropdownMenuItem><DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteSource(connected.id)}><Trash2 className="mr-2"/> Remove</DropdownMenuItem></DropdownMenuContent>
+                                    <DropdownMenuContent><DropdownMenuItem onSelect={() => handleResync(connected)}><RefreshCw className="mr-2"/> Sync Now</DropdownMenuItem><DropdownMenuItem onSelect={() => setEditingSource(connected)}><Settings className="mr-2" /> Settings</DropdownMenuItem><DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteSource(connected.id)}><Trash2 className="mr-2"/> Remove</DropdownMenuItem></DropdownMenuContent>
                                 </DropdownMenu>
                             </CardHeader>
                             <CardContent className="flex-1">
@@ -373,6 +379,12 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
             sourceType={configuringSource}
             onOpenChange={() => setConfiguringSource(null)}
             onSourceAdded={handleSourceAdded}
+        />
+
+        <ConfigureSourceDialog
+            source={editingSource}
+            onOpenChange={() => setEditingSource(null)}
+            onSourceUpdated={handleSourceUpdated}
         />
     </>
   )

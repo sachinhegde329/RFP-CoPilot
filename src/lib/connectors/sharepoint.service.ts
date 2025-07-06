@@ -30,10 +30,16 @@ class SharePointService {
         let allItems: any[] = [];
         
         // 1. Get drives (document libraries) for the root site
-        const drives = await graphClient.api('/sites/root/drives').get();
+        const driveResponse = await graphClient.api('/sites/root/drives').get();
+        let drives = driveResponse.value;
+        
+        // Filter drives if a specific driveName is provided in config
+        if (source.config?.driveName) {
+            drives = drives.filter((drive: any) => drive.name.toLowerCase() === source.config!.driveName.toLowerCase());
+        }
         
         // 2. For each drive, list all files recursively
-        for (const drive of drives.value) {
+        for (const drive of drives) {
             try {
                 let nextLink: string | undefined = `/drives/${drive.id}/root/search(q='')?$top=100`;
                 while (nextLink) {

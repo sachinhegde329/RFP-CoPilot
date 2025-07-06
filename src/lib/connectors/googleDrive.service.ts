@@ -38,9 +38,14 @@ class GoogleDriveService {
         let allFiles: drive_v3.Schema$File[] = [];
         let pageToken: string | undefined = undefined;
 
+        const folderId = source.config?.folderId;
+        const query = folderId 
+            ? `'${folderId}' in parents and mimeType != 'application/vnd.google-apps.folder'`
+            : "mimeType != 'application/vnd.google-apps.folder'";
+
         do {
             const res = await drive.files.list({
-                q: "mimeType != 'application/vnd.google-apps.folder'", // List all files, not folders
+                q: query,
                 fields: 'nextPageToken, files(id, name, mimeType, webViewLink)',
                 spaces: 'drive',
                 pageToken: pageToken,

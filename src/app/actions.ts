@@ -5,7 +5,7 @@ import { generateDraftAnswer } from "@/ai/flows/smart-answer-generation"
 import { aiExpertReview } from "@/ai/flows/ai-expert-review"
 import { extractRfpQuestions } from "@/ai/flows/extract-rfp-questions"
 import { parseDocument } from "@/ai/flows/parse-document"
-import { knowledgeBaseService } from "@/lib/knowledge-base"
+import { knowledgeBaseService, type DataSource } from "@/lib/knowledge-base"
 import { rfpService } from "@/lib/rfp.service"
 import type { Question, RFP } from "@/lib/rfp-types"
 import { getTenantBySubdomain, updateTenant } from "@/lib/tenants"
@@ -155,8 +155,8 @@ export async function reviewAnswerAction(question: string, answer: string, tenan
 }
 
 export async function extractQuestionsAction(rfpText: string, rfpName: string, tenantId: string, currentUser: CurrentUser): Promise<{ rfp?: RFP, error?: string }> {
-  const permCheck = await checkPermission(tenantId, currentUser, 'uploadRfps');
-  if (permCheck.error) return { error: permCheck.error };
+  const permCheck = await checkPermission(tenantId, currentUser, 'editWorkspace');
+    if (permCheck.error) return { error: permCheck.error };
   const { tenant, user } = permCheck;
 
   if (!rfpText) {
@@ -300,22 +300,22 @@ export async function addDocumentSourceAction(documentDataUri: string, tenantId:
     return { source: newSource };
 }
 
-export async function addWebsiteSourceAction(url: string, tenantId: string, currentUser: CurrentUser, config: { maxDepth: number, maxPages: number, scopePath?: string, excludePaths?: string[], filterKeywords?: string[] }) {
+export async function addWebsiteSourceAction(tenantId: string, currentUser: CurrentUser, config: { url: string; maxDepth: number, maxPages: number, scopePath?: string, excludePaths?: string[], filterKeywords?: string[] }) {
     const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
     if (permCheck.error) return { error: permCheck.error };
 
-    if (!url) {
+    if (!config.url) {
         return { error: "Missing required parameters for adding website." };
     }
 
     const newSource = await knowledgeBaseService.addDataSource({
         tenantId,
         type: 'website',
-        name: url,
+        name: new URL(config.url).hostname,
         status: 'Syncing',
         lastSynced: 'In progress...',
         itemCount: 0,
-        config,
+        config: config,
     });
 
     knowledgeBaseService.syncDataSource(tenantId, newSource.id);
@@ -1022,6 +1022,31 @@ export async function getTenantBySubdomainAction(subdomain: string): Promise<{ t
     } catch (e: any) {
         console.error(`Action failed: getTenantBySubdomainAction for ${subdomain}`, e);
         return { error: e.message || 'Failed to retrieve tenant information.' };
+    }
+}
+
+export async function updateKnowledgeSourceConfigAction(tenantId: string, sourceId: string, config: DataSource['config'], currentUser: CurrentUser) {
+    const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
+    if (permCheck.error) return { error: permCheck.error };
+
+    if (!sourceId || !config) {
+        return { error: "Missing required parameters." };
+    }
+
+    try {
+        const source = await knowledgeBaseService.updateDataSource(tenantId, sourceId, { config });
+        if (!source) {
+            return { error: "Source not found or could not be updated." };
+        }
+
+        // Trigger a re-sync in the background
+        knowledgeBaseService.syncDataSource(tenantId, sourceId);
+
+        return { success: true, source };
+    } catch (e) {
+        console.error(e);
+        const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
+        return { error: `Failed to update source configuration: ${errorMessage}` };
     }
 }
 
