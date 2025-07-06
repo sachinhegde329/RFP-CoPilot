@@ -8,19 +8,19 @@ import { useSearchParams, useRouter } from 'next/navigation';
 
 import { canPerformAction, hasFeatureAccess } from '@/lib/access-control';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
-import { LockKeyhole, FileText, ExternalLink, CheckCircle, ShieldAlert, X, Loader2 } from "lucide-react"
+import { LockKeyhole, FileText, ExternalLink, CheckCircle, ShieldAlert, X, Loader2, ShieldCheck } from "lucide-react"
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from "@/hooks/use-toast";
 import { useTenant } from "@/components/providers/tenant-provider";
 import { updateSecuritySettingsAction } from "@/app/actions";
 
-export default function SecuritySettingsPage({ params }: { params: { tenant: string }}) {
+export default function SecuritySettingsPage() {
   const { tenant, setTenant } = useTenant();
   const { toast } = useToast();
   const searchParams = useSearchParams();
@@ -58,6 +58,7 @@ export default function SecuritySettingsPage({ params }: { params: { tenant: str
 
   const isMicrosoftSsoConfigured = tenant.ssoProvider === 'microsoft';
   const isOktaSsoConfigured = tenant.ssoProvider === 'okta';
+  const isGoogleSsoConfigured = tenant.ssoProvider === 'google';
   
   const handleToggle2FA = (enabled: boolean) => {
       setIs2faEnabled(enabled);
@@ -110,6 +111,27 @@ export default function SecuritySettingsPage({ params }: { params: { tenant: str
           </CardDescription>
         </CardHeader>
         <CardContent className="flex-1 space-y-8">
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-center">
+            <div className="p-3 border rounded-lg flex flex-col items-center justify-center gap-2">
+                <ShieldCheck className="text-primary"/>
+                <span className="text-xs font-medium">SOC 2 Ready</span>
+            </div>
+            <div className="p-3 border rounded-lg flex flex-col items-center justify-center gap-2">
+                <ShieldCheck className="text-primary"/>
+                <span className="text-xs font-medium">GDPR Compliant</span>
+            </div>
+            <div className="p-3 border rounded-lg flex flex-col items-center justify-center gap-2">
+                <ShieldCheck className="text-primary"/>
+                <span className="text-xs font-medium">SSO & RBAC</span>
+            </div>
+            <div className="p-3 border rounded-lg flex flex-col items-center justify-center gap-2">
+                <ShieldCheck className="text-primary"/>
+                <span className="text-xs font-medium">Data Encryption</span>
+            </div>
+          </div>
+
+          <Separator />
           
           {/* 2FA Section */}
           <div>
@@ -182,10 +204,19 @@ export default function SecuritySettingsPage({ params }: { params: { tenant: str
                               </Link>
                           </Button>
                       )}
-                      <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" disabled>
-                          <Image src="https://placehold.co/20x20.png" alt="Google logo" width={20} height={20} data-ai-hint="google logo"/>
-                          Configure with Google
-                      </Button>
+                       {isGoogleSsoConfigured ? (
+                          <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" disabled>
+                              <CheckCircle className="text-green-600" />
+                              Configured with Google
+                          </Button>
+                      ) : (
+                          <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" asChild>
+                             <Link href={`/api/auth/sso/google/initiate?tenantId=${tenant.id}`}>
+                                <Image src="https://placehold.co/20x20.png" alt="Google logo" width={20} height={20} data-ai-hint="google logo"/>
+                                Configure with Google
+                              </Link>
+                          </Button>
+                      )}
                   </div>
               </fieldset>
               <p className="text-sm text-muted-foreground">
