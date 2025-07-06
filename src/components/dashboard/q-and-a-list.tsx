@@ -569,7 +569,6 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
                 <TableHead className="hidden md:table-cell">Category</TableHead>
                 <TableHead className="hidden lg:table-cell">Assignee</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="w-12 text-right"><span className="sr-only">Expand</span></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -589,7 +588,7 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
                 ))
               ) : (
                   <TableRow>
-                    <TableCell colSpan={6} className="h-24 text-center">
+                    <TableCell colSpan={5} className="h-24 text-center">
                       No questions match the current filter.
                     </TableCell>
                   </TableRow>

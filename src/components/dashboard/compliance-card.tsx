@@ -31,9 +31,9 @@ export function ComplianceCard() {
           <p className="text-sm text-muted-foreground mb-4 blur-sm select-none">
             Auto-checking answers against compliance standards.
           </p>
-          <ul className="space-y-3 blur-sm select-none">
+          <div className="space-y-3 blur-sm select-none">
             {complianceChecks.map((check) => (
-              <li key={check.name} className="flex items-center justify-between">
+              <div key={check.name} className="flex items-center justify-between rounded-md border p-3">
                 <span className="font-medium text-sm">{check.name}</span>
                 {check.status === "passed" ? (
                   <Badge variant="secondary" className="text-green-600">
@@ -44,9 +44,9 @@ export function ComplianceCard() {
                     <XCircle className="mr-1 h-4 w-4" /> Failed
                   </Badge>
                 )}
-              </li>
+              </div>
             ))}
-          </ul>
+          </div>
         </CardContent>
         <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-background/20 p-4 text-center">
              <Lock className="size-8 text-primary mb-2" />
@@ -71,9 +71,9 @@ export function ComplianceCard() {
         <p className="text-sm text-muted-foreground mb-4">
           Auto-checking answers against compliance standards.
         </p>
-        <ul className="space-y-3">
+        <div className="space-y-3">
           {complianceChecks.map((check) => (
-            <li key={check.name} className="flex items-center justify-between">
+            <div key={check.name} className="flex items-center justify-between rounded-md border p-3">
               <span className="font-medium text-sm">{check.name}</span>
               {check.status === "passed" ? (
                 <Badge variant="secondary" className="text-green-600">
@@ -84,9 +84,9 @@ export function ComplianceCard() {
                   <XCircle className="mr-1 h-4 w-4" /> Failed
                 </Badge>
               )}
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       </CardContent>
     </Card>
   )

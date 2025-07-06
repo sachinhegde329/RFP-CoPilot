@@ -4,7 +4,7 @@ import { useState, useMemo } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Sparkles, ShieldCheck, CheckCircle2, XCircle, History, Loader2, Bot, Clipboard, ClipboardCheck, AlertTriangle, BookOpenCheck, UserPlus, Circle, CheckCircle, CircleDotDashed, Bold, Italic, Underline, List, MessageSquare, Send, ChevronDown } from "lucide-react"
+import { Sparkles, CheckCircle2, AlertTriangle, History, Loader2, Bot, Clipboard, ClipboardCheck, BookOpenCheck, UserPlus, Circle, CheckCircle, CircleDotDashed, Bold, Italic, Underline, List, MessageSquare, Send } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
 import { generateAnswerAction, reviewAnswerAction } from "@/app/actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
@@ -15,7 +15,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import type { TeamMember } from "@/lib/tenant-types"
 import { Input } from "../ui/input"
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetFooter } from "@/components/ui/sheet"
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { TableRow, TableCell } from "@/components/ui/table"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -34,18 +35,17 @@ type QuestionTableRowProps = {
 }
 
 export function QuestionTableRow({ questionData, tenantId, rfpId, members, onUpdateQuestion, isSelected, onSelectChange, canEdit }: QuestionTableRowProps) {
-  const { id, question, category, compliance, assignee, status, answer } = questionData;
+  const { id, question, category, assignee, status, answer } = questionData;
   const { tenant } = useTenant();
   const { toast } = useToast();
-  const [isOpen, setIsOpen] = useState(false);
   
+  const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [sources, setSources] = useState<string[]>([]);
   const [confidence, setConfidence] = useState<number | null>(null);
   const [review, setReview] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  const [isCommentSheetOpen, setIsCommentSheetOpen] = useState(false);
   
   const currentUser = tenant.members[0];
   const canUseAiReview = hasFeatureAccess(tenant, 'aiExpertReview');
@@ -153,8 +153,8 @@ export function QuestionTableRow({ questionData, tenantId, rfpId, members, onUpd
 
   return (
     <>
-      <TableRow data-state={isOpen ? 'open' : 'closed'} className="text-sm">
-        <TableCell className="px-4">
+      <TableRow onClick={() => setIsSheetOpen(true)} className="cursor-pointer text-sm">
+        <TableCell className="px-4" onClick={(e) => e.stopPropagation()}>
           <Checkbox
             checked={isSelected}
             onCheckedChange={(checked) => onSelectChange(id, !!checked)}
@@ -166,7 +166,7 @@ export function QuestionTableRow({ questionData, tenantId, rfpId, members, onUpd
           <span id={`q-label-${id}`}>{question}</span>
         </TableCell>
         <TableCell className="hidden md:table-cell">{category}</TableCell>
-        <TableCell className="hidden lg:table-cell">
+        <TableCell className="hidden lg:table-cell" onClick={(e) => e.stopPropagation()}>
           <TooltipProvider delayDuration={100}>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -210,7 +210,7 @@ export function QuestionTableRow({ questionData, tenantId, rfpId, members, onUpd
             </Tooltip>
           </TooltipProvider>
         </TableCell>
-        <TableCell>
+        <TableCell onClick={(e) => e.stopPropagation()}>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="h-auto p-1 font-normal capitalize flex items-center gap-1" disabled={!canEdit}>
@@ -231,17 +231,23 @@ export function QuestionTableRow({ questionData, tenantId, rfpId, members, onUpd
             </DropdownMenuContent>
           </DropdownMenu>
         </TableCell>
-        <TableCell className="text-right">
-          <Button variant="ghost" size="icon" onClick={() => setIsOpen(!isOpen)}>
-            <ChevronDown className={cn("h-4 w-4 transition-transform", isOpen && "rotate-180")} />
-          </Button>
-        </TableCell>
       </TableRow>
-      {isOpen && (
-        <TableRow>
-          <TableCell colSpan={6} className="p-0">
-            <div className="p-4 bg-muted/20">
-                <div className="space-y-4">
+      
+      <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <SheetContent className="flex flex-col gap-0 sm:max-w-2xl p-0">
+          <SheetHeader className="p-6">
+            <SheetTitle>Q{id}: {question}</SheetTitle>
+            <SheetDescription>
+              Category: <Badge variant="outline">{category}</Badge>
+            </SheetDescription>
+          </SheetHeader>
+          <Tabs defaultValue="answer" className="flex flex-col flex-1 min-h-0">
+              <TabsList className="mx-6">
+                  <TabsTrigger value="answer">Answer</TabsTrigger>
+                  <TabsTrigger value="activity">Comments & Activity</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="answer" className="flex-1 overflow-y-auto p-6 space-y-4">
                   <div className="rounded-md border bg-background">
                     <div className="p-2 border-b flex items-center gap-1">
                       <Button variant="ghost" size="icon" disabled={!canEdit}><Bold /></Button>
@@ -254,36 +260,12 @@ export function QuestionTableRow({ questionData, tenantId, rfpId, members, onUpd
                         placeholder="Draft your answer here..."
                         value={answer}
                         onChange={(e) => onUpdateQuestion(id, { answer: e.target.value })}
-                        className="min-h-[120px] w-full resize-y border-0 pr-10 focus-visible:ring-0"
+                        className="min-h-[150px] w-full resize-y border-0 pr-10 focus-visible:ring-0"
                         disabled={!canEdit}
                       />
                       <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={handleCopy}>
                         {isCopied ? <ClipboardCheck className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
                         <span className="sr-only">Copy</span>
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button onClick={handleGenerateAnswer} disabled={isGenerating || !canEdit}>
-                        {isGenerating ? <Loader2 className="animate-spin" /> : <Sparkles />}
-                        Generate Answer
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={handleReviewAnswer}
-                        disabled={isReviewing || !answer || !canUseAiReview || !canEdit}
-                      >
-                        {isReviewing ? <Loader2 className="animate-spin" /> : <Bot />}
-                        AI Expert Review
-                      </Button>
-                      <Button
-                          variant="outline"
-                          onClick={() => handleStatusChange('Completed')}
-                          disabled={status === 'Completed' || !canEdit}
-                      >
-                          <CheckCircle />
-                          Mark as Complete
                       </Button>
                     </div>
                   </div>
@@ -315,97 +297,100 @@ export function QuestionTableRow({ questionData, tenantId, rfpId, members, onUpd
                       </AlertDescription>
                     </Alert>
                   )}
-                </div>
-                <div className="mt-4 pt-4 border-t flex justify-between items-center">
-                  <div className="flex items-center gap-4">
-                      <Button variant="ghost" size="sm" onClick={() => setIsCommentSheetOpen(true)} className="text-muted-foreground hover:text-foreground relative">
-                          <MessageSquare className="h-4 w-4 mr-2" />
-                          Comments
-                          {comments.length > 0 && (
-                              <Badge variant="secondary" className="ml-2">{comments.length}</Badge>
-                          )}
-                      </Button>
-                      <div className="flex items-center gap-2">
-                          <span className="text-xs font-semibold text-muted-foreground">Contributors:</span>
-                          <div className="flex items-center -space-x-2">
-                              {contributors.map(c => (
-                                  <TooltipProvider key={c.id} delayDuration={100}>
-                                      <Tooltip>
-                                          <TooltipTrigger asChild>
-                                              <button className="focus:outline-none">
-                                                  <Avatar className="h-6 w-6 border-2 border-background">
-                                                      {c.avatar && <AvatarImage src={c.avatar} alt={c.name} />}
-                                                      <AvatarFallback className="text-xs">{c.name.charAt(0)}</AvatarFallback>
-                                                  </Avatar>
-                                              </button>
-                                          </TooltipTrigger>
-                                          <TooltipContent>{c.name}</TooltipContent>
-                                      </Tooltip>
-                                  </TooltipProvider>
-                              ))}
-                          </div>
-                      </div>
-                  </div>
-                  <div className="flex items-center gap-2">
-                      <History className="h-4 w-4 text-muted-foreground" />
-                      <Select defaultValue="v3">
-                      <SelectTrigger className="h-8 w-[120px] text-xs">
-                          <SelectValue placeholder="Version" />
-                      </SelectTrigger>
-                      <SelectContent>
-                          <SelectItem value="v3">Version 3</SelectItem>
-                          <SelectItem value="v2">Version 2</SelectItem>
-                          <SelectItem value="v1">Version 1</SelectItem>
-                      </SelectContent>
-                      </Select>
-                  </div>
-                </div>
-            </div>
-          </TableCell>
-        </TableRow>
-      )}
-
-      <Sheet open={isCommentSheetOpen} onOpenChange={setIsCommentSheetOpen}>
-        <SheetContent className="flex flex-col gap-0 sm:max-w-lg">
-          <SheetHeader className="p-6">
-            <SheetTitle>Comments on Q{id}</SheetTitle>
-            <SheetDescription className="line-clamp-3 text-left">
-              {question}
-            </SheetDescription>
-          </SheetHeader>
-          <div className="flex-1 overflow-y-auto space-y-4 p-6 pt-0">
-            {comments.map(comment => (
-                <div key={comment.id} className="flex items-start gap-3">
-                    <Avatar className="h-8 w-8">
-                        {comment.author.avatar && <AvatarImage src={comment.author.avatar} alt={comment.author.name} />}
-                        <AvatarFallback>{comment.author.name.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                    <div>
-                        <div className="flex items-center gap-2 text-sm">
-                            <span className="font-semibold">{comment.author.name}</span>
-                            <span className="text-xs text-muted-foreground">{comment.timestamp}</span>
+              </TabsContent>
+              
+              <TabsContent value="activity" className="flex-1 overflow-y-auto p-6 space-y-6">
+                 <div className="space-y-4">
+                    <h3 className="font-semibold">Comments</h3>
+                    {comments.map(comment => (
+                        <div key={comment.id} className="flex items-start gap-3">
+                            <Avatar className="h-8 w-8">
+                                {comment.author.avatar && <AvatarImage src={comment.author.avatar} alt={comment.author.name} />}
+                                <AvatarFallback>{comment.author.name.charAt(0)}</AvatarFallback>
+                            </Avatar>
+                            <div>
+                                <div className="flex items-center gap-2 text-sm">
+                                    <span className="font-semibold">{comment.author.name}</span>
+                                    <span className="text-xs text-muted-foreground">{comment.timestamp}</span>
+                                </div>
+                                <p className="text-sm text-muted-foreground">{comment.content}</p>
+                            </div>
                         </div>
-                        <p className="text-sm text-muted-foreground">{comment.content}</p>
+                    ))}
+                  </div>
+
+                  <div className="space-y-4">
+                    <h3 className="font-semibold">Activity</h3>
+                     <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-muted-foreground">Contributors:</span>
+                        <div className="flex items-center -space-x-2">
+                            {contributors.map(c => (
+                                <TooltipProvider key={c.id} delayDuration={100}>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <button className="focus:outline-none">
+                                                <Avatar className="h-6 w-6 border-2 border-background">
+                                                    {c.avatar && <AvatarImage src={c.avatar} alt={c.name} />}
+                                                    <AvatarFallback className="text-xs">{c.name.charAt(0)}</AvatarFallback>
+                                                </Avatar>
+                                            </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>{c.name}</TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
+                            ))}
+                        </div>
                     </div>
+                     <div className="flex items-center gap-2">
+                        <History className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-sm font-semibold text-muted-foreground">Version:</span>
+                        <Select defaultValue="v3">
+                        <SelectTrigger className="h-8 w-[120px] text-xs">
+                            <SelectValue placeholder="Version" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="v3">Version 3</SelectItem>
+                            <SelectItem value="v2">Version 2</SelectItem>
+                            <SelectItem value="v1">Version 1</SelectItem>
+                        </SelectContent>
+                        </Select>
+                    </div>
+                  </div>
+              </TabsContent>
+
+              <SheetFooter className="p-6 pt-0 flex-col-reverse sm:flex-row sm:justify-between items-center gap-4">
+                <div className="flex items-center gap-2 w-full">
+                    <Avatar className="h-8 w-8">
+                      {currentUser.avatar && <AvatarImage src={currentUser.avatar} alt={currentUser.name} />}
+                      <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                    <Input 
+                        placeholder="Add a comment..." 
+                        value={newComment}
+                        onChange={(e) => setNewComment(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddComment(); } }}
+                    />
+                    <Button onClick={handleAddComment} size="icon" disabled={!newComment.trim()}>
+                        <Send /><span className="sr-only">Send comment</span>
+                    </Button>
                 </div>
-            ))}
-          </div>
-          <div className="mt-auto flex items-center gap-2 border-t bg-background p-4">
-              <Avatar className="h-8 w-8">
-                {currentUser.avatar && <AvatarImage src={currentUser.avatar} alt={currentUser.name} />}
-                <AvatarFallback>{currentUser.name.charAt(0)}</AvatarFallback>
-              </Avatar>
-              <Input 
-                  placeholder="Add a comment..." 
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleAddComment(); } }}
-              />
-              <Button onClick={handleAddComment} size="icon" disabled={!newComment.trim()}>
-                  <Send />
-                  <span className="sr-only">Send comment</span>
-              </Button>
-          </div>
+                <div className="flex items-center gap-2 w-full sm:w-auto flex-shrink-0">
+                    <Button onClick={handleGenerateAnswer} disabled={isGenerating || !canEdit} className="w-full">
+                      {isGenerating ? <Loader2 className="animate-spin" /> : <Sparkles />}
+                      Generate
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleReviewAnswer}
+                      disabled={isReviewing || !answer || !canUseAiReview || !canEdit}
+                      className="w-full"
+                    >
+                      {isReviewing ? <Loader2 className="animate-spin" /> : <Bot />}
+                      Review
+                    </Button>
+                </div>
+              </SheetFooter>
+          </Tabs>
         </SheetContent>
       </Sheet>
     </>
