@@ -18,7 +18,6 @@ import { Input } from "../ui/input"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { TableRow, TableCell } from "@/components/ui/table"
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Checkbox } from "@/components/ui/checkbox"
 import { cn } from "@/lib/utils"
 import type { Question } from "@/lib/rfp-types";
@@ -289,7 +288,7 @@ export function QuestionTableRow({ questionData, tenantId, rfpId, members, onUpd
                     </div>
                   </div>
                   {review && (
-                    <Alert>
+                    <Alert variant="secondary">
                       <Bot className="h-4 w-4" />
                       <AlertTitle>AI Expert Review</AlertTitle>
                       <AlertDescription className="text-sm font-mono whitespace-pre-wrap">

@@ -299,7 +299,7 @@ type QAndAListProps = {
 type FilterType = "all" | "assignedToMe" | "unassigned" | "inProgress" | "completed"
 
 export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestion, onAddQuestion }: QAndAListProps) {
-  const [activeFilter, setActiveFilter] = useState<FilterType>("inProgress")
+  const [activeFilter, setActiveFilter] = useState<FilterType>("all")
   const { tenant } = useTenant(); 
   const { toast } = useToast();
   const currentUser = tenant.members[0]; // For demo, assume current user is the first member
@@ -449,62 +449,7 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
               Filter, assign, and answer the questions for this RFP.
             </CardDescription>
           </div>
-          <div className="flex gap-2">
-            <Dialog open={isAddQuestionDialogOpen} onOpenChange={setIsAddQuestionDialogOpen}>
-                <DialogTrigger asChild>
-                    <Button variant="outline" disabled={!canEditContent}>
-                        <PlusCircle className="mr-2" />
-                        Add Question
-                    </Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader>
-                        <DialogTitle>Add a New Question</DialogTitle>
-                        <DialogDescription>
-                            Manually add a question that was missed during extraction.
-                        </DialogDescription>
-                    </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="question-text">Question</Label>
-                            <Textarea 
-                                id="question-text" 
-                                placeholder="Enter the question text..." 
-                                value={newQuestionText}
-                                onChange={(e) => setNewQuestionText(e.target.value)}
-                                disabled={isAddingQuestion} 
-                            />
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="question-category">Category</Label>
-                            <Select 
-                                value={newQuestionCategory}
-                                onValueChange={setNewQuestionCategory}
-                                disabled={isAddingQuestion}
-                            >
-                                <SelectTrigger id="question-category">
-                                    <SelectValue placeholder="Select a category" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="Product">Product</SelectItem>
-                                    <SelectItem value="Legal">Legal</SelectItem>
-                                    <SelectItem value="Security">Security</SelectItem>
-                                    <SelectItem value="Pricing">Pricing</SelectItem>
-                                    <SelectItem value="Company">Company</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                    </div>
-                    <DialogFooter>
-                        <Button type="submit" onClick={handleAddQuestion} disabled={isAddingQuestion}>
-                            {isAddingQuestion && <Loader2 className="mr-2 animate-spin" />}
-                            Add Question
-                        </Button>
-                    </DialogFooter>
-                </DialogContent>
-            </Dialog>
-            <ExportDialog rfpId={rfpId} questions={questions} members={members} />
-          </div>
+          <ExportDialog rfpId={rfpId} questions={questions} members={members} />
         </div>
 
         {totalCount > 0 && (
@@ -517,38 +462,95 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
           </div>
         )}
 
-        <div className="flex flex-wrap gap-2 pt-4">
-            <Button variant={activeFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('all')}>All ({questions.length})</Button>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant={isAssignmentFilterActive ? 'default' : 'outline'} size="sm" className="flex items-center">
-                  {assignmentFilterLabel}
-                  <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                  <DropdownMenuRadioGroup value={activeFilter} onValueChange={(value) => setActiveFilter(value as FilterType)}>
-                    <DropdownMenuRadioItem value="assignedToMe">Assigned to Me ({questions.filter(q => q.assignee?.id === currentUser.id).length})</DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="unassigned">Unassigned ({questions.filter(q => !q.assignee).length})</DropdownMenuRadioItem>
-                  </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+        <div className="flex flex-wrap items-center gap-2 pt-4">
+            <div className="flex gap-2 flex-wrap">
+                <Button variant={activeFilter === 'all' ? 'default' : 'outline'} size="sm" onClick={() => setActiveFilter('all')}>All ({questions.length})</Button>
+                
+                <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant={isAssignmentFilterActive ? 'default' : 'outline'} size="sm" className="flex items-center">
+                    {assignmentFilterLabel}
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                    <DropdownMenuRadioGroup value={activeFilter} onValueChange={(value) => setActiveFilter(value as FilterType)}>
+                        <DropdownMenuRadioItem value="assignedToMe">Assigned to Me ({questions.filter(q => q.assignee?.id === currentUser.id).length})</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="unassigned">Unassigned ({questions.filter(q => !q.assignee).length})</DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+                </DropdownMenu>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant={isStatusFilterActive ? 'default' : 'outline'} size="sm" className="flex items-center">
-                  {statusFilterLabel}
-                  <ChevronDown className="ml-2 h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="start">
-                  <DropdownMenuRadioGroup value={activeFilter} onValueChange={(value) => setActiveFilter(value as FilterType)}>
-                    <DropdownMenuRadioItem value="inProgress">In Progress ({questions.filter(q => q.status === 'In Progress').length})</DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value="completed">Completed ({questions.filter(q => q.status === 'Completed').length})</DropdownMenuRadioItem>
-                  </DropdownMenuRadioGroup>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant={isStatusFilterActive ? 'default' : 'outline'} size="sm" className="flex items-center">
+                    {statusFilterLabel}
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start">
+                    <DropdownMenuRadioGroup value={activeFilter} onValueChange={(value) => setActiveFilter(value as FilterType)}>
+                        <DropdownMenuRadioItem value="inProgress">In Progress ({questions.filter(q => q.status === 'In Progress').length})</DropdownMenuRadioItem>
+                        <DropdownMenuRadioItem value="completed">Completed ({questions.filter(q => q.status === 'Completed').length})</DropdownMenuRadioItem>
+                    </DropdownMenuRadioGroup>
+                </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+            <div className="ml-auto flex gap-2">
+                <Dialog open={isAddQuestionDialogOpen} onOpenChange={setIsAddQuestionDialogOpen}>
+                    <DialogTrigger asChild>
+                        <Button variant="outline" size="sm" disabled={!canEditContent}>
+                            <PlusCircle className="mr-2" />
+                            Add Question
+                        </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Add a New Question</DialogTitle>
+                            <DialogDescription>
+                                Manually add a question that was missed during extraction.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="question-text">Question</Label>
+                                <Textarea 
+                                    id="question-text" 
+                                    placeholder="Enter the question text..." 
+                                    value={newQuestionText}
+                                    onChange={(e) => setNewQuestionText(e.target.value)}
+                                    disabled={isAddingQuestion} 
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                <Label htmlFor="question-category">Category</Label>
+                                <Select 
+                                    value={newQuestionCategory}
+                                    onValueChange={setNewQuestionCategory}
+                                    disabled={isAddingQuestion}
+                                >
+                                    <SelectTrigger id="question-category">
+                                        <SelectValue placeholder="Select a category" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Product">Product</SelectItem>
+                                        <SelectItem value="Legal">Legal</SelectItem>
+                                        <SelectItem value="Security">Security</SelectItem>
+                                        <SelectItem value="Pricing">Pricing</SelectItem>
+                                        <SelectItem value="Company">Company</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+                        <DialogFooter>
+                            <Button type="submit" onClick={handleAddQuestion} disabled={isAddingQuestion}>
+                                {isAddingQuestion && <Loader2 className="mr-2 animate-spin" />}
+                                Add Question
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
+            </div>
         </div>
       </CardHeader>
       <CardContent className="p-0 flex-1">
