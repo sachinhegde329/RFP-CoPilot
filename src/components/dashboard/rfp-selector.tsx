@@ -27,19 +27,17 @@ export function RfpSelector({ rfps, selectedRfpId }: RfpSelectorProps) {
   };
 
   return (
-    <div className="mb-6">
-      <Select value={selectedRfpId} onValueChange={handleSelectRfp}>
-        <SelectTrigger className="w-full md:w-auto md:min-w-[320px] text-lg font-semibold h-12">
-          <SelectValue placeholder="Select an RFP" />
-        </SelectTrigger>
-        <SelectContent>
-          {rfps.map((rfp) => (
-            <SelectItem key={rfp.id} value={rfp.id}>
-              {rfp.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    <Select value={selectedRfpId} onValueChange={handleSelectRfp}>
+      <SelectTrigger className="w-full md:w-auto md:min-w-[320px] text-lg font-semibold h-12">
+        <SelectValue placeholder="Select an RFP" />
+      </SelectTrigger>
+      <SelectContent>
+        {rfps.map((rfp) => (
+          <SelectItem key={rfp.id} value={rfp.id}>
+            {rfp.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

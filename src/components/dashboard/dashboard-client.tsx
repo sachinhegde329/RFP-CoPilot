@@ -11,20 +11,13 @@ import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import type { Question, RFP } from "@/lib/rfp-types"
 import { DashboardSkeleton } from "./dashboard-skeleton"
-import { File, PlusCircle, Sparkles, Upload, Loader2 } from "lucide-react"
+import { PlusCircle, Sparkles, Upload, Loader2 } from "lucide-react"
 import { ExportRfpDialog } from "./export-rfp-dialog"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-
-type Attachment = {
-  id: number;
-  name: string;
-  size: string;
-  type: string;
-  url: string;
-};
+import { RfpSelector } from "./rfp-selector"
 
 function RfpWorkspaceView() {
   const { tenant } = useTenant();
@@ -45,7 +38,6 @@ function RfpWorkspaceView() {
 
 
   const [questions, setQuestions] = useState<Question[]>([]);
-  const [rfpAttachments, setRfpAttachments] = useState<Record<string, Attachment[]>>({});
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const { toast } = useToast();
 
@@ -77,12 +69,6 @@ function RfpWorkspaceView() {
         setQuestions([]);
     }
   }, [searchParams, rfps]);
-  
-  useEffect(() => {
-    return () => {
-      Object.values(rfpAttachments).flat().forEach(att => URL.revokeObjectURL(att.url));
-    }
-  }, [rfpAttachments]);
 
   const handleUpdateQuestion = useCallback(async (questionId: number, updates: Partial<Question>) => {
     if (!selectedRfp) return;
@@ -168,56 +154,40 @@ function RfpWorkspaceView() {
   }
   
   const progressPercentage = selectedRfp?.questions ? (selectedRfp.questions.filter(q => q.status === 'Completed').length / selectedRfp.questions.length) * 100 : 0;
-  const attachments = selectedRfp ? (rfpAttachments[selectedRfp.id] || []) : [];
 
     return (
       <>
-        <main className="flex-1 grid grid-cols-12 overflow-hidden">
-          {/* Left Panel */}
-          <div className="col-span-3 bg-card border-r border-border p-4 flex flex-col gap-6">
-              <h2 className="text-lg font-semibold">{selectedRfp?.name || 'Select an RFP'}</h2>
-              <div className="space-y-2">
-                <Progress value={progressPercentage} className="h-2"/>
-                <p className="text-xs text-muted-foreground">{Math.round(progressPercentage)}% complete</p>
-              </div>
+        <main className="flex-1 flex flex-col overflow-hidden p-4 sm:p-6 lg:p-8">
+           {selectedRfp ? (
+                <>
+                    <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6 border-b pb-6">
+                        <div className="flex-1 space-y-2">
+                           <RfpSelector rfps={rfps} selectedRfpId={selectedRfp.id} />
+                           <div className="flex items-center gap-4 pt-1">
+                                <Progress value={progressPercentage} className="h-2 w-full max-w-sm" />
+                                <p className="text-sm text-muted-foreground whitespace-nowrap">{Math.round(progressPercentage)}% complete</p>
+                           </div>
+                        </div>
+                        <div className="flex gap-2 flex-shrink-0">
+                           <Button onClick={() => setIsAutogenDialogOpen(true)} disabled={isAutoGenerating || !selectedRfp}>
+                                {isAutoGenerating ? <Loader2 className="mr-2 animate-spin" /> : <Sparkles className="mr-2"/>}
+                                {isAutoGenerating ? 'Generating...' : 'Autogenerate All'}
+                           </Button>
+                           <Button variant="outline" onClick={() => selectedRfp && setIsExportDialogOpen(true)} disabled={!selectedRfp}>Export</Button>
+                        </div>
+                    </div>
 
-              <div className="flex flex-col gap-2">
-                <Button onClick={() => setIsAutogenDialogOpen(true)} disabled={isAutoGenerating || !selectedRfp}>
-                    {isAutoGenerating ? <Loader2 className="mr-2 animate-spin" /> : <Sparkles className="mr-2"/>}
-                    {isAutoGenerating ? 'Generating...' : 'Autogenerate All'}
-                </Button>
-                <Button variant="outline" onClick={() => selectedRfp && setIsExportDialogOpen(true)} disabled={!selectedRfp}>Export</Button>
-              </div>
-              
-              <div className="flex-1 flex flex-col gap-2 overflow-y-auto">
-                <div className="flex justify-between items-center">
-                    <h3 className="font-semibold text-sm">Files</h3>
-                    <Button variant="ghost" size="sm"><PlusCircle className="mr-2"/> Files</Button>
-                </div>
-                 {attachments.length > 0 ? attachments.map(att => (
-                  <div key={att.id} className="flex items-center gap-2 text-sm p-2 rounded-md hover:bg-muted/50">
-                    <File className="h-4 w-4 text-muted-foreground"/>
-                    <span className="truncate">{att.name}</span>
-                  </div>
-                 )) : (
-                  <div className="flex-1 flex items-center justify-center text-xs text-muted-foreground">
-                    No files attached.
-                  </div>
-                 )}
-              </div>
-          </div>
-          
-          {/* Right Panel */}
-          <div className="col-span-9 flex flex-col overflow-y-auto p-6">
-            {selectedRfp ? (
-              <QAndAList 
-                  questions={questions} 
-                  tenantId={tenant.id}
-                  rfpId={selectedRfp.id}
-                  members={tenant.members} 
-                  onUpdateQuestion={handleUpdateQuestion}
-                  onAddQuestion={handleAddQuestion}
-                />
+                    <div className="flex-1 flex flex-col overflow-y-auto -mr-6 pr-6">
+                        <QAndAList 
+                            questions={questions} 
+                            tenantId={tenant.id}
+                            rfpId={selectedRfp.id}
+                            members={tenant.members} 
+                            onUpdateQuestion={handleUpdateQuestion}
+                            onAddQuestion={handleAddQuestion}
+                            />
+                    </div>
+                </>
             ) : (
               <div className="flex-1 flex items-center justify-center text-center">
                 <div>
@@ -227,7 +197,6 @@ function RfpWorkspaceView() {
                 </div>
               </div>
             )}
-          </div>
         </main>
         {selectedRfp && <ExportRfpDialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen} rfp={selectedRfp} />}
         
