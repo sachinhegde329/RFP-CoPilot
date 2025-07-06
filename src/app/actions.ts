@@ -324,21 +324,23 @@ export async function addWebsiteSourceAction(url: string, tenantId: string, curr
 }
 
 
-export async function addGitHubSourceAction(tenantId: string, currentUser: CurrentUser) {
+export async function addGitHubSourceAction(tenantId: string, currentUser: CurrentUser, config: { repo: string; token: string }) {
     const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
     if (permCheck.error) return { error: permCheck.error };
 
-    if (!process.env.GITHUB_REPO || !process.env.GITHUB_TOKEN) {
-        return { error: "GitHub integration is not configured on the server. Please set GITHUB_REPO and GITHUB_TOKEN environment variables." };
+    if (!config.repo || !config.token) {
+        return { error: "Missing required GitHub connection details." };
     }
 
     const newSource = await knowledgeBaseService.addDataSource({
         tenantId,
         type: 'github',
-        name: `GitHub (${process.env.GITHUB_REPO})`,
+        name: `GitHub (${config.repo})`,
         status: 'Syncing',
         lastSynced: 'In progress...',
         itemCount: 0,
+        config: { url: config.repo },
+        auth: { apiKey: config.token }
     });
 
     // Don't await this, let it run in the background
@@ -347,21 +349,25 @@ export async function addGitHubSourceAction(tenantId: string, currentUser: Curre
     return { source: newSource };
 }
 
-export async function addConfluenceSourceAction(tenantId: string, currentUser: CurrentUser) {
+export async function addConfluenceSourceAction(tenantId: string, currentUser: CurrentUser, config: { url: string; username: string; apiKey: string }) {
     const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
     if (permCheck.error) return { error: permCheck.error };
 
-    if (!process.env.CONFLUENCE_URL || !process.env.CONFLUENCE_USERNAME || !process.env.CONFLUENCE_API_TOKEN) {
-        return { error: "Confluence integration is not configured on the server. Please set CONFLUENCE environment variables." };
+    if (!config.url || !config.username || !config.apiKey) {
+        return { error: "Missing required Confluence connection details." };
     }
+    
+    const hostname = new URL(config.url).hostname;
 
     const newSource = await knowledgeBaseService.addDataSource({
         tenantId,
         type: 'confluence',
-        name: `Confluence`,
+        name: `Confluence (${hostname})`,
         status: 'Syncing',
         lastSynced: 'In progress...',
         itemCount: 0,
+        config: { url: config.url },
+        auth: { username: config.username, apiKey: config.apiKey }
     });
 
     // Don't await this, let it run in the background
@@ -370,21 +376,22 @@ export async function addConfluenceSourceAction(tenantId: string, currentUser: C
     return { source: newSource };
 }
 
-export async function addNotionSourceAction(tenantId: string, currentUser: CurrentUser) {
+export async function addNotionSourceAction(tenantId: string, currentUser: CurrentUser, config: { apiKey: string }) {
     const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
     if (permCheck.error) return { error: permCheck.error };
 
-    if (!process.env.NOTION_API_KEY) {
-        return { error: "Notion integration is not configured on the server. Please set NOTION_API_KEY environment variable." };
+    if (!config.apiKey) {
+        return { error: "Missing required Notion connection details (API Key)." };
     }
 
     const newSource = await knowledgeBaseService.addDataSource({
         tenantId,
         type: 'notion',
-        name: `Notion`,
+        name: `Notion Workspace`,
         status: 'Syncing',
         lastSynced: 'In progress...',
         itemCount: 0,
+        auth: { apiKey: config.apiKey }
     });
 
     // Don't await this, let it run in the background

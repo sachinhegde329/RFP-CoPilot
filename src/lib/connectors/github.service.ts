@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Connector for GitHub.
  * This service handles authentication and ingesting content from repositories,
@@ -12,24 +13,27 @@ import * as cheerio from 'cheerio';
 
 class GitHubService {
 
-    private getClient(): Octokit {
-        const { GITHUB_TOKEN } = process.env;
-        if (!GITHUB_TOKEN) {
-            throw new Error("GITHUB_TOKEN is not configured in .env file.");
+    private getClient(source: DataSource): Octokit {
+        const apiToken = source.auth?.apiKey;
+        if (!apiToken) {
+            throw new Error("GitHub token is not configured for this source.");
         }
-        return new Octokit({ auth: GITHUB_TOKEN });
+        return new Octokit({ auth: apiToken });
     }
 
     /**
      * Recursively lists all files in a GitHub repository.
      */
     async listResources(source: DataSource): Promise<any[]> {
-        const { GITHUB_REPO } = process.env;
-        if (!GITHUB_REPO) {
-            throw new Error("GITHUB_REPO is not configured in .env file.");
+        const repoPath = source.config?.url;
+        if (!repoPath) {
+            throw new Error("GitHub repository is not configured for this source.");
         }
-        const [owner, repo] = GITHUB_REPO.split('/');
-        const octokit = this.getClient();
+        const [owner, repo] = repoPath.split('/');
+        if (!owner || !repo) {
+            throw new Error("Invalid GitHub repository format. Expected 'owner/repo'.");
+        }
+        const octokit = this.getClient(source);
 
         const { data } = await octokit.git.getTree({
             owner,
@@ -45,9 +49,9 @@ class GitHubService {
      * Fetches the content of a specific file from GitHub.
      */
     async fetchResource(source: DataSource, resourcePath: string): Promise<any> {
-        const { GITHUB_REPO } = process.env;
-        const [owner, repo] = GITHUB_REPO!.split('/');
-        const octokit = this.getClient();
+        const repoPath = source.config?.url!;
+        const [owner, repo] = repoPath.split('/');
+        const octokit = this.getClient(source);
 
         const { data } = await octokit.repos.getContent({
             owner,
@@ -82,7 +86,7 @@ class GitHubService {
 
     async sync(source: DataSource) {
         console.log(`Starting sync for GitHub source: ${source.name}`);
-        knowledgeBaseService.deleteChunksBySourceId(source.tenantId, source.id);
+        await knowledgeBaseService.deleteChunksBySourceId(source.tenantId, source.id);
 
         const files = await this.listResources(source);
         let totalItems = 0;
@@ -93,7 +97,7 @@ class GitHubService {
                 try {
                     const rawContent = await this.fetchResource(source, file.path);
                     const { chunks } = await this.parseContent(rawContent);
-                    const url = `https://github.com/${process.env.GITHUB_REPO}/blob/main/${file.path}`;
+                    const url = `https://github.com/${source.config?.url}/blob/main/${file.path}`;
                     await knowledgeBaseService.addChunks(source.tenantId, source.id, 'github', file.path, chunks, url);
                     totalItems += chunks.length;
                 } catch (error) {
@@ -102,7 +106,7 @@ class GitHubService {
             }
         }
         
-        knowledgeBaseService.updateDataSource(source.tenantId, source.id, {
+        await knowledgeBaseService.updateDataSource(source.tenantId, source.id, {
             status: 'Synced',
             itemCount: totalItems,
             lastSynced: new Date().toLocaleDateString(),

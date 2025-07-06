@@ -19,18 +19,25 @@ export interface DataSource {
   itemCount?: number;
   uploader?: string; 
   auth?: {
-    accessToken: string;
+    // OAuth specific
+    accessToken?: string;
     refreshToken?: string;
-    scope: string;
-    tokenType: string;
-    expiryDate: number;
+    scope?: string;
+    tokenType?: string;
+    expiryDate?: number;
+    // API Key/Token specific
+    apiKey?: string;
+    username?: string;
   } | null;
   config?: {
+    // Website crawler specific
     maxDepth?: number;
     maxPages?: number;
     filterKeywords?: string[];
     scopePath?: string;
     excludePaths?: string[];
+    // For other connectors
+    url?: string; // e.g., Confluence URL, GitHub repo (owner/repo)
   };
 }
 
@@ -75,7 +82,7 @@ class KnowledgeBaseService {
   }
 
   public async addDataSource(sourceData: Omit<DataSource, 'id'>): Promise<DataSource> {
-    const newSource = { id: `source-${Date.now()}`, ...sourceData };
+    const newSource = { id: `source-${Date.now()}-${Math.random()}`, ...sourceData };
     inMemorySources.push(newSource);
     return newSource;
   }

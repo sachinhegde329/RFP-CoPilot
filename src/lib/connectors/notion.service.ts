@@ -1,3 +1,4 @@
+
 /**
  * @fileOverview Connector for Notion.
  * This service handles authentication and ingesting content from Notion pages and databases.
@@ -9,19 +10,19 @@ import type { DataSource } from '@/lib/knowledge-base';
 import { knowledgeBaseService } from '@/lib/knowledge-base';
 
 class NotionService {
-    private getClient(): Client {
-        const { NOTION_API_KEY } = process.env;
-        if (!NOTION_API_KEY) {
-            throw new Error("NOTION_API_KEY is not configured in .env file.");
+    private getClient(source: DataSource): Client {
+        const apiKey = source.auth?.apiKey;
+        if (!apiKey) {
+            throw new Error("Notion API Key is not configured for this source.");
         }
-        return new Client({ auth: NOTION_API_KEY });
+        return new Client({ auth: apiKey });
     }
 
     /**
      * Lists resources (pages and databases) accessible by the integration.
      */
     async listResources(source: DataSource): Promise<(PageObjectResponse)[]> {
-        const notion = this.getClient();
+        const notion = this.getClient(source);
         const response = await notion.search({ filter: { value: 'page', property: 'object' } });
         return response.results as PageObjectResponse[];
     }
@@ -80,8 +81,8 @@ class NotionService {
 
     async sync(source: DataSource) {
         console.log(`Starting sync for Notion source: ${source.name}`);
-        knowledgeBaseService.deleteChunksBySourceId(source.tenantId, source.id);
-        const notion = this.getClient();
+        await knowledgeBaseService.deleteChunksBySourceId(source.tenantId, source.id);
+        const notion = this.getClient(source);
 
         const pages = await this.listResources(source);
         let totalItems = 0;
@@ -89,7 +90,7 @@ class NotionService {
         for (const page of pages) {
             try {
                 const blocks = await this.fetchAllBlocks(notion, page.id);
-                const { title, chunks } = this.parseContent(page, blocks);
+                const { title, chunks } = await this.parseContent(page, blocks);
                 await knowledgeBaseService.addChunks(source.tenantId, source.id, 'notion', title, chunks, page.url);
                 totalItems += chunks.length;
             } catch (error) {
@@ -97,7 +98,7 @@ class NotionService {
             }
         }
         
-        knowledgeBaseService.updateDataSource(source.tenantId, source.id, {
+        await knowledgeBaseService.updateDataSource(source.tenantId, source.id, {
             status: 'Synced',
             itemCount: totalItems,
             lastSynced: new Date().toLocaleDateString(),
