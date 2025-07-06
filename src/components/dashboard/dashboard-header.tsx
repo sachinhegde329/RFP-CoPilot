@@ -95,7 +95,7 @@ export function HomepageHeader() {
         <div className="ml-auto flex-1 sm:flex-initial">
           <Button variant="outline" className="w-full justify-start text-muted-foreground sm:w-64">
             <Search className="mr-2"/>
-            Quick Ask AI...
+            Ask AI...
             <kbd className="pointer-events-none ml-auto hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
               <span className="text-xs">⌘</span>K
             </kbd>
