@@ -3,7 +3,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { CheckCircle2, XCircle, Lock } from "lucide-react"
+import { CheckCircle2, XCircle, Lock, ShieldCheck } from "lucide-react"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { Button } from "@/components/ui/button"
 import Link from "next/link"
@@ -24,25 +24,18 @@ export function ComplianceCard() {
     return (
       <Card className="relative overflow-hidden">
         <div className="absolute inset-0 bg-background/50 backdrop-blur-sm z-10" />
-        <CardHeader>
-          <CardTitle>Compliance Validation</CardTitle>
+        <CardHeader className="p-4">
+          <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4"/>Compliance Validation</CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-4 blur-sm select-none">
-            Auto-checking answers against compliance standards.
-          </p>
+        <CardContent className="p-4 pt-0">
           <div className="space-y-3 blur-sm select-none">
             {complianceChecks.map((check) => (
-              <div key={check.name} className="flex items-center justify-between rounded-md border p-3">
+              <div key={check.name} className="flex items-center justify-between p-1">
                 <span className="font-medium text-sm">{check.name}</span>
                 {check.status === "passed" ? (
-                  <Badge variant="secondary" className="text-green-600">
-                    <CheckCircle2 className="mr-1 h-4 w-4" /> Passed
-                  </Badge>
+                  <Badge variant="secondary" className="text-green-600">Passed</Badge>
                 ) : (
-                  <Badge variant="destructive">
-                    <XCircle className="mr-1 h-4 w-4" /> Failed
-                  </Badge>
+                  <Badge variant="destructive">Failed</Badge>
                 )}
               </div>
             ))}
@@ -64,24 +57,21 @@ export function ComplianceCard() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle>Compliance Validation</CardTitle>
+      <CardHeader className="p-4">
+        <CardTitle className="text-base flex items-center gap-2"><ShieldCheck className="h-4 w-4"/>Compliance Validation</CardTitle>
       </CardHeader>
-      <CardContent>
-        <p className="text-sm text-muted-foreground mb-4">
-          Auto-checking answers against compliance standards.
-        </p>
+      <CardContent className="p-4 pt-0">
         <div className="space-y-3">
           {complianceChecks.map((check) => (
-            <div key={check.name} className="flex items-center justify-between rounded-md border p-3">
-              <span className="font-medium text-sm">{check.name}</span>
+            <div key={check.name} className="flex items-center justify-between text-sm">
+              <span className="font-medium">{check.name}</span>
               {check.status === "passed" ? (
-                <Badge variant="secondary" className="text-green-600">
-                  <CheckCircle2 className="mr-1 h-4 w-4" /> Passed
+                <Badge variant="secondary" className="text-green-600 font-normal">
+                  <CheckCircle2 className="mr-1 h-3 w-3" /> Passed
                 </Badge>
               ) : (
-                <Badge variant="destructive">
-                  <XCircle className="mr-1 h-4 w-4" /> Failed
+                <Badge variant="destructive" className="font-normal">
+                  <XCircle className="mr-1 h-3 w-3" /> Failed
                 </Badge>
               )}
             </div>

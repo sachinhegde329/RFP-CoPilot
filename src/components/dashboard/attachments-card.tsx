@@ -1,9 +1,8 @@
 'use client'
 
 import { useRef } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { File, PlusCircle, MoreHorizontal, Download, Trash2, Paperclip } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { useToast } from "@/hooks/use-toast"
@@ -87,84 +86,69 @@ export function AttachmentsCard({ attachments, onUpdateAttachments }: Attachment
         onChange={handleFileChange}
         className="hidden"
       />
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-            <Paperclip className="h-5 w-5" />
+      <CardHeader className="p-4">
+        <CardTitle className="flex items-center gap-2 text-base">
+            <Paperclip className="h-4 w-4" />
             Supporting Documents
         </CardTitle>
-        <CardDescription>
-          Add supplementary files like appendices or diagrams for the selected RFP. (Max 3)
-        </CardDescription>
       </CardHeader>
-      <CardContent className="pt-0 min-h-[150px]">
+      <CardContent className="pt-0 p-4 min-h-[120px]">
         {attachments.length > 0 ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>File Name</TableHead>
-                <TableHead>Size</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {attachments.map((attachment) => (
-                <TableRow key={attachment.id}>
-                  <TableCell>
-                    <a 
-                        href={attachment.url}
-                        download={attachment.name}
-                        className="flex items-center gap-2 hover:underline"
+          <div className="space-y-2">
+            {attachments.map((attachment) => (
+              <div key={attachment.id} className="flex items-center justify-between text-sm p-2 rounded-md hover:bg-muted/50">
+                <a 
+                    href={attachment.url}
+                    download={attachment.name}
+                    className="flex items-center gap-2 hover:underline truncate"
+                >
+                  <File className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  <div className="truncate">
+                    <span className="font-medium truncate">{attachment.name}</span>
+                    <span className="text-xs text-muted-foreground block">{attachment.size}</span>
+                  </div>
+                </a>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0">
+                        <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                    <DropdownMenuItem asChild>
+                        <a href={attachment.url} download={attachment.name} className="flex items-center cursor-pointer">
+                            <Download className="mr-2 h-4 w-4" />
+                            Download
+                        </a>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem 
+                        className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                        onSelect={() => handleDelete(attachment.id)}
                     >
-                      <File className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium truncate max-w-xs">{attachment.name}</span>
-                    </a>
-                  </TableCell>
-                  <TableCell>{attachment.size}</TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem asChild>
-                           <a href={attachment.url} download={attachment.name} className="flex items-center cursor-pointer">
-                                <Download className="mr-2 h-4 w-4" />
-                                Download
-                            </a>
-                        </DropdownMenuItem>
-                        <DropdownMenuItem 
-                            className="text-destructive focus:bg-destructive/10 focus:text-destructive"
-                            onSelect={() => handleDelete(attachment.id)}
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Delete
+                    </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            ))}
+          </div>
         ) : (
-           <div className="flex h-full min-h-[120px] flex-col items-center justify-center text-center text-muted-foreground">
-              <File className="size-8 mb-2" />
-              <h3 className="font-semibold text-sm text-foreground">No Documents</h3>
-              <p className="text-xs">Upload supplementary files.</p>
+           <div className="flex h-full min-h-[90px] flex-col items-center justify-center text-center text-muted-foreground border-2 border-dashed rounded-lg p-4">
+              <p className="text-xs">No documents attached.</p>
             </div>
         )}
       </CardContent>
-      <CardFooter>
+      <CardFooter className="p-4 pt-0">
         <Button 
             variant="outline" 
-            className="w-full"
+            size="sm"
+            className="w-full text-xs h-8"
             onClick={handleAddClick}
             disabled={attachments.length >= 3}
         >
-          <PlusCircle className="mr-2" />
-          Add Supporting Document
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Add Document
         </Button>
       </CardFooter>
     </Card>

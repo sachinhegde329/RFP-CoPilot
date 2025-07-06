@@ -165,8 +165,8 @@ function RfpWorkspaceView() {
             <RfpSelector rfps={rfps} selectedRfpId={selectedRfp.id} />
           ) : null}
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-3">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <div className="lg:col-span-4">
               <RfpSummaryCard
                 isLoading={isProcessing}
                 onProcessRfp={handleProcessRfp}
@@ -175,7 +175,7 @@ function RfpWorkspaceView() {
 
             {selectedRfp ? (
               <>
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-3">
                   <QAndAList 
                     questions={questions} 
                     tenantId={tenant.id}
@@ -194,7 +194,7 @@ function RfpWorkspaceView() {
                 </div>
               </>
             ) : (
-              <div className="lg:col-span-3">
+              <div className="lg:col-span-4">
                 <Card>
                     <CardHeader>
                         <CardTitle>No RFPs Found</CardTitle>
