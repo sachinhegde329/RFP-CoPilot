@@ -4,16 +4,12 @@ import { useState, useMemo } from "react"
 import { QAndAItem } from "./question-table-row"
 import { Button } from "@/components/ui/button"
 import type { TeamMember } from "@/lib/tenant-types"
-import { PlusCircle, Settings } from "lucide-react"
+import { Settings } from "lucide-react"
 import { useTenant } from "@/components/providers/tenant-provider"
-import { useToast } from "@/hooks/use-toast"
 import type { Question } from "@/lib/rfp-types"
 import { Input } from "../ui/input"
-import { canPerformAction } from "@/lib/access-control"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
-import { Label } from "@/components/ui/label"
 import { Checkbox } from "../ui/checkbox"
-import { Switch } from "@/components/ui/switch"
 
 type QAndAListProps = {
   questions: Question[]
@@ -47,11 +43,7 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
       <div className="flex items-center gap-4">
         <Input placeholder="Search questions..." className="bg-card"/>
         <Button variant="outline">Filters</Button>
-        <div className="flex items-center space-x-2 ml-auto">
-            <Switch id="compact-mode" />
-            <Label htmlFor="compact-mode">Compact</Label>
-        </div>
-        <Button variant="outline" size="icon"><Settings /></Button>
+        <Button variant="outline" size="icon" className="ml-auto"><Settings /></Button>
       </div>
       
       {/* Table Header */}
