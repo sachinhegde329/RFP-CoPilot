@@ -46,18 +46,22 @@ function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
 
   const currentUser = tenant.members[0];
   const canEditStatus = canPerformAction(currentUser.role, 'editContent');
+  
+  const activeRfps = useMemo(() => {
+    return rfps.filter(r => r.status !== 'Won' && r.status !== 'Lost');
+  }, [rfps]);
 
   useEffect(() => {
     const rfpIdFromUrl = searchParams.get('rfpId');
-    if (rfps.length > 0) {
-        const rfpToSelect = rfps.find(r => r.id === rfpIdFromUrl) || rfps[0];
+    if (activeRfps.length > 0) {
+        const rfpToSelect = activeRfps.find(r => r.id === rfpIdFromUrl) || activeRfps[0];
         setSelectedRfp(rfpToSelect);
         setQuestions(rfpToSelect?.questions || []);
     } else {
         setSelectedRfp(undefined);
         setQuestions([]);
     }
-  }, [searchParams, rfps]);
+  }, [searchParams, activeRfps]);
   
   const handleRfpStatusChange = async (newStatus: RfpStatus) => {
     if (!selectedRfp) return;
@@ -176,7 +180,7 @@ function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
                     <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6 border-b pb-6">
                         <div className="flex-1 space-y-2">
                            <div className="flex items-center gap-4">
-                                <RfpSelector rfps={rfps} selectedRfpId={selectedRfp.id} />
+                                <RfpSelector rfps={activeRfps} selectedRfpId={selectedRfp.id} />
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
                                         <Button variant="outline" className="w-40 justify-between" disabled={!canEditStatus}>
@@ -224,7 +228,7 @@ function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
               <div className="flex-1 flex items-center justify-center text-center">
                 <div>
                   <h3 className="text-2xl font-bold">Welcome to RFP CoPilot</h3>
-                  <p className="text-muted-foreground">Select an RFP from the list or upload a new one to get started.</p>
+                  <p className="text-muted-foreground">There are no active RFPs. Check the export history or upload a new one to get started.</p>
                   <Button className="mt-4"><Upload className="mr-2"/> Upload New RFP</Button>
                 </div>
               </div>

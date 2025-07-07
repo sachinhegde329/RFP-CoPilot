@@ -60,7 +60,7 @@ const initializeDemoData = () => {
             inMemoryRfps = [
                 { id: 'rfp-1', name: 'Q3 Enterprise Security RFP', status: 'In Progress', questions: sampleQuestions, topics: ['security', 'compliance', 'enterprise'] },
                 { id: 'rfp-2', name: 'Project Titan Proposal', status: 'Won', questions: [sampleQuestions[3], sampleQuestions[2]], topics: ['product', 'pricing'] },
-                { id: 'rfp-3', name: '2023 Compliance Audit', status: 'Submitted', questions: [sampleQuestions[0], sampleQuestions[1]], topics: ['security', 'legal', 'audit'] },
+                { id: 'rfp-3', name: '2023 Compliance Audit', status: 'Lost', questions: [sampleQuestions[0], sampleQuestions[1]], topics: ['security', 'legal', 'audit'] },
             ];
         }
     }
