@@ -1,3 +1,4 @@
+
 "use client"
 
 import {
@@ -41,7 +42,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="p-4 flex items-center justify-center">
+      <SidebarHeader className="p-4 flex items-center justify-start group-data-[state=collapsed]:justify-center">
         <SidebarTrigger />
       </SidebarHeader>
       <SidebarContent className="p-4">
@@ -71,7 +72,7 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton asChild>
               <Link href={`/${tenant.subdomain}/settings/profile`}>
-                <Avatar className="size-6">
+                <Avatar className="size-4">
                   <AvatarImage src="https://placehold.co/100x100" />
                   <AvatarFallback>
                     <CircleUserRound />
