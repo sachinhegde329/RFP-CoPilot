@@ -55,12 +55,12 @@ export function ExportHistoryClient({ initialHistory, initialRfps }: ExportHisto
             </div>
 
             {rfpNames.length > 0 ? (
-                <div className="space-y-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {rfpNames.map(rfpName => {
                         const records = groupedHistory[rfpName];
                         const status = getRfpStatus(rfpName);
                         return (
-                             <Card key={rfpName}>
+                             <Card key={rfpName} className="flex flex-col">
                                 <CardHeader>
                                     <div className="flex justify-between items-start">
                                         <div>
@@ -72,15 +72,12 @@ export function ExportHistoryClient({ initialHistory, initialRfps }: ExportHisto
                                         {status && <Badge variant={status === 'Won' ? 'default' : status === 'Lost' ? 'destructive' : 'secondary'}>{status}</Badge>}
                                     </div>
                                 </CardHeader>
-                                <CardContent>
+                                <CardContent className="flex-1">
                                     <Table>
                                         <TableHeader>
                                             <TableRow>
                                                 <TableHead>Version</TableHead>
                                                 <TableHead>Date</TableHead>
-                                                <TableHead>Exported By</TableHead>
-                                                <TableHead>Format</TableHead>
-                                                <TableHead>Questions</TableHead>
                                                 <TableHead className="text-right">Actions</TableHead>
                                             </TableRow>
                                         </TableHeader>
@@ -102,15 +99,10 @@ export function ExportHistoryClient({ initialHistory, initialRfps }: ExportHisto
                                                             </Tooltip>
                                                         </TooltipProvider>
                                                     </TableCell>
-                                                    <TableCell>{record.exportedBy.name}</TableCell>
-                                                    <TableCell>{record.format.toUpperCase()}</TableCell>
-                                                    <TableCell>{record.questionCount}</TableCell>
                                                     <TableCell className="text-right">
-                                                        <div className="flex justify-end gap-2">
-                                                            <Button variant="outline" size="sm" onClick={(e) => {e.stopPropagation(); setSelectedRecord(record)}}>
-                                                                View Details
-                                                            </Button>
-                                                        </div>
+                                                        <Button variant="ghost" size="sm" onClick={(e) => {e.stopPropagation(); setSelectedRecord(record)}}>
+                                                            Details
+                                                        </Button>
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
