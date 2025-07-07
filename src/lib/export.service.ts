@@ -62,6 +62,42 @@ const inMemoryExportHistory: ExportRecord[] = [
         acknowledgments: [
             { name: 'Maria Garcia', role: 'Legal Review', comment: 'Approved for submission.' }
         ]
+    },
+    {
+        id: 'export-demo-2',
+        tenantId: 'megacorp',
+        rfpId: 'rfp-1',
+        rfpName: 'Q3 Enterprise Security RFP',
+        version: 'v0.9 Draft',
+        format: 'pdf',
+        exportedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+        exportedBy: {
+            id: '3',
+            name: 'Priya Patel',
+            role: 'Editor'
+        },
+        questionCount: demoQuestions.length,
+        questions: demoQuestions,
+        acknowledgments: [],
+    },
+    {
+        id: 'export-demo-3',
+        tenantId: 'megacorp',
+        rfpId: 'rfp-2',
+        rfpName: 'Project Titan Proposal',
+        version: 'v1.0',
+        format: 'docx',
+        exportedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
+        exportedBy: {
+            id: 'demo-user-id',
+            name: 'Alex Johnson',
+            role: 'Owner'
+        },
+        questionCount: 2,
+        questions: demoQuestions,
+        acknowledgments: [
+            { name: 'Alex Johnson', role: 'Final Review', comment: 'Looks good.' }
+        ]
     }
 ];
 
