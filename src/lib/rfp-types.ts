@@ -2,7 +2,7 @@ import type { TeamMember } from './tenant-types';
 
 export type QuestionStatus = 'Unassigned' | 'In Progress' | 'Completed';
 export type ComplianceStatus = 'passed' | 'failed' | 'pending';
-export type RfpStatus = 'Open' | 'Completed' | 'Draft';
+export type RfpStatus = 'Draft' | 'In Progress' | 'Submitted' | 'Won' | 'Lost';
 
 export interface Question {
   id: number;

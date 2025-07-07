@@ -5,13 +5,13 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { QAndAList } from "@/components/dashboard/q-and-a-list"
-import { getRfpsAction, updateQuestionAction, addQuestionAction, generateAnswerAction } from "@/app/actions"
+import { getRfpsAction, updateQuestionAction, addQuestionAction, generateAnswerAction, updateRfpStatusAction } from "@/app/actions"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
-import type { Question, RFP } from "@/lib/rfp-types"
+import type { Question, RFP, RfpStatus } from "@/lib/rfp-types"
 import { DashboardSkeleton } from "./dashboard-skeleton"
-import { PlusCircle, Sparkles, Upload, Loader2 } from "lucide-react"
+import { PlusCircle, Sparkles, Upload, Loader2, ChevronDown } from "lucide-react"
 import { ExportRfpDialog } from "./export-rfp-dialog"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
@@ -19,6 +19,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { RfpSelector } from "./rfp-selector"
 import { Checkbox } from "@/components/ui/checkbox"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu"
+import { canPerformAction } from "@/lib/access-control"
 
 function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
   const { tenant } = useTenant();
@@ -43,6 +45,7 @@ function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
   const { toast } = useToast();
 
   const currentUser = tenant.members[0];
+  const canEditStatus = canPerformAction(currentUser.role, 'editContent');
 
   useEffect(() => {
     const rfpIdFromUrl = searchParams.get('rfpId');
@@ -55,6 +58,27 @@ function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
         setQuestions([]);
     }
   }, [searchParams, rfps]);
+  
+  const handleRfpStatusChange = async (newStatus: RfpStatus) => {
+    if (!selectedRfp) return;
+
+    const originalRfp = { ...selectedRfp };
+    const optimisticRfps = rfps.map(r => r.id === selectedRfp.id ? { ...r, status: newStatus } : r);
+    setRfps(optimisticRfps);
+    setSelectedRfp(optimisticRfps.find(r => r.id === selectedRfp.id));
+
+    const result = await updateRfpStatusAction(tenant.id, selectedRfp.id, newStatus, currentUser);
+
+    if (result.error) {
+        toast({ variant: "destructive", title: "Update Failed", description: result.error });
+        // Revert optimistic update
+        setRfps(rfps);
+        setSelectedRfp(originalRfp);
+    } else {
+        toast({ title: "RFP Status Updated" });
+    }
+  };
+
 
   const handleUpdateQuestion = useCallback(async (questionId: number, updates: Partial<Question>) => {
     if (!selectedRfp) return;
@@ -145,13 +169,30 @@ function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
   const progressPercentage = selectedRfp?.questions ? (selectedRfp.questions.filter(q => q.status === 'Completed').length / selectedRfp.questions.length) * 100 : 0;
 
     return (
-      <>
+      <div className="flex-1 flex flex-col">
         <main className="flex-1 flex flex-col overflow-hidden p-4 sm:p-6 lg:p-8">
            {selectedRfp ? (
                 <>
                     <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6 border-b pb-6">
                         <div className="flex-1 space-y-2">
-                           <RfpSelector rfps={rfps} selectedRfpId={selectedRfp.id} />
+                           <div className="flex items-center gap-4">
+                                <RfpSelector rfps={rfps} selectedRfpId={selectedRfp.id} />
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="outline" className="w-40 justify-between" disabled={!canEditStatus}>
+                                            <span>{selectedRfp.status}</span>
+                                            <ChevronDown />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent>
+                                        {(['Draft', 'In Progress', 'Submitted', 'Won', 'Lost'] as RfpStatus[]).map(status => (
+                                            <DropdownMenuItem key={status} onSelect={() => handleRfpStatusChange(status as RfpStatus)}>
+                                                {status}
+                                            </DropdownMenuItem>
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                           </div>
                            <div className="flex items-center gap-4 pt-1">
                                 <Progress value={progressPercentage} className="h-2 w-full max-w-sm" />
                                 <p className="text-sm text-muted-foreground whitespace-nowrap">{Math.round(progressPercentage)}% complete</p>
@@ -287,7 +328,7 @@ function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </>
+      </div>
     )
 }
 

@@ -7,7 +7,7 @@ import { extractRfpQuestions } from "@/ai/flows/extract-rfp-questions"
 import { parseDocument } from "@/ai/flows/parse-document"
 import { knowledgeBaseService, type DataSource, type DataSourceType } from "@/lib/knowledge-base"
 import { rfpService } from "@/lib/rfp.service"
-import type { Question, RFP } from "@/lib/rfp-types"
+import type { Question, RFP, RfpStatus } from "@/lib/rfp-types"
 import { getTenantBySubdomain, updateTenant } from "@/lib/tenants"
 import { type Role, type TeamMember, type Tenant, plansConfig } from "@/lib/tenant-types"
 import { stripe } from "@/lib/stripe"
@@ -224,6 +224,19 @@ export async function updateQuestionAction(tenantId: string, rfpId: string, ques
         if (!updatedQuestion) {
             return { error: "Question not found or could not be updated." };
         }
+        
+        // If question is marked as completed, save to answer library
+        if (updates.status === 'Completed' && updatedQuestion.answer) {
+             await saveToLibraryAction({
+                tenantId,
+                question: updatedQuestion.question,
+                answer: updatedQuestion.answer,
+                category: updatedQuestion.category,
+                tags: updatedQuestion.tags || [],
+                currentUser,
+            });
+        }
+        
         return { success: true, question: updatedQuestion };
     } catch (e) {
         console.error(e);
@@ -251,12 +264,29 @@ export async function addQuestionAction(tenantId: string, rfpId: string, questio
 
 export async function getRfpsAction(tenantId: string): Promise<{ rfps?: RFP[] }> {
     try {
-        const rfps = await rfpService.getRfps(tenantId);
+        const rfps = rfpService.getRfps(tenantId);
         // Sanitize data at the action boundary to ensure it's serializable
         return { rfps: JSON.parse(JSON.stringify(rfps || [])) };
     } catch (e) {
         console.error(e);
         return { rfps: [] };
+    }
+}
+
+export async function updateRfpStatusAction(tenantId: string, rfpId: string, status: RfpStatus, currentUser: CurrentUser) {
+    const permCheck = await checkPermission(tenantId, currentUser, 'editContent');
+    if (permCheck.error) return { error: permCheck.error };
+    
+    try {
+        const updatedRfp = await rfpService.updateRfpStatus(tenantId, rfpId, status);
+        if (!updatedRfp) {
+            return { error: "RFP not found or could not be updated." };
+        }
+        return { success: true, rfp: updatedRfp };
+    } catch (e) {
+        console.error(e);
+        const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
+        return { error: `Failed to update RFP status: ${errorMessage}` };
     }
 }
 

@@ -1,7 +1,7 @@
 
 import { getTenantBySubdomain } from './tenants';
 import type { TeamMember } from './tenant-types';
-import type { Question, RFP } from './rfp-types';
+import type { Question, RFP, RfpStatus } from './rfp-types';
 
 // NOTE: With Firebase removed, this service now uses a temporary in-memory store.
 // Data will NOT persist across server restarts.
@@ -58,9 +58,9 @@ const initializeDemoData = () => {
         if (tenant) {
             const sampleQuestions = getSampleQuestions(tenant.members);
             inMemoryRfps = [
-                { id: 'rfp-1', name: 'Q3 Enterprise Security RFP', status: 'Open', questions: sampleQuestions, topics: ['security', 'compliance', 'enterprise'] },
-                { id: 'rfp-2', name: 'Project Titan Proposal', status: 'Draft', questions: [sampleQuestions[3], sampleQuestions[2]], topics: ['product', 'pricing'] },
-                { id: 'rfp-3', name: '2023 Compliance Audit', status: 'Completed', questions: [sampleQuestions[0], sampleQuestions[1]], topics: ['security', 'legal', 'audit'] },
+                { id: 'rfp-1', name: 'Q3 Enterprise Security RFP', status: 'In Progress', questions: sampleQuestions, topics: ['security', 'compliance', 'enterprise'] },
+                { id: 'rfp-2', name: 'Project Titan Proposal', status: 'Won', questions: [sampleQuestions[3], sampleQuestions[2]], topics: ['product', 'pricing'] },
+                { id: 'rfp-3', name: '2023 Compliance Audit', status: 'Submitted', questions: [sampleQuestions[0], sampleQuestions[1]], topics: ['security', 'legal', 'audit'] },
             ];
         }
     }
@@ -68,7 +68,7 @@ const initializeDemoData = () => {
 
 class RfpService {
 
-    public async getRfps(tenantId: string): Promise<RFP[]> {
+    public getRfps(tenantId: string): RFP[] {
         if (tenantId === 'megacorp') {
             initializeDemoData();
             return [...inMemoryRfps];
@@ -129,6 +129,16 @@ class RfpService {
         };
         inMemoryRfps[rfpIndex].questions.push(newQuestion);
         return newQuestion;
+    }
+    
+    public async updateRfpStatus(tenantId: string, rfpId: string, status: RfpStatus): Promise<RFP | null> {
+        if (tenantId !== 'megacorp') return null;
+        const rfpIndex = inMemoryRfps.findIndex(r => r.id === rfpId);
+        if (rfpIndex !== -1) {
+            inMemoryRfps[rfpIndex].status = status;
+            return inMemoryRfps[rfpIndex];
+        }
+        return null;
     }
 }
 
