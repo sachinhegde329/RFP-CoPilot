@@ -1,3 +1,4 @@
+
 "use client"
 
 import {
@@ -51,7 +52,7 @@ export function AppSidebar() {
               <SidebarMenuButton asChild isActive={item.exact ? pathname === item.href : pathname.startsWith(item.href)}>
                 <Link href={item.href}>
                   <item.icon />
-                  {item.label}
+                  <span>{item.label}</span>
                 </Link>
               </SidebarMenuButton>
             </SidebarMenuItem>
@@ -64,7 +65,7 @@ export function AppSidebar() {
              <SidebarMenuButton asChild isActive={isSettingsActive}>
               <Link href={settingsPath}>
                 <Settings />
-                Settings
+                <span>Settings</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -77,7 +78,7 @@ export function AppSidebar() {
                     <CircleUserRound />
                   </AvatarFallback>
                 </Avatar>
-                My Account
+                <span>My Account</span>
               </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
