@@ -102,13 +102,39 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
     setIsGenerating(false);
   };
   
-  const handleAcceptAnswer = () => {
-      onUpdateQuestion(id, { answer: currentAnswer, status: 'Completed' });
+  const handleAcceptAnswer = async () => {
+    if (!currentAnswer) {
+      toast({ variant: 'destructive', title: 'Cannot Save', description: 'Answer cannot be empty.' });
+      return;
+    }
+    setIsSavingToLibrary(true);
+    // This updates the local state optimistically and fires the server action
+    onUpdateQuestion(id, { answer: currentAnswer, status: 'Completed' });
+
+    // Now save to the library
+    const libraryResult = await saveToLibraryAction({
+      tenantId,
+      question,
+      answer: currentAnswer,
+      category,
+      tags: tags || [],
+      currentUser,
+    });
+    setIsSavingToLibrary(false);
+
+    if (libraryResult.error) {
       toast({
-          title: "Answer Saved",
-          description: "The answer has been saved and marked as completed.",
+        variant: 'destructive',
+        title: 'Answer saved to RFP, but failed to save to library.',
+        description: libraryResult.error,
       });
-  }
+    } else {
+      toast({
+        title: 'Answer Saved',
+        description: 'The answer has been saved to the RFP and updated in your Answer Library.',
+      });
+    }
+  };
 
   const handleReviewAnswer = async () => {
     if (!currentAnswer) {
@@ -124,28 +150,6 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
     }
     setIsReviewing(false);
   };
-  
-  const handleSaveToLibrary = async () => {
-    if (!currentAnswer) {
-      toast({ variant: "destructive", title: "Cannot Save", description: "Please provide an answer." });
-      return;
-    }
-    setIsSavingToLibrary(true);
-    const result = await saveToLibraryAction({
-      tenantId: tenant.id,
-      question,
-      answer: currentAnswer,
-      category,
-      tags: tags || [],
-      currentUser,
-    });
-    if (result.error) {
-        toast({ variant: "destructive", title: "Save Failed", description: result.error });
-    } else {
-        toast({ title: "Answer Saved to Library", description: "This Q&A pair is now available for reuse." });
-    }
-    setIsSavingToLibrary(false);
-  }
 
   const handleCopy = () => {
     navigator.clipboard.writeText(currentAnswer);
@@ -355,21 +359,13 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
                 {isReviewing ? "..." : <Bot />}
                 Review
               </Button>
-               <Button
-                variant="outline"
-                onClick={handleSaveToLibrary}
-                disabled={!currentAnswer || isSavingToLibrary || !canEdit}
-                className="w-full sm:w-auto"
-              >
-                {isSavingToLibrary ? <Loader2 className="animate-spin"/> : <Library />}
-                Save to Library
-              </Button>
             </div>
             <Button 
               variant="default"
               onClick={handleAcceptAnswer}
-              disabled={!currentAnswer || isGenerating || isReviewing || !canEdit}
+              disabled={isSavingToLibrary || !currentAnswer || isGenerating || isReviewing || !canEdit}
             >
+              {isSavingToLibrary && <Loader2 className="mr-2 animate-spin" />}
               <CheckCircle2 className="mr-2" />
               Save & Complete
             </Button>
