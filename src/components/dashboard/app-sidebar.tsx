@@ -49,7 +49,7 @@ export function AppSidebar() {
         <SidebarMenu>
           {navItems.map((item) => (
             <SidebarMenuItem key={item.label}>
-              <SidebarMenuButton asChild isActive={item.exact ? pathname === item.href : pathname.startsWith(item.href)}>
+              <SidebarMenuButton asChild isActive={item.exact ? pathname === item.href : pathname.startsWith(item.href)} tooltip={item.label}>
                 <Link href={item.href}>
                   <item.icon />
                   <span>{item.label}</span>
@@ -62,7 +62,7 @@ export function AppSidebar() {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-             <SidebarMenuButton asChild isActive={isSettingsActive}>
+             <SidebarMenuButton asChild isActive={isSettingsActive} tooltip="Settings">
               <Link href={settingsPath}>
                 <Settings />
                 <span>Settings</span>
@@ -70,7 +70,7 @@ export function AppSidebar() {
             </SidebarMenuButton>
           </SidebarMenuItem>
           <SidebarMenuItem>
-            <SidebarMenuButton asChild>
+            <SidebarMenuButton asChild tooltip="My Account">
               <Link href={`/${tenant.subdomain}/settings/profile`}>
                 <Avatar className="size-4">
                   <AvatarImage src="https://placehold.co/100x100" />

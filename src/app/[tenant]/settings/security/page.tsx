@@ -19,6 +19,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from "@/hooks/use-toast";
 import { useTenant } from "@/components/providers/tenant-provider";
 import { updateSecuritySettingsAction } from "@/app/actions";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 export default function SecuritySettingsPage() {
   const { tenant, setTenant } = useTenant();
@@ -103,6 +104,7 @@ export default function SecuritySettingsPage() {
 
 
   return (
+    <TooltipProvider>
       <Card className="flex flex-col flex-1">
         <CardHeader>
           <CardTitle>Security</CardTitle>
@@ -246,10 +248,17 @@ export default function SecuritySettingsPage() {
                       {tenant.domains.map(domain => (
                         <div key={domain} className="flex items-center justify-between p-2 bg-muted rounded-md">
                             <span className="text-sm font-mono">{domain}</span>
-                            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemoveDomain(domain)}>
-                              <X className="h-4 w-4" />
-                              <span className="sr-only">Remove domain</span>
-                            </Button>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemoveDomain(domain)}>
+                                  <X className="h-4 w-4" />
+                                  <span className="sr-only">Remove domain {domain}</span>
+                                </Button>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <p>Remove domain</p>
+                              </TooltipContent>
+                            </Tooltip>
                         </div>
                       ))}
                       {tenant.domains.length === 0 && (
@@ -281,5 +290,6 @@ export default function SecuritySettingsPage() {
 
         </CardContent>
       </Card>
+    </TooltipProvider>
   )
 }

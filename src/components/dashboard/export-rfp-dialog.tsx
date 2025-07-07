@@ -28,6 +28,7 @@ import { useToast } from '@/hooks/use-toast'
 import { Loader2, PlusCircle, Trash2, ShieldAlert } from 'lucide-react'
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert'
 import { ScrollArea } from '@/components/ui/scroll-area'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip'
 
 type ExportRfpDialogProps = {
   open: boolean
@@ -124,91 +125,100 @@ export function ExportRfpDialog({ open, onOpenChange, rfp }: ExportRfpDialogProp
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
-          <div className="space-y-4">
-            <h4 className="font-medium">Export Settings</h4>
-            <div className="space-y-2">
-              <Label htmlFor="version">Version Tag</Label>
-              <Input
-                id="version"
-                value={version}
-                onChange={e => setVersion(e.target.value)}
-                placeholder="e.g., v1.0, Final"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="format">Format</Label>
-              <Select value={format} onValueChange={value => setFormat(value as 'pdf' | 'docx')}>
-                <SelectTrigger id="format">
-                  <SelectValue placeholder="Select a format" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="docx">Word (.docx)</SelectItem>
-                  <SelectItem value="pdf">PDF (.pdf)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="template">Template</Label>
-              {isLoadingTemplates ? (
-                <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
-              ) : (
-                <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-                  <SelectTrigger id="template">
-                    <SelectValue placeholder="Select a template" />
+        <TooltipProvider>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 py-4">
+            <div className="space-y-4">
+              <h4 className="font-medium">Export Settings</h4>
+              <div className="space-y-2">
+                <Label htmlFor="version">Version Tag</Label>
+                <Input
+                  id="version"
+                  value={version}
+                  onChange={e => setVersion(e.target.value)}
+                  placeholder="e.g., v1.0, Final"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="format">Format</Label>
+                <Select value={format} onValueChange={value => setFormat(value as 'pdf' | 'docx')}>
+                  <SelectTrigger id="format">
+                    <SelectValue placeholder="Select a format" />
                   </SelectTrigger>
                   <SelectContent>
-                    {templates.map(template => (
-                      <SelectItem key={template.id} value={template.id}>
-                        {template.name} ({template.type})
-                      </SelectItem>
-                    ))}
+                    <SelectItem value="docx">Word (.docx)</SelectItem>
+                    <SelectItem value="pdf">PDF (.pdf)</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="template">Template</Label>
+                {isLoadingTemplates ? (
+                  <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
+                ) : (
+                  <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                    <SelectTrigger id="template">
+                      <SelectValue placeholder="Select a template" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {templates.map(template => (
+                        <SelectItem key={template.id} value={template.id}>
+                          {template.name} ({template.type})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              {!allQuestionsCompleted && (
+                <Alert variant="destructive">
+                  <ShieldAlert className="h-4 w-4" />
+                  <AlertTitle>Incomplete RFP</AlertTitle>
+                  <AlertDescription>
+                    Not all questions are marked as 'Completed'. Admins and Owners can override this.
+                  </AlertDescription>
+                </Alert>
               )}
             </div>
-            {!allQuestionsCompleted && (
-              <Alert variant="destructive">
-                <ShieldAlert className="h-4 w-4" />
-                <AlertTitle>Incomplete RFP</AlertTitle>
-                <AlertDescription>
-                  Not all questions are marked as 'Completed'. Admins and Owners can override this.
-                </AlertDescription>
-              </Alert>
-            )}
-          </div>
-          <div className="space-y-4 flex flex-col">
-            <h4 className="font-medium">Acknowledgments (Optional)</h4>
-            <div className="p-4 border rounded-lg space-y-3 flex-1 flex flex-col">
-               <ScrollArea className="flex-1 pr-3 -mr-3">
-                    <div className="space-y-2">
-                    {acknowledgments.map((ack, index) => (
-                      <div key={index} className="flex items-center justify-between p-2 bg-muted rounded-md text-sm">
-                        <div>
-                          <p className="font-medium">{ack.name} <span className="text-muted-foreground font-normal">({ack.role})</span></p>
-                          <p className="text-muted-foreground italic">"{ack.comment}"</p>
+            <div className="space-y-4 flex flex-col">
+              <h4 className="font-medium">Acknowledgments (Optional)</h4>
+              <div className="p-4 border rounded-lg space-y-3 flex-1 flex flex-col">
+                 <ScrollArea className="flex-1 pr-3 -mr-3">
+                      <div className="space-y-2">
+                      {acknowledgments.map((ack, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 bg-muted rounded-md text-sm">
+                          <div>
+                            <p className="font-medium">{ack.name} <span className="text-muted-foreground font-normal">({ack.role})</span></p>
+                            <p className="text-muted-foreground italic">"{ack.comment}"</p>
+                          </div>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemoveAcknowledgment(index)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <p>Remove Acknowledgment</p>
+                            </TooltipContent>
+                          </Tooltip>
                         </div>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => handleRemoveAcknowledgment(index)}>
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    ))}
-                    {acknowledgments.length === 0 && (
-                        <p className="text-xs text-muted-foreground text-center py-4">No acknowledgments added.</p>
-                    )}
+                      ))}
+                      {acknowledgments.length === 0 && (
+                          <p className="text-xs text-muted-foreground text-center py-4">No acknowledgments added.</p>
+                      )}
+                    </div>
+                 </ScrollArea>
+                  <div className="space-y-2 pt-3 border-t">
+                      <Input placeholder="Contributor's Name" value={ackName} onChange={e => setAckName(e.target.value)} />
+                      <Input placeholder="Role (e.g., SME, Legal)" value={ackRole} onChange={e => setAckRole(e.target.value)} />
+                      <Input placeholder="Comment (optional)" value={ackComment} onChange={e => setAckComment(e.target.value)} />
+                      <Button variant="outline" size="sm" onClick={handleAddAcknowledgment} disabled={!ackName || !ackRole}>
+                          <PlusCircle className="mr-2" /> Add Acknowledgment
+                      </Button>
                   </div>
-               </ScrollArea>
-                <div className="space-y-2 pt-3 border-t">
-                    <Input placeholder="Contributor's Name" value={ackName} onChange={e => setAckName(e.target.value)} />
-                    <Input placeholder="Role (e.g., SME, Legal)" value={ackRole} onChange={e => setAckRole(e.target.value)} />
-                    <Input placeholder="Comment (optional)" value={ackComment} onChange={e => setAckComment(e.target.value)} />
-                    <Button variant="outline" size="sm" onClick={handleAddAcknowledgment} disabled={!ackName || !ackRole}>
-                        <PlusCircle className="mr-2" /> Add Acknowledgment
-                    </Button>
-                </div>
+              </div>
             </div>
           </div>
-        </div>
+        </TooltipProvider>
         <DialogFooter>
           <Button onClick={handleExport} disabled={isExporting}>
             {isExporting && <Loader2 className="animate-spin mr-2" />}

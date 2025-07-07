@@ -304,13 +304,14 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
         </div>
       </CollapsibleTrigger>
       <CollapsibleContent>
+        <TooltipProvider>
         <div className="bg-background p-4 space-y-4">
           <div className="rounded-md border bg-card">
               <div className="p-2 border-b flex items-center gap-1">
-                <Button variant="ghost" size="icon" disabled={!canEdit}><Bold /></Button>
-                <Button variant="ghost" size="icon" disabled={!canEdit}><Italic /></Button>
-                <Button variant="ghost" size="icon" disabled={!canEdit}><Underline /></Button>
-                <Button variant="ghost" size="icon" disabled={!canEdit}><List /></Button>
+                <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" disabled={!canEdit}><Bold /></Button></TooltipTrigger><TooltipContent>Bold</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" disabled={!canEdit}><Italic /></Button></TooltipTrigger><TooltipContent>Italic</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" disabled={!canEdit}><Underline /></Button></TooltipTrigger><TooltipContent>Underline</TooltipContent></Tooltip>
+                <Tooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" disabled={!canEdit}><List /></Button></TooltipTrigger><TooltipContent>Bullet points</TooltipContent></Tooltip>
               </div>
               <div className="relative">
                 <Textarea
@@ -320,9 +321,16 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
                   className="min-h-[150px] w-full resize-y border-0 pr-10 focus-visible:ring-0 bg-card"
                   disabled={!canEdit}
                 />
-                <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={handleCopy}>
-                  {isCopied ? <ClipboardCheck className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
-                </Button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-7 w-7" onClick={handleCopy}>
+                      {isCopied ? <ClipboardCheck className="h-4 w-4" /> : <Clipboard className="h-4 w-4" />}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>{isCopied ? "Copied!" : "Copy Answer"}</p>
+                  </TooltipContent>
+                </Tooltip>
               </div>
           </div>
           <div className="flex flex-col-reverse sm:flex-row gap-2 justify-between items-center">
@@ -332,11 +340,16 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
                 Generate
               </Button>
                <Popover>
-                <PopoverTrigger asChild>
-                    <Button variant="ghost" size="icon" disabled={isGenerating || !canEdit}>
-                        <Settings />
-                    </Button>
-                </PopoverTrigger>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" disabled={isGenerating || !canEdit}>
+                            <Settings />
+                        </Button>
+                    </PopoverTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent><p>Generation Settings</p></TooltipContent>
+                </Tooltip>
                 <PopoverContent className="w-80">
                     <div className="grid gap-4">
                         <div className="space-y-2"><h4 className="font-medium leading-none">Generation Settings</h4><p className="text-sm text-muted-foreground">Customize the AI's output for this answer.</p></div>
@@ -400,6 +413,7 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
             </Alert>
           )}
         </div>
+        </TooltipProvider>
       </CollapsibleContent>
     </Collapsible>
   )
