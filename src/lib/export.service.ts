@@ -22,7 +22,49 @@ export interface ExportRecord {
     acknowledgments: { name:string; role: string; comment: string; }[];
 }
 
-const inMemoryExportHistory: ExportRecord[] = [];
+const demoQuestions: Question[] = [
+    {
+        id: 1,
+        question: "What is your data retention policy, and how do you ensure customer data is securely deleted upon request?",
+        answer: "Our data retention policy adheres to industry best practices, retaining customer data for the duration of the contract plus an additional 90 days for recovery purposes. Upon a verified request, data is securely deleted from all active and backup systems using a 3-pass overwrite method to ensure it is irrecoverable.",
+        category: "Security",
+        compliance: "passed",
+        status: 'Completed',
+        tags: ['GDPR', 'data-security', 'deletion'],
+    },
+    {
+        id: 2,
+        question: "Can you describe your Service Level Agreement (SLA) for production uptime and provide details on support tiers?",
+        answer: "Our standard SLA guarantees 99.9% uptime for our production environment, excluding scheduled maintenance. We offer two support tiers: Standard (9-5 business hours, email support) and Premium (24/7 phone and email support with a 1-hour response time for critical issues).",
+        category: "Legal",
+        compliance: "passed",
+        status: 'Completed',
+        tags: ['SLA', 'support'],
+    }
+];
+
+const inMemoryExportHistory: ExportRecord[] = [
+    {
+        id: 'export-demo-1',
+        tenantId: 'megacorp',
+        rfpId: 'rfp-1',
+        rfpName: 'Q3 Enterprise Security RFP',
+        version: 'v1.0 Final',
+        format: 'docx',
+        exportedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+        exportedBy: {
+            id: 'demo-user-id',
+            name: 'Alex Johnson',
+            role: 'Owner'
+        },
+        questionCount: demoQuestions.length,
+        questions: demoQuestions,
+        acknowledgments: [
+            { name: 'Maria Garcia', role: 'Legal Review', comment: 'Approved for submission.' }
+        ]
+    }
+];
+
 
 class ExportService {
 
