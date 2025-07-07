@@ -52,9 +52,9 @@ const getSampleQuestions = (members: TeamMember[]): Question[] => [
 let inMemoryRfps: RFP[] = [];
 
 // Seed data function to be called when needed
-const initializeDemoData = async () => {
+const initializeDemoData = () => {
     if (inMemoryRfps.length === 0) {
-        const tenant = await getTenantBySubdomain('megacorp');
+        const tenant = getTenantBySubdomain('megacorp');
         if (tenant) {
             const sampleQuestions = getSampleQuestions(tenant.members);
             inMemoryRfps = [
@@ -70,22 +70,22 @@ class RfpService {
 
     public async getRfps(tenantId: string): Promise<RFP[]> {
         if (tenantId === 'megacorp') {
-            await initializeDemoData();
+            initializeDemoData();
             return [...inMemoryRfps];
         }
         return [];
     }
     
-    public async getRfp(tenantId: string, rfpId: string): Promise<RFP | undefined> {
+    public getRfp(tenantId: string, rfpId: string): RFP | undefined {
         if (tenantId === 'megacorp') {
-            await initializeDemoData();
+            initializeDemoData();
             return inMemoryRfps.find(r => r.id === rfpId);
         }
         return undefined;
     }
 
-    public async updateQuestion(tenantId: string, rfpId: string, questionId: number, updates: Partial<Question>): Promise<Question | null> {
-        const rfp = await this.getRfp(tenantId, rfpId);
+    public updateQuestion(tenantId: string, rfpId: string, questionId: number, updates: Partial<Question>): Question | null {
+        const rfp = this.getRfp(tenantId, rfpId);
         if (!rfp) return null;
         
         const rfpIndex = inMemoryRfps.findIndex(r => r.id === rfpId);
@@ -114,8 +114,8 @@ class RfpService {
         return newRfp;
     }
 
-    public async addQuestion(tenantId: string, rfpId: string, questionData: Omit<Question, 'id'>): Promise<Question> {
-        const rfp = await this.getRfp(tenantId, rfpId);
+    public addQuestion(tenantId: string, rfpId: string, questionData: Omit<Question, 'id'>): Question {
+        const rfp = this.getRfp(tenantId, rfpId);
         if (!rfp) throw new Error("RFP not found");
 
         const rfpIndex = inMemoryRfps.findIndex(r => r.id === rfpId);

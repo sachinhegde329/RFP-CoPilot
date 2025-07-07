@@ -26,7 +26,7 @@ type CurrentUser = { id: string; role: Role; name: string; }
 
 // Helper function to check permissions before executing an action
 async function checkPermission(tenantId: string, currentUser: CurrentUser, action: Action): Promise<{ tenant: Tenant, user: TeamMember, error?: undefined } | { error: string }> {
-    const tenant = await getTenantBySubdomain(tenantId);
+    const tenant = getTenantBySubdomain(tenantId);
     if (!tenant) return { error: "Tenant not found." };
     
     const user = tenant.members.find(m => m.id === currentUser.id); 
@@ -94,7 +94,7 @@ export async function generateAnswerAction(payload: {
       return { error: "You have no AI answers remaining this month. Please upgrade your plan or purchase an AI Answer Pack." };
   }
 
-  const rfp = await rfpService.getRfp(tenantId, rfpId);
+  const rfp = rfpService.getRfp(tenantId, rfpId);
   if (!rfp) {
       return { error: "RFP not found." };
   }
@@ -524,7 +524,7 @@ export async function createCheckoutSessionAction(plan: 'starter' | 'team' | 'bu
         return { error: "Invalid plan selected." };
     }
 
-    const tenant = await getTenantBySubdomain(tenantId);
+    const tenant = getTenantBySubdomain(tenantId);
     if (!tenant) {
         return { error: "Tenant not found." };
     }
@@ -571,7 +571,7 @@ export async function createCustomerPortalSessionAction(tenantId: string) {
     return { error: "Stripe is not configured." };
   }
 
-  const tenant = await getTenantBySubdomain(tenantId);
+  const tenant = getTenantBySubdomain(tenantId);
   if (!tenant) {
     return { error: "Tenant not found." };
   }
@@ -602,13 +602,16 @@ export async function createCustomerPortalSessionAction(tenantId: string) {
 export async function inviteMemberAction(tenantId: string, email: string, role: Role, currentUser: CurrentUser) {
     const permCheck = await checkPermission(tenantId, currentUser, 'manageTeam');
     if (permCheck.error) return { error: permCheck.error };
+
+    const tenant = getTenantBySubdomain(tenantId);
+    if (!tenant) return { error: 'Tenant not found.' };
     
     if (!email || !role) {
       return { error: "Missing required parameters." };
     }
 
     const updatedTenant = await updateTenant(tenantId, {
-        members: [...(await getTenantBySubdomain(tenantId))!.members, { id: Date.now().toString(), name: email, email, role, status: 'Pending' }]
+        members: [...tenant.members, { id: Date.now().toString(), name: email, email, role, status: 'Pending' }]
     });
 
     if (updatedTenant) {
@@ -663,7 +666,7 @@ export async function updateProfileSettingsAction(tenantId: string, userId: stri
     if (currentUser.id !== userId) {
         return { error: "You can only update your own profile." };
     }
-    const tenant = await getTenantBySubdomain(tenantId);
+    const tenant = getTenantBySubdomain(tenantId);
     if (!tenant) return { error: "Tenant not found." };
     
     const updatedMembers = tenant.members.map(m => m.id === userId ? { ...m, ...data } : m);
@@ -813,7 +816,7 @@ export async function exportRfpAction(payload: {
         return { error: 'Custom export templates are not available on your current plan. Please upgrade or use a system template.' };
     }
 
-    const rfp = await rfpService.getRfp(tenantId, rfpId);
+    const rfp = rfpService.getRfp(tenantId, rfpId);
     if (!rfp) {
         return { error: "RFP not found." };
     }
@@ -1065,7 +1068,7 @@ export async function deleteTemplateAction(tenantId: string, templateId: string,
 
 export async function getTenantBySubdomainAction(subdomain: string): Promise<{ tenant?: Tenant, error?: string }> {
     try {
-        const tenant = await getTenantBySubdomain(subdomain);
+        const tenant = getTenantBySubdomain(subdomain);
         if (!tenant) {
             return { error: 'Tenant not found.' };
         }

@@ -7,8 +7,8 @@ import { TenantProvider } from '@/components/providers/tenant-provider';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/dashboard/app-sidebar';
 
-export async function generateMetadata({ params }: { params: { tenant: string } }): Promise<Metadata> {
-  const tenant = await getTenantBySubdomain(params.tenant);
+export function generateMetadata({ params }: { params: { tenant: string } }): Metadata {
+  const tenant = getTenantBySubdomain(params.tenant);
   if (!tenant) {
     return {
       title: 'Not Found'
@@ -19,14 +19,14 @@ export async function generateMetadata({ params }: { params: { tenant: string } 
   };
 }
 
-export default async function TenantLayout({
+export default function TenantLayout({
   children,
   params,
 }: {
   children: React.ReactNode;
   params: { tenant: string };
 }) {
-  const tenant = await getTenantBySubdomain(params.tenant);
+  const tenant = getTenantBySubdomain(params.tenant);
   
   if (!tenant) {
     notFound();

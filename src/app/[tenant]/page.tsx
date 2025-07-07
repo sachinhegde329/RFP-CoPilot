@@ -10,7 +10,7 @@ import { notFound } from 'next/navigation';
 import type { RFP } from '@/lib/rfp-types';
 
 export default async function Homepage({ params }: { params: { tenant: string }}) {
-    const tenant = await getTenantBySubdomain(params.tenant);
+    const tenant = getTenantBySubdomain(params.tenant);
     if (!tenant) {
         notFound();
     }

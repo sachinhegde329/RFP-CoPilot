@@ -39,11 +39,11 @@ let inMemoryTenants: Record<string, Tenant> = {
 };
 
 
-export async function getTenantBySubdomain(subdomain: string): Promise<Tenant | null> {
+export function getTenantBySubdomain(subdomain: string): Tenant | null {
     return inMemoryTenants[subdomain] || null;
 }
 
-export async function updateTenant(tenantId: string, updates: Partial<Omit<Tenant, 'id' | 'subdomain' | 'limits'>>): Promise<Tenant | null> {
+export function updateTenant(tenantId: string, updates: Partial<Omit<Tenant, 'id' | 'subdomain' | 'limits'>>): Tenant | null {
     if (inMemoryTenants[tenantId]) {
         inMemoryTenants[tenantId] = {
             ...inMemoryTenants[tenantId],
