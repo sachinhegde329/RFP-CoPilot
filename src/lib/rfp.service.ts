@@ -49,18 +49,20 @@ const getSampleQuestions = (members: TeamMember[]): Question[] => [
     }
 ];
 
-let inMemoryRfps: RFP[] = [];
+// The data store is now an object keyed by tenantId for true multi-tenancy.
+let inMemoryRfps: Record<string, RFP[]> = {};
 
 // Seed data function to be called when needed
 const initializeDemoData = () => {
-    if (inMemoryRfps.length === 0) {
+    // Only initialize if the 'megacorp' tenant data doesn't exist
+    if (!inMemoryRfps['megacorp']) {
         const tenant = getTenantBySubdomain('megacorp');
         if (tenant) {
             const sampleQuestions = getSampleQuestions(tenant.members);
-            inMemoryRfps = [
-                { id: 'rfp-1', name: 'Q3 Enterprise Security RFP', status: 'In Progress', questions: sampleQuestions, topics: ['security', 'compliance', 'enterprise'] },
-                { id: 'rfp-2', name: 'Project Titan Proposal', status: 'Won', questions: [sampleQuestions[3], sampleQuestions[2]], topics: ['product', 'pricing'] },
-                { id: 'rfp-3', name: '2023 Compliance Audit', status: 'Lost', questions: [sampleQuestions[0], sampleQuestions[1]], topics: ['security', 'legal', 'audit'] },
+            inMemoryRfps['megacorp'] = [
+                { id: 'rfp-1', tenantId: 'megacorp', name: 'Q3 Enterprise Security RFP', status: 'In Progress', questions: sampleQuestions, topics: ['security', 'compliance', 'enterprise'] },
+                { id: 'rfp-2', tenantId: 'megacorp', name: 'Project Titan Proposal', status: 'Won', questions: [sampleQuestions[3], sampleQuestions[2]], topics: ['product', 'pricing'] },
+                { id: 'rfp-3', tenantId: 'megacorp', name: '2023 Compliance Audit', status: 'Lost', questions: [sampleQuestions[0], sampleQuestions[1]], topics: ['security', 'legal', 'audit'] },
             ];
         }
     }
@@ -69,74 +71,75 @@ const initializeDemoData = () => {
 class RfpService {
 
     public getRfps(tenantId: string): RFP[] {
-        if (tenantId === 'megacorp') {
-            initializeDemoData();
-            return [...inMemoryRfps];
-        }
-        return [];
+        initializeDemoData();
+        return inMemoryRfps[tenantId] || [];
     }
     
     public getRfp(tenantId: string, rfpId: string): RFP | undefined {
-        if (tenantId === 'megacorp') {
-            initializeDemoData();
-            return inMemoryRfps.find(r => r.id === rfpId);
-        }
-        return undefined;
+        initializeDemoData();
+        const tenantRfps = inMemoryRfps[tenantId] || [];
+        return tenantRfps.find(r => r.id === rfpId);
     }
 
     public updateQuestion(tenantId: string, rfpId: string, questionId: number, updates: Partial<Question>): Question | null {
-        const rfp = this.getRfp(tenantId, rfpId);
-        if (!rfp) return null;
+        const tenantRfps = inMemoryRfps[tenantId];
+        if (!tenantRfps) return null;
         
-        const rfpIndex = inMemoryRfps.findIndex(r => r.id === rfpId);
+        const rfpIndex = tenantRfps.findIndex(r => r.id === rfpId);
         if (rfpIndex === -1) return null;
         
-        const questionIndex = inMemoryRfps[rfpIndex].questions.findIndex(q => q.id === questionId);
+        const questionIndex = tenantRfps[rfpIndex].questions.findIndex(q => q.id === questionId);
         if (questionIndex > -1) {
-            const updatedQuestion = { ...inMemoryRfps[rfpIndex].questions[questionIndex], ...updates };
-            inMemoryRfps[rfpIndex].questions[questionIndex] = updatedQuestion;
+            const updatedQuestion = { ...tenantRfps[rfpIndex].questions[questionIndex], ...updates };
+            tenantRfps[rfpIndex].questions[questionIndex] = updatedQuestion;
             return updatedQuestion;
         }
         return null;
     }
 
     public async addRfp(tenantId: string, name: string, questions: Question[], topics: string[] = []): Promise<RFP> {
+        if (!inMemoryRfps[tenantId]) {
+            inMemoryRfps[tenantId] = [];
+        }
+
         const newRfp: RFP = {
             id: `rfp-${Date.now()}`,
+            tenantId,
             name,
             questions,
             status: 'Draft',
             topics,
         };
-        if (tenantId === 'megacorp') {
-            inMemoryRfps.unshift(newRfp);
-        }
+        
+        inMemoryRfps[tenantId].unshift(newRfp);
         return newRfp;
     }
 
     public addQuestion(tenantId: string, rfpId: string, questionData: Omit<Question, 'id'>): Question {
-        const rfp = this.getRfp(tenantId, rfpId);
+        const tenantRfps = inMemoryRfps[tenantId];
+        if (!tenantRfps) throw new Error("Tenant RFP data not found");
+        
+        const rfp = tenantRfps.find(r => r.id === rfpId);
         if (!rfp) throw new Error("RFP not found");
 
-        const rfpIndex = inMemoryRfps.findIndex(r => r.id === rfpId);
-        if (rfpIndex === -1) throw new Error("RFP not found");
-
-        const questions = inMemoryRfps[rfpIndex].questions;
+        const questions = rfp.questions;
         const newId = questions.length > 0 ? Math.max(...questions.map(q => q.id)) + 1 : 1;
         const newQuestion: Question = {
             ...questionData,
             id: newId,
         };
-        inMemoryRfps[rfpIndex].questions.push(newQuestion);
+        rfp.questions.push(newQuestion);
         return newQuestion;
     }
     
     public async updateRfpStatus(tenantId: string, rfpId: string, status: RfpStatus): Promise<RFP | null> {
-        if (tenantId !== 'megacorp') return null;
-        const rfpIndex = inMemoryRfps.findIndex(r => r.id === rfpId);
+        const tenantRfps = inMemoryRfps[tenantId];
+        if (!tenantRfps) return null;
+
+        const rfpIndex = tenantRfps.findIndex(r => r.id === rfpId);
         if (rfpIndex !== -1) {
-            inMemoryRfps[rfpIndex].status = status;
-            return inMemoryRfps[rfpIndex];
+            tenantRfps[rfpIndex].status = status;
+            return tenantRfps[rfpIndex];
         }
         return null;
     }

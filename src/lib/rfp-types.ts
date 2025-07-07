@@ -17,6 +17,7 @@ export interface Question {
 
 export interface RFP {
     id: string;
+    tenantId: string;
     name: string;
     status: RfpStatus;
     questions: Question[];
