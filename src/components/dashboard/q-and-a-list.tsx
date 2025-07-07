@@ -5,7 +5,7 @@ import { useState, useMemo } from "react"
 import { QAndAItem } from "./question-table-row"
 import { Button } from "@/components/ui/button"
 import type { TeamMember } from "@/lib/tenant-types"
-import { Settings, X } from "lucide-react"
+import { Settings, X, Search, Filter } from "lucide-react"
 import { useTenant } from "@/components/providers/tenant-provider"
 import type { Question, QuestionStatus } from "@/lib/rfp-types"
 import { Input } from "../ui/input"
@@ -93,18 +93,25 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
   return (
     <div className="flex flex-col gap-4">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Input 
-          placeholder="Search questions & answers..." 
-          className="bg-card"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input 
+            placeholder="Search questions..." 
+            className="w-full rounded-lg bg-background pl-10"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" className="gap-2">
-              Filters
-              {activeFilterCount > 0 && <Badge variant="secondary">{activeFilterCount}</Badge>}
+            <Button variant="outline" size="icon" className="relative">
+                <Filter className="h-4 w-4" />
+                {activeFilterCount > 0 && (
+                <Badge variant="secondary" className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full p-0 text-xs">
+                    {activeFilterCount}
+                </Badge>
+                )}
             </Button>
           </PopoverTrigger>
           <PopoverContent className="w-64" align="end">
@@ -154,7 +161,7 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
             </div>
           </PopoverContent>
         </Popover>
-        <Button variant="outline" size="icon" className="ml-auto" onClick={onOpenAutogenSettings}><Settings /></Button>
+        <Button variant="outline" size="icon" onClick={onOpenAutogenSettings}><Settings /></Button>
       </div>
       
       {/* Table Header */}
