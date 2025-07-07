@@ -166,10 +166,10 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
       
       {/* Table Header */}
       <div className="grid grid-cols-12 gap-4 px-4 text-sm font-medium text-muted-foreground">
-        <div className="col-span-6 flex items-center gap-3"><Checkbox disabled/> Question</div>
-        <div className="col-span-2">Assignee</div>
-        <div className="col-span-2">Tags</div>
-        <div className="col-span-2">Status</div>
+        <div className="col-span-8 flex items-center gap-3 md:col-span-6"><Checkbox disabled/> Question</div>
+        <div className="hidden md:block col-span-2">Assignee</div>
+        <div className="hidden md:block col-span-2">Tags</div>
+        <div className="col-span-4 text-right md:text-left md:col-span-2">Status</div>
       </div>
       
       {/* Question List */}

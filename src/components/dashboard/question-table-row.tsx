@@ -215,11 +215,11 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
     <Collapsible open={isOpen} onOpenChange={setIsOpen} className="border-t">
       <CollapsibleTrigger asChild>
         <div className="grid grid-cols-12 gap-4 items-center p-4 cursor-pointer hover:bg-muted/50 text-sm">
-          <div className="col-span-6 flex items-center gap-3">
+          <div className="col-span-8 flex items-center gap-3 md:col-span-6">
             <Checkbox checked={isOpen}/>
             <span className="font-medium">{question}</span>
           </div>
-          <div className="col-span-2">
+          <div className="hidden md:block col-span-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
@@ -252,7 +252,7 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
-          <div className="col-span-2">
+          <div className="hidden md:block col-span-2">
             <Popover>
               <PopoverTrigger asChild>
                 <button 
@@ -298,7 +298,7 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
               </PopoverContent>
             </Popover>
           </div>
-          <div className="col-span-2">
+          <div className="col-span-4 flex justify-end md:justify-start md:col-span-2">
             <StatusBadge status={status} />
           </div>
         </div>
