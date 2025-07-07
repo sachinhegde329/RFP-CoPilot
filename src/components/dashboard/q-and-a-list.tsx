@@ -91,7 +91,7 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
   const activeFilterCount = filterStatuses.length + filterAssignees.length;
 
   return (
-    <div className="flex flex-col gap-4 h-full">
+    <div className="flex flex-col gap-4">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Input 
@@ -166,7 +166,7 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
       </div>
       
       {/* Question List */}
-      <div className="flex-1 overflow-y-auto pr-2">
+      <div className="pr-2">
         {filteredQuestions.length > 0 ? (
           <Accordion type="multiple" defaultValue={categoryKeys} className="w-full space-y-4">
             {categoryKeys.map((category, index) => (
@@ -197,7 +197,7 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
             ))}
           </Accordion>
         ) : (
-          <div className="flex h-full items-center justify-center text-center text-muted-foreground">
+          <div className="flex items-center justify-center py-10 text-center text-muted-foreground">
             <div>
               <p className="font-semibold">No questions match your filters.</p>
               <p className="text-sm">Try adjusting your search or clearing the filters.</p>
