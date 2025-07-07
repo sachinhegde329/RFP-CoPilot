@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -19,7 +18,7 @@ import { Separator } from '@/components/ui/separator';
 import { FileBox, Loader2 } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
-import { auth, isFirebaseEnabled } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 
 export default function SignUpPage() {
@@ -34,7 +33,14 @@ export default function SignUpPage() {
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!auth) return;
+    if (!auth) {
+      toast({
+        variant: 'destructive',
+        title: 'Firebase Not Configured',
+        description: 'Please provide Firebase configuration to enable sign up.',
+      });
+      return;
+    }
     setIsLoading(true);
 
     try {
@@ -53,7 +59,14 @@ export default function SignUpPage() {
   };
 
   const handleGoogleSignUp = async () => {
-    if (!auth) return;
+    if (!auth) {
+      toast({
+        variant: 'destructive',
+        title: 'Firebase Not Configured',
+        description: 'Please provide Firebase configuration to enable sign up.',
+      });
+      return;
+    }
     setIsGoogleLoading(true);
     const provider = new GoogleAuthProvider();
     try {
@@ -68,38 +81,6 @@ export default function SignUpPage() {
     } finally {
         setIsGoogleLoading(false);
     }
-  }
-  
-  if (!isFirebaseEnabled()) {
-      return (
-        <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-          <div className="mx-auto flex w-full max-w-sm flex-col items-center space-y-6">
-            <div className="flex items-center gap-2 text-center">
-              <FileBox className="size-8 text-primary" />
-              <h1 className="text-2xl font-semibold">RFP CoPilot</h1>
-            </div>
-            <Card className="w-full">
-              <CardHeader>
-                <CardTitle>Sign Up Disabled</CardTitle>
-                <CardDescription>
-                  Firebase has been disabled. You can explore the application using the live demo.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-4">
-                <Button asChild>
-                    <Link href="/megacorp">Explore Live Demo</Link>
-                </Button>
-                 <p className="text-center text-sm text-muted-foreground mt-2">
-                    Already have an account?{' '}
-                    <Link href="/login" className="font-semibold text-primary hover:underline">
-                        Log in
-                    </Link>
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-        </div>
-      );
   }
 
   return (
@@ -161,7 +142,7 @@ export default function SignUpPage() {
                 />
               </div>
               <Button type="submit" className="w-full" disabled={isLoading || isGoogleLoading}>
-                 {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                 {isLoading && <Loader2 className="mr-2 animate-spin" />}
                 Create Account
               </Button>
             </CardContent>
