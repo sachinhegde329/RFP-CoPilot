@@ -10,12 +10,13 @@ import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
-import { MoreHorizontal, Upload, Link as LinkIcon, FileText, CheckCircle, Clock, Search, Globe, FolderSync, BookOpen, Network, AlertTriangle, RefreshCw, Box, BookText, Github, Settings, Trash2, Loader2, Info, TrendingUp, Presentation, Activity, BrainCircuit, Zap } from "lucide-react"
+import { MoreHorizontal, Upload, Link as LinkIcon, FileText, CheckCircle, Clock, Search, Globe, FolderSync, BookOpen, Network, AlertTriangle, RefreshCw, Box, BookText, Github, Settings, Trash2, Loader2, Info, TrendingUp, Presentation, Activity, BrainCircuit, Zap, Edit } from "lucide-react"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
 import { useTenant } from "@/components/providers/tenant-provider"
-import { addDocumentSourceAction, getKnowledgeSourcesAction, deleteKnowledgeSourceAction, checkSourceStatusAction, resyncKnowledgeSourceAction } from "@/app/actions"
+import { addDocumentSourceAction, getKnowledgeSourcesAction, deleteKnowledgeSourceAction, checkSourceStatusAction, resyncKnowledgeSourceAction, getAnswerLibraryAction, deleteFromLibraryAction } from "@/app/actions"
 import type { DataSource, DataSourceType, SyncStatus } from "@/lib/knowledge-base"
+import type { QnAPair } from "@/lib/answer-library.service"
 import { Skeleton } from "@/components/ui/skeleton"
 import { canPerformAction } from "@/lib/access-control"
 import { ConnectSourceDialog } from "./connect-source-dialog"
@@ -27,32 +28,6 @@ const knowledgeBaseStats = {
   needsReview: 45,
   contentHealth: 89,
 }
-
-const initialAnswerLibrary = [
-  { id: 1, question: "What is your data encryption policy?", snippet: "All customer data is encrypted at rest using AES-256 and in transit using TLS 1.2+.", category: "Security", usage: 128, status: "Approved" },
-  { id: 2, question: "Do you offer an SLA for uptime?", snippet: "Yes, our Enterprise plan includes a 99.95% uptime SLA.", category: "Legal", usage: 97, status: "Approved" },
-  { id: 3, question: "How do you handle user authentication?", snippet: "We support SSO via SAML 2.0 and OpenID Connect, as well as password-based auth.", category: "Product", usage: 85, status: "In Review" },
-  { id: 4, question: "What are your support hours?", snippet: "Standard support is 9am-5pm on business days. Premium support is 24/7.", category: "Company", usage: 52, status: "Approved" },
-  { id: 5, question: "Can we export our data?", snippet: "Yes, data can be exported in CSV or JSON format at any time.", category: "Product", usage: 34, status: "Draft" },
-]
-
-const potentialSources: { name: string; type: DataSourceType, description: string; icon: React.ElementType }[] = [
-  { name: "Website", type: 'website', description: "Crawl and index content from a public website.", icon: Globe },
-  { name: "SharePoint", type: 'sharepoint', description: "Connect to your organization's SharePoint sites.", icon: Network },
-  { name: "Google Drive", type: 'gdrive', description: "Ingest documents from selected Drive folders.", icon: FolderSync },
-  { name: "Dropbox", type: 'dropbox', description: "Sync files and folders from your Dropbox account.", icon: Box },
-  { name: "Confluence", type: 'confluence', description: "Sync pages from your Confluence workspace.", icon: BookOpen },
-  { name: "Notion", type: 'notion', description: "Import pages and databases from your Notion workspace.", icon: BookText },
-  { name: "GitHub", type: 'github', description: "Index content from repository wikis or markdown files.", icon: Github },
-];
-
-const salesEnablementSources: { name: string; type: DataSourceType, description: string; icon: React.ElementType }[] = [
-  { name: "Highspot", type: 'highspot', description: "Sync content from your Highspot spaces.", icon: TrendingUp },
-  { name: "Showpad", type: 'showpad', description: "Connect to your Showpad experiences and assets.", icon: Presentation },
-  { name: "Seismic", type: 'seismic', description: "Pull documents and pages from Seismic libraries.", icon: Activity },
-  { name: "Mindtickle", type: 'mindtickle', description: "Ingest training materials and sales content.", icon: BrainCircuit },
-  { name: "Enable.us", type: 'enableus', description: "Sync playbooks and other sales collateral.", icon: Zap },
-];
 
 const initialReviewQueue = [
     { id: 1, type: "New Answer", content: "What is the process for GDPR data deletion requests?", author: "John Doe", date: "2024-06-29" },
@@ -99,11 +74,11 @@ type KnowledgeBaseClientProps = {
 }
 
 export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps) {
-  const [answerLibrary, setAnswerLibrary] = useState(initialAnswerLibrary);
   const [reviewQueue, setReviewQueue] = useState(initialReviewQueue);
-
   const [sources, setSources] = useState<DataSource[]>(initialSources);
+  const [answerLibrary, setAnswerLibrary] = useState<QnAPair[]>([]);
   const [isLoadingSources, setIsLoadingSources] = useState(false);
+  const [isLoadingLibrary, setIsLoadingLibrary] = useState(true);
   const [configuringSource, setConfiguringSource] = useState<DataSourceType | null>(null);
   const [editingSource, setEditingSource] = useState<DataSource | null>(null);
   
@@ -147,6 +122,20 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
     }
     setIsLoadingSources(false);
   };
+  
+  useEffect(() => {
+    async function fetchLibrary() {
+        setIsLoadingLibrary(true);
+        const result = await getAnswerLibraryAction(tenant.id);
+        if (result.error) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch Answer Library.' });
+        } else {
+            setAnswerLibrary(result.answers || []);
+        }
+        setIsLoadingLibrary(false);
+    }
+    fetchLibrary();
+  }, [tenant.id, toast]);
 
    useEffect(() => {
     const syncingSources = sources.filter(s => s.status === 'Syncing');
@@ -219,9 +208,39 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
   const handleSourceUpdated = (updatedSource: DataSource) => {
     setSources(prev => prev.map(s => s.id === updatedSource.id ? updatedSource : s));
   };
+  
+  const handleDeleteFromLibrary = async (answerId: string) => {
+    const originalLibrary = answerLibrary;
+    setAnswerLibrary(prev => prev.filter(a => a.id !== answerId));
+    const result = await deleteFromLibraryAction(tenant.id, answerId, currentUser);
+    if (result.error) {
+        setAnswerLibrary(originalLibrary);
+        toast({ variant: "destructive", title: "Delete Failed", description: result.error });
+    } else {
+        toast({ title: "Answer Removed from Library" });
+    }
+  };
 
   const uploadedFiles = useMemo(() => sources.filter(s => s.type === 'document'), [sources]);
   
+  const potentialSources: { name: string; type: DataSourceType, description: string; icon: React.ElementType }[] = [
+    { name: "Website", type: 'website', description: "Crawl and index content from a public website.", icon: Globe },
+    { name: "SharePoint", type: 'sharepoint', description: "Connect to your organization's SharePoint sites.", icon: Network },
+    { name: "Google Drive", type: 'gdrive', description: "Ingest documents from selected Drive folders.", icon: FolderSync },
+    { name: "Dropbox", type: 'dropbox', description: "Sync files and folders from your Dropbox account.", icon: Box },
+    { name: "Confluence", type: 'confluence', description: "Sync pages from your Confluence workspace.", icon: BookOpen },
+    { name: "Notion", type: 'notion', description: "Import pages and databases from your Notion workspace.", icon: BookText },
+    { name: "GitHub", type: 'github', description: "Index content from repository wikis or markdown files.", icon: Github },
+  ];
+
+  const salesEnablementSources: { name: string; type: DataSourceType, description: string; icon: React.ElementType }[] = [
+    { name: "Highspot", type: 'highspot', description: "Sync content from your Highspot spaces.", icon: TrendingUp },
+    { name: "Showpad", type: 'showpad', description: "Connect to your Showpad experiences and assets.", icon: Presentation },
+    { name: "Seismic", type: 'seismic', description: "Pull documents and pages from Seismic libraries.", icon: Activity },
+    { name: "Mindtickle", type: 'mindtickle', description: "Ingest training materials and sales content.", icon: BrainCircuit },
+    { name: "Enable.us", type: 'enableus', description: "Sync playbooks and other sales collateral.", icon: Zap },
+  ];
+
   const renderSourceGrid = (sourceList: typeof potentialSources) => {
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -292,9 +311,9 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
             <Button disabled={!canEditContent}>Add New Answer</Button>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mb-6">
-            <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Answers</CardTitle><FileText className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{knowledgeBaseStats.totalAnswers.toLocaleString()}</div><p className="text-xs text-muted-foreground">+20.1% from last month</p></CardContent></Card>
-            <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Approved Answers</CardTitle><CheckCircle className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{knowledgeBaseStats.approvedAnswers.toLocaleString()}</div><p className="text-xs text-muted-foreground">{((knowledgeBaseStats.approvedAnswers/knowledgeBaseStats.totalAnswers)*100).toFixed(0)}% of total</p></CardContent></Card>
-            <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Needs Review</CardTitle><Clock className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{knowledgeBaseStats.needsReview}</div><p className="text-xs text-muted-foreground">+5 since yesterday</p></CardContent></Card>
+            <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Total Answers</CardTitle><FileText className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{answerLibrary.length.toLocaleString()}</div><p className="text-xs text-muted-foreground">approved answers in library</p></CardContent></Card>
+            <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Synced Items</CardTitle><CheckCircle className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{sources.reduce((acc, s) => acc + (s.itemCount || 0), 0).toLocaleString()}</div><p className="text-xs text-muted-foreground">from {sources.length} sources</p></CardContent></Card>
+            <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Needs Review</CardTitle><Clock className="h-4 w-4 text-muted-foreground" /></CardHeader><CardContent><div className="text-2xl font-bold">{reviewQueue.length}</div><p className="text-xs text-muted-foreground">items awaiting approval</p></CardContent></Card>
             <Card><CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2"><CardTitle className="text-sm font-medium">Content Health</CardTitle><Badge className="text-xs" variant={knowledgeBaseStats.contentHealth > 80 ? 'secondary' : 'destructive'}>{knowledgeBaseStats.contentHealth}%</Badge></CardHeader><CardContent><div className="text-2xl font-bold">{knowledgeBaseStats.contentHealth}%</div><p className="text-xs text-muted-foreground">Based on recency & usage</p></CardContent></Card>
         </div>
 
@@ -348,12 +367,25 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
 
             <TabsContent value="library">
                 <Card>
-                    <CardHeader><CardTitle>Answer Library</CardTitle><CardDescription>Search and manage your curated list of reusable answers.</CardDescription><div className="relative mt-2"><Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" /><Input placeholder="Search answers..." className="pl-8" /></div></CardHeader>
+                    <CardHeader>
+                        <CardTitle>Answer Library</CardTitle>
+                        <CardDescription>Search and manage your curated list of reusable answers.</CardDescription>
+                        <div className="relative mt-2">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input placeholder="Search answers..." className="pl-8" />
+                        </div>
+                    </CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader><TableRow><TableHead className="w-[40%]">Question</TableHead><TableHead>Category</TableHead><TableHead>Usage</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
                             <TableBody>
-                                {answerLibrary.map(item => (<TableRow key={item.id}><TableCell><div className="font-medium">{item.question}</div><div className="text-sm text-muted-foreground truncate">{item.snippet}</div></TableCell><TableCell><Badge variant="outline">{item.category}</Badge></TableCell><TableCell>{item.usage}</TableCell><TableCell>{getStatusBadge(item.status)}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={!canEditContent}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem>Edit</DropdownMenuItem><DropdownMenuItem>View History</DropdownMenuItem><DropdownMenuItem className="text-destructive">Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))}
+                                {isLoadingLibrary ? (
+                                    Array.from({length: 5}).map((_, i) => (<TableRow key={`skel-lib-${i}`}><TableCell><Skeleton className="h-5 w-3/4" /></TableCell><TableCell><Skeleton className="h-5 w-20" /></TableCell><TableCell><Skeleton className="h-5 w-12" /></TableCell><TableCell><Skeleton className="h-6 w-24" /></TableCell><TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell></TableRow>))
+                                ) : answerLibrary.length === 0 ? (
+                                    <TableRow><TableCell colSpan={5} className="h-24 text-center">Your Answer Library is empty. Save approved answers from your RFPs to build it up.</TableCell></TableRow>
+                                ) : (
+                                    answerLibrary.map(item => (<TableRow key={item.id}><TableCell><div className="font-medium">{item.question}</div><div className="text-sm text-muted-foreground truncate">{item.answer}</div></TableCell><TableCell><Badge variant="outline">{item.category}</Badge></TableCell><TableCell>{item.usageCount}</TableCell><TableCell>{getStatusBadge(item.status)}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={!canEditContent}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem><Edit className="mr-2" />Edit</DropdownMenuItem><DropdownMenuItem>View History</DropdownMenuItem><DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteFromLibrary(item.id)}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))
+                                )}
                             </TableBody>
                         </Table>
                     </CardContent>

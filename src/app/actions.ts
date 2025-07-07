@@ -13,10 +13,11 @@ import { type Role, type TeamMember, type Tenant, plansConfig } from "@/lib/tena
 import { stripe } from "@/lib/stripe"
 import { hasFeatureAccess, canPerformAction, type Action } from "@/lib/access-control"
 import { notificationService } from "@/lib/notifications.service"
-import { exportService } from "@/lib/export.service";
+import { exportService } from "@/lib/export.service"
 import { templateService, type Template, type TemplateSection } from "@/lib/template.service"
 import { detectRfpTopics } from "@/ai/flows/detect-rfp-topics"
-import { askAi } from "@/ai/flows/ask-ai-flow";
+import { askAi } from "@/ai/flows/ask-ai-flow"
+import { answerLibraryService, type QnAPair } from "@/lib/answer-library.service"
 
 import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType, PageBreak } from 'docx';
 import PDFDocument from 'pdfkit';
@@ -102,6 +103,20 @@ export async function generateAnswerAction(payload: {
     return { error: "Question cannot be empty." }
   }
 
+  // Step 1: Check Answer Library for an exact match
+  const libraryMatch = await answerLibraryService.findByQuestion(tenantId, question);
+  if (libraryMatch) {
+    await answerLibraryService.incrementUsage(tenantId, libraryMatch.id);
+    return {
+      answer: libraryMatch.answer,
+      sources: [`Answer Library (ID: ${libraryMatch.id})`], // Indicate source is the library
+      confidenceScore: 1.0, // Perfect confidence from library
+      tags: libraryMatch.tags,
+      fromLibrary: true,
+    }
+  }
+  
+  // Step 2: If no match, proceed to RAG
   try {
     const relevantChunks = await knowledgeBaseService.searchChunks(tenantId, question, {
         topK: 5,
@@ -121,7 +136,7 @@ export async function generateAnswerAction(payload: {
       length: length || 'medium-length',
       autogenerateTags: autogenerateTags,
     })
-    return { answer: result.draftAnswer, sources: result.sources, confidenceScore: result.confidenceScore, tags: result.tags }
+    return { answer: result.draftAnswer, sources: result.sources, confidenceScore: result.confidenceScore, tags: result.tags, fromLibrary: false }
   } catch (e) {
     console.error(e)
     return { error: "Failed to generate answer." }
@@ -1103,5 +1118,57 @@ export async function askAiAction(query: string, tenantId: string): Promise<{ an
         console.error("Ask AI action failed:", e);
         const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred while asking AI.";
         return { error: errorMessage };
+    }
+}
+
+// == ANSWER LIBRARY ACTIONS ==
+
+export async function getAnswerLibraryAction(tenantId: string): Promise<{ answers?: QnAPair[], error?: string }> {
+    if (!tenantId) return { error: "Tenant not found." };
+    try {
+        const answers = await answerLibraryService.getLibrary(tenantId);
+        return { answers: JSON.parse(JSON.stringify(answers)) };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
+        return { error: `Failed to get answer library: ${errorMessage}` };
+    }
+}
+
+export async function saveToLibraryAction(payload: {
+    tenantId: string;
+    question: string;
+    answer: string;
+    category: string;
+    tags: string[];
+    currentUser: CurrentUser;
+}) {
+    const { tenantId, currentUser, ...data } = payload;
+    const permCheck = await checkPermission(tenantId, currentUser, 'editContent');
+    if (permCheck.error) return { error: permCheck.error };
+
+    try {
+        const savedAnswer = await answerLibraryService.addOrUpdate({
+            ...data,
+            tenantId,
+            status: 'Approved',
+            createdBy: currentUser,
+        });
+        return { success: true, answer: savedAnswer };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
+        return { error: `Failed to save answer to library: ${errorMessage}` };
+    }
+}
+
+export async function deleteFromLibraryAction(tenantId: string, id: string, currentUser: CurrentUser) {
+    const permCheck = await checkPermission(tenantId, currentUser, 'editContent');
+    if (permCheck.error) return { error: permCheck.error };
+
+    try {
+        const success = await answerLibraryService.deleteAnswer(tenantId, id);
+        return { success };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
+        return { error: `Failed to delete answer from library: ${errorMessage}` };
     }
 }

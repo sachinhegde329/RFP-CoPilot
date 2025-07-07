@@ -6,9 +6,9 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { Sparkles, CheckCircle2, AlertTriangle, Bot, Clipboard, ClipboardCheck, BookOpenCheck, UserPlus, Bold, Italic, Underline, List, MessageSquare, PlusCircle, X, Settings } from "lucide-react"
+import { Sparkles, CheckCircle2, AlertTriangle, Bot, Clipboard, ClipboardCheck, BookOpenCheck, UserPlus, Bold, Italic, Underline, List, MessageSquare, PlusCircle, X, Settings, Library, Loader2 } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { generateAnswerAction, reviewAnswerAction } from "@/app/actions"
+import { generateAnswerAction, reviewAnswerAction, saveToLibraryAction } from "@/app/actions"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { hasFeatureAccess, canPerformAction } from "@/lib/access-control"
@@ -35,7 +35,7 @@ type QAndAItemProps = {
 }
 
 export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId, members, onUpdateQuestion }: QAndAItemProps) {
-  const { id, question, assignee, status, answer, tags } = questionData;
+  const { id, question, assignee, status, answer, tags, category } = questionData;
   const { tenant } = useTenant();
   const { toast } = useToast();
   
@@ -46,6 +46,7 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
   const [review, setReview] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isReviewing, setIsReviewing] = useState(false);
+  const [isSavingToLibrary, setIsSavingToLibrary] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
   const [newTagInput, setNewTagInput] = useState('');
   
@@ -94,6 +95,9 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
             result.tags.forEach(tag => existingTags.add(tag));
             onUpdateQuestion(id, { tags: Array.from(existingTags) });
         }
+      if (result.fromLibrary) {
+        toast({ title: "Answer Found in Library", description: "This answer was retrieved from your approved Answer Library." });
+      }
     }
     setIsGenerating(false);
   };
@@ -121,6 +125,28 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
     setIsReviewing(false);
   };
   
+  const handleSaveToLibrary = async () => {
+    if (!currentAnswer) {
+      toast({ variant: "destructive", title: "Cannot Save", description: "Please provide an answer." });
+      return;
+    }
+    setIsSavingToLibrary(true);
+    const result = await saveToLibraryAction({
+      tenantId: tenant.id,
+      question,
+      answer: currentAnswer,
+      category,
+      tags: tags || [],
+      currentUser,
+    });
+    if (result.error) {
+        toast({ variant: "destructive", title: "Save Failed", description: result.error });
+    } else {
+        toast({ title: "Answer Saved to Library", description: "This Q&A pair is now available for reuse." });
+    }
+    setIsSavingToLibrary(false);
+  }
+
   const handleCopy = () => {
     navigator.clipboard.writeText(currentAnswer);
     setIsCopied(true);
@@ -314,7 +340,7 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
                             <div className="grid grid-cols-3 items-center gap-4"><Label>Language</Label><Select value={genLanguage} onValueChange={setGenLanguage}><SelectTrigger className="col-span-2 h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="English">English</SelectItem><SelectItem value="Spanish">Spanish</SelectItem><SelectItem value="French">French</SelectItem></SelectContent></Select></div>
                             <div className="grid grid-cols-3 items-center gap-4"><Label>Tone</Label><Select value={genTone} onValueChange={setGenTone}><SelectTrigger className="col-span-2 h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Formal">Formal</SelectItem><SelectItem value="Consultative">Consultative</SelectItem><SelectItem value="Technical">Technical</SelectItem></SelectContent></Select></div>
                              <div className="grid grid-cols-3 items-center gap-4"><Label>Style</Label><RadioGroup value={genStyle} onValueChange={setGenStyle} className="col-span-2 flex gap-4"><div className="flex items-center space-x-2"><RadioGroupItem value="a paragraph" id="style-p" /><Label htmlFor="style-p">Paragraph</Label></div><div className="flex items-center space-x-2"><RadioGroupItem value="bullet points" id="style-b" /><Label htmlFor="style-b">Bullets</Label></div></RadioGroup></div>
-                            <div className="grid grid-cols-3 items-center gap-4"><Label>Length</Label><RadioGroup value={genLength} onValueChange={setGenLength} className="col-span-2 flex gap-4"><div className="flex items-center space-x-2"><RadioGroupItem value="short" id="len-s" /><Label htmlFor="len-s">Short</Label></div><div className="flex items-center space-x-2"><RadioGroupItem value="medium-length" id="len-m" /><Label htmlFor="len-m">Medium</Label></div><div className="flex items-center space-x-2"><RadioGroupItem value="detailed" id="len-d" /><Label htmlFor="len-d">Long</Label></div></RadioGroup></div>
+                            <div className="grid grid-cols-3 items-center gap-4"><Label>Length</Label><RadioGroup value={genLength} onValueChange={setGenLength} className="col-span-2 flex gap-4"><div className="flex items-center space-x-2"><RadioGroupItem value="short" id="len-s" /><Label htmlFor="len-s">Short</Label></div><div className="flex items-center space-x-2"><RadioGroupItem value="medium-length" id="len-m" /><Label htmlFor="len-m">Medium</Label></div><div className="flex items-center space-x-2"><RadioGroupItem value="detailed" id="len-d" /><Label htmlFor="len-d">Detailed</Label></div></RadioGroup></div>
                             <div className="flex items-center space-x-2 pt-2"><Checkbox id="gen-tags" checked={genTags} onCheckedChange={(c) => setGenTags(Boolean(c))} /><Label htmlFor="gen-tags">Auto-generate tags</Label></div>
                         </div>
                     </div>
@@ -328,6 +354,15 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
               >
                 {isReviewing ? "..." : <Bot />}
                 Review
+              </Button>
+               <Button
+                variant="outline"
+                onClick={handleSaveToLibrary}
+                disabled={!currentAnswer || isSavingToLibrary || !canEdit}
+                className="w-full sm:w-auto"
+              >
+                {isSavingToLibrary ? <Loader2 className="animate-spin"/> : <Library />}
+                Save to Library
               </Button>
             </div>
             <Button 
