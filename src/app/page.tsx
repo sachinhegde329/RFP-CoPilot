@@ -17,7 +17,7 @@ export default function LandingPage() {
             <span className="text-xl font-bold">RFP CoPilot</span>
           </Link>
           <nav className="hidden md:flex items-center gap-2">
-            <Button variant="ghost" asChild><Link href="#features">Features</Link></Button>
+            <Button variant="ghost" asChild><Link href="/features">Features</Link></Button>
             <Button variant="ghost" asChild><Link href="#use-cases">Use Cases</Link></Button>
             <Button variant="ghost" asChild><Link href="/pricing">Pricing</Link></Button>
             <Button variant="ghost" asChild><Link href="/docs">Docs</Link></Button>
@@ -245,7 +245,7 @@ export default function LandingPage() {
                 <span className="text-muted-foreground font-semibold">RFP CoPilot</span>
             </div>
              <div className="flex gap-4 text-muted-foreground text-sm">
-                <Link href="#features" className="hover:text-foreground">Features</Link>
+                <Link href="/features" className="hover:text-foreground">Features</Link>
                 <Link href="/pricing" className="hover:text-foreground">Pricing</Link>
                 <Link href="/docs" className="hover:text-foreground">Documentation</Link>
                 <Link href="#" className="hover:text-foreground">Contact</Link>
