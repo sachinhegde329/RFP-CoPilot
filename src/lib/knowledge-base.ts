@@ -38,6 +38,9 @@ export interface DataSource {
     excludePaths?: string[];
     // For other connectors
     url?: string; // e.g., Confluence URL, GitHub repo (owner/repo)
+    folderId?: string; // e.g., Google Drive folder ID
+    path?: string; // e.g., Dropbox folder path
+    driveName?: string; // e.g., SharePoint drive name
   };
 }
 
@@ -62,46 +65,68 @@ export interface SearchFilters {
     tags?: string[];
 }
 
-// In-memory store for demo purposes
-const inMemorySources: DataSource[] = [];
-const inMemoryChunks: DocumentChunk[] = [];
+// In-memory store for demo purposes, keyed by tenantId
+let inMemorySources: Record<string, DataSource[]> = {};
+let inMemoryChunks: Record<string, DocumentChunk[]> = {};
+
+const initializeDemoData = (tenantId: string) => {
+    if (!inMemorySources[tenantId]) {
+        inMemorySources[tenantId] = [];
+        inMemoryChunks[tenantId] = [];
+    }
+}
 
 class KnowledgeBaseService {
 
   // == SOURCE MANAGEMENT ==
   public async getAllDataSources(): Promise<DataSource[]> {
-    return [...inMemorySources];
+    return Object.values(inMemorySources).flat();
   }
   
   public async getDataSources(tenantId: string): Promise<DataSource[]> {
-    return inMemorySources.filter(s => s.tenantId === tenantId).sort((a, b) => a.name.localeCompare(b.name));
+    initializeDemoData(tenantId);
+    return (inMemorySources[tenantId] || []).sort((a, b) => a.name.localeCompare(b.name));
   }
 
   public async getDataSource(tenantId: string, sourceId: string): Promise<DataSource | undefined> {
-    return inMemorySources.find(s => s.tenantId === tenantId && s.id === sourceId);
+    initializeDemoData(tenantId);
+    const tenantSources = inMemorySources[tenantId] || [];
+    return tenantSources.find(s => s.id === sourceId);
   }
 
   public async addDataSource(sourceData: Omit<DataSource, 'id'>): Promise<DataSource> {
+    const { tenantId } = sourceData;
+    initializeDemoData(tenantId);
+    if (!inMemorySources[tenantId]) {
+        inMemorySources[tenantId] = [];
+    }
     const newSource = { id: `source-${Date.now()}-${Math.random()}`, ...sourceData };
-    inMemorySources.push(newSource);
+    inMemorySources[tenantId].push(newSource);
     return newSource;
   }
   
   public async updateDataSource(tenantId: string, sourceId: string, updates: Partial<DataSource>): Promise<DataSource | undefined> {
-    const sourceIndex = inMemorySources.findIndex(s => s.tenantId === tenantId && s.id === sourceId);
-    if (sourceIndex > -1) {
-      inMemorySources[sourceIndex] = { ...inMemorySources[sourceIndex], ...updates };
-      return inMemorySources[sourceIndex];
+    initializeDemoData(tenantId);
+    const tenantSources = inMemorySources[tenantId];
+    if (tenantSources) {
+      const sourceIndex = tenantSources.findIndex(s => s.id === sourceId);
+      if (sourceIndex > -1) {
+        tenantSources[sourceIndex] = { ...tenantSources[sourceIndex], ...updates };
+        return tenantSources[sourceIndex];
+      }
     }
     return undefined;
   }
 
   public async deleteDataSource(tenantId: string, sourceId: string): Promise<boolean> {
+    initializeDemoData(tenantId);
     await this.deleteChunksBySourceId(tenantId, sourceId);
-    const sourceIndex = inMemorySources.findIndex(s => s.tenantId === tenantId && s.id === sourceId);
-    if (sourceIndex > -1) {
-      inMemorySources.splice(sourceIndex, 1);
-      return true;
+    
+    const tenantSources = inMemorySources[tenantId];
+    if (tenantSources) {
+      const initialLength = tenantSources.length;
+      inMemorySources[tenantId] = tenantSources.filter(s => s.id !== sourceId);
+      return inMemorySources[tenantId].length < initialLength;
     }
     return false;
   }
@@ -121,7 +146,11 @@ class KnowledgeBaseService {
 
   // == CHUNK MANAGEMENT ==
   public async addChunks(tenantId: string, sourceId: string, sourceType: DataSourceType, title: string, chunks: string[], url?: string, additionalMetadata: Record<string, any> = {}) {
+    initializeDemoData(tenantId);
     if (chunks.length === 0) return;
+    if (!inMemoryChunks[tenantId]) {
+        inMemoryChunks[tenantId] = [];
+    }
 
     const processingPromises = chunks.map(content => Promise.all([
         embeddingService.generateEmbedding(content),
@@ -140,21 +169,24 @@ class KnowledgeBaseService {
             tags: tagResult.tags,
             metadata: { sourceType, url, chunkIndex: index, ...additionalMetadata }
         };
-        inMemoryChunks.push(newChunk);
+        inMemoryChunks[tenantId].push(newChunk);
     });
   }
 
   public async deleteChunksBySourceId(tenantId: string, sourceId:string): Promise<boolean> {
-    const initialLength = inMemoryChunks.length;
-    const filteredChunks = inMemoryChunks.filter(c => !(c.tenantId === tenantId && c.sourceId === sourceId));
-    inMemoryChunks.length = 0; // Clear the array
-    Array.prototype.push.apply(inMemoryChunks, filteredChunks); // Push back remaining items
-    return inMemoryChunks.length < initialLength;
+    initializeDemoData(tenantId);
+    const tenantChunks = inMemoryChunks[tenantId];
+    if (!tenantChunks) return false;
+
+    const initialLength = tenantChunks.length;
+    inMemoryChunks[tenantId] = tenantChunks.filter(c => c.sourceId !== sourceId);
+    return inMemoryChunks[tenantId].length < initialLength;
   }
 
   public async searchChunks(tenantId: string, queryText: string, filters: SearchFilters = {}): Promise<DocumentChunk[]> {
+    initializeDemoData(tenantId);
     const { topK = 5, sourceTypes, tags } = filters;
-    let potentialChunks = inMemoryChunks.filter(c => c.tenantId === tenantId && c.embedding);
+    let potentialChunks = inMemoryChunks[tenantId] || [];
     
     if (potentialChunks.length === 0 || !queryText) return [];
 
@@ -194,7 +226,7 @@ class KnowledgeBaseService {
     } catch (error) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error during sync';
         console.error(`Failed to sync source ${source.name}:`, error);
-        this.updateDataSource(tenantId, source.id, {
+        await this.updateDataSource(tenantId, source.id, {
             status: 'Error',
             lastSynced: 'Failed to sync',
         });

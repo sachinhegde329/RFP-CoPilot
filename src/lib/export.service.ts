@@ -1,3 +1,4 @@
+
 import type { Role } from './tenant-types';
 import type { Question } from './rfp-types';
 
@@ -22,7 +23,7 @@ export interface ExportRecord {
     acknowledgments: { name:string; role: string; comment: string; }[];
 }
 
-const demoQuestions: Question[] = [
+const getDemoQuestions = (): Question[] => [
     {
         id: 1,
         question: "What is your data retention policy, and how do you ensure customer data is securely deleted upon request?",
@@ -43,84 +44,79 @@ const demoQuestions: Question[] = [
     }
 ];
 
-const inMemoryExportHistory: ExportRecord[] = [
-    {
-        id: 'export-demo-1',
-        tenantId: 'megacorp',
-        rfpId: 'rfp-1',
-        rfpName: 'Q3 Enterprise Security RFP',
-        version: 'v1.0 Final',
-        format: 'docx',
-        exportedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-        exportedBy: {
-            id: 'demo-user-id',
-            name: 'Alex Johnson',
-            role: 'Owner'
-        },
-        questionCount: demoQuestions.length,
-        questions: demoQuestions,
-        acknowledgments: [
-            { name: 'Maria Garcia', role: 'Legal Review', comment: 'Approved for submission.' }
-        ]
-    },
-    {
-        id: 'export-demo-2',
-        tenantId: 'megacorp',
-        rfpId: 'rfp-1',
-        rfpName: 'Q3 Enterprise Security RFP',
-        version: 'v0.9 Draft',
-        format: 'pdf',
-        exportedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
-        exportedBy: {
-            id: '3',
-            name: 'Priya Patel',
-            role: 'Editor'
-        },
-        questionCount: demoQuestions.length,
-        questions: demoQuestions,
-        acknowledgments: [],
-    },
-    {
-        id: 'export-demo-3',
-        tenantId: 'megacorp',
-        rfpId: 'rfp-2',
-        rfpName: 'Project Titan Proposal',
-        version: 'v1.0',
-        format: 'docx',
-        exportedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
-        exportedBy: {
-            id: 'demo-user-id',
-            name: 'Alex Johnson',
-            role: 'Owner'
-        },
-        questionCount: 2,
-        questions: demoQuestions,
-        acknowledgments: [
-            { name: 'Alex Johnson', role: 'Final Review', comment: 'Looks good.' }
-        ]
+let inMemoryExportHistory: Record<string, ExportRecord[]> = {};
+
+const initializeDemoData = () => {
+    if (!inMemoryExportHistory['megacorp']) {
+        inMemoryExportHistory['megacorp'] = [
+            {
+                id: 'export-demo-1',
+                tenantId: 'megacorp',
+                rfpId: 'rfp-1',
+                rfpName: 'Q3 Enterprise Security RFP',
+                version: 'v1.0 Final',
+                format: 'docx',
+                exportedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
+                exportedBy: { id: 'demo-user-id', name: 'Alex Johnson', role: 'Owner' },
+                questionCount: getDemoQuestions().length,
+                questions: getDemoQuestions(),
+                acknowledgments: [{ name: 'Maria Garcia', role: 'Legal Review', comment: 'Approved for submission.' }]
+            },
+            {
+                id: 'export-demo-2',
+                tenantId: 'megacorp',
+                rfpId: 'rfp-1',
+                rfpName: 'Q3 Enterprise Security RFP',
+                version: 'v0.9 Draft',
+                format: 'pdf',
+                exportedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
+                exportedBy: { id: '3', name: 'Priya Patel', role: 'Editor' },
+                questionCount: getDemoQuestions().length,
+                questions: getDemoQuestions(),
+                acknowledgments: [],
+            },
+            {
+                id: 'export-demo-3',
+                tenantId: 'megacorp',
+                rfpId: 'rfp-2',
+                rfpName: 'Project Titan Proposal',
+                version: 'v1.0',
+                format: 'docx',
+                exportedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
+                exportedBy: { id: 'demo-user-id', name: 'Alex Johnson', role: 'Owner' },
+                questionCount: 2,
+                questions: getDemoQuestions(),
+                acknowledgments: [{ name: 'Alex Johnson', role: 'Final Review', comment: 'Looks good.' }]
+            }
+        ];
     }
-];
+}
 
 
 class ExportService {
 
     public async addExportRecord(tenantId: string, record: Omit<ExportRecord, 'id' | 'tenantId'>): Promise<ExportRecord> {
+        initializeDemoData();
+        if (!inMemoryExportHistory[tenantId]) {
+            inMemoryExportHistory[tenantId] = [];
+        }
         const newRecord: ExportRecord = {
             ...record,
             id: `export-${Date.now()}`,
             tenantId,
         };
-        inMemoryExportHistory.push(newRecord);
+        inMemoryExportHistory[tenantId].push(newRecord);
         return newRecord;
     }
 
     public async getExportHistory(tenantId: string, rfpId?: string): Promise<ExportRecord[]> {
-        const history = inMemoryExportHistory
+        initializeDemoData();
+        const history = (inMemoryExportHistory[tenantId] || [])
             .filter(r => {
                 if (rfpId) {
-                    return r.tenantId === tenantId && r.rfpId === rfpId
+                    return r.rfpId === rfpId
                 }
-                return r.tenantId === tenantId;
+                return true;
             })
             .sort((a, b) => new Date(b.exportedAt).getTime() - new Date(a.exportedAt).getTime());
         return history;

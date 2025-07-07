@@ -94,7 +94,7 @@ export async function generateAnswerAction(payload: {
       return { error: "You have no AI answers remaining this month. Please upgrade your plan or purchase an AI Answer Pack." };
   }
 
-  const rfp = rfpService.getRfp(tenantId, rfpId);
+  const rfp = await rfpService.getRfp(tenantId, rfpId);
   if (!rfp) {
       return { error: "RFP not found." };
   }
@@ -264,7 +264,7 @@ export async function addQuestionAction(tenantId: string, rfpId: string, questio
 
 export async function getRfpsAction(tenantId: string): Promise<{ rfps?: RFP[] }> {
     try {
-        const rfps = rfpService.getRfps(tenantId);
+        const rfps = await rfpService.getRfps(tenantId);
         // Sanitize data at the action boundary to ensure it's serializable
         return { rfps: JSON.parse(JSON.stringify(rfps || [])) };
     } catch (e) {
@@ -846,7 +846,7 @@ export async function exportRfpAction(payload: {
         return { error: 'Custom export templates are not available on your current plan. Please upgrade or use a system template.' };
     }
 
-    const rfp = rfpService.getRfp(tenantId, rfpId);
+    const rfp = await rfpService.getRfp(tenantId, rfpId);
     if (!rfp) {
         return { error: "RFP not found." };
     }

@@ -23,7 +23,7 @@ export interface Template {
   structure: TemplateSection[];
 }
 
-const inMemoryCustomTemplates: Template[] = [];
+let inMemoryCustomTemplates: Record<string, Template[]> = {};
 
 class TemplateService {
     
@@ -72,7 +72,7 @@ class TemplateService {
 
     public async getTemplates(tenantId: string): Promise<Template[]> {
         const systemTemplates = this.getSystemTemplates(tenantId);
-        const customTemplates = inMemoryCustomTemplates.filter(t => t.tenantId === tenantId);
+        const customTemplates = inMemoryCustomTemplates[tenantId] || [];
         return [...systemTemplates, ...customTemplates];
     }
 
@@ -80,19 +80,26 @@ class TemplateService {
         if (templateId.startsWith('system-')) {
             return this.getSystemTemplates(tenantId).find(t => t.id === templateId);
         }
-        return inMemoryCustomTemplates.find(t => t.tenantId === tenantId && t.id === templateId);
+        const customTemplates = inMemoryCustomTemplates[tenantId] || [];
+        return customTemplates.find(t => t.id === templateId);
     }
 
     public async updateTemplate(tenantId: string, templateId: string, data: Partial<Pick<Template, 'name' | 'description' | 'structure'>>): Promise<Template | null> {
-        const templateIndex = inMemoryCustomTemplates.findIndex(t => t.id === templateId && t.tenantId === tenantId);
-        if (templateIndex > -1) {
-            inMemoryCustomTemplates[templateIndex] = { ...inMemoryCustomTemplates[templateIndex], ...data };
-            return inMemoryCustomTemplates[templateIndex];
+        const tenantTemplates = inMemoryCustomTemplates[tenantId];
+        if (tenantTemplates) {
+            const templateIndex = tenantTemplates.findIndex(t => t.id === templateId);
+            if (templateIndex > -1) {
+                tenantTemplates[templateIndex] = { ...tenantTemplates[templateIndex], ...data };
+                return tenantTemplates[templateIndex];
+            }
         }
-        return null; // Can't update system templates
+        return null; // Can't update system templates or non-existent templates
     }
 
     public async createTemplate(tenantId: string, data: { name: string, description: string }): Promise<Template> {
+        if (!inMemoryCustomTemplates[tenantId]) {
+            inMemoryCustomTemplates[tenantId] = [];
+        }
         const newTemplate: Template = {
             ...data,
             id: `custom-${Date.now()}`,
@@ -104,13 +111,17 @@ class TemplateService {
                 { id: `c2-${Date.now()}`, type: 'qa_list_by_category', content: '*' },
             ],
         };
-        inMemoryCustomTemplates.push(newTemplate);
+        inMemoryCustomTemplates[tenantId].push(newTemplate);
         return newTemplate;
     }
 
     public async duplicateTemplate(tenantId: string, templateId: string): Promise<Template | null> {
         const sourceTemplate = await this.getTemplate(tenantId, templateId);
         if (!sourceTemplate) return null;
+        
+        if (!inMemoryCustomTemplates[tenantId]) {
+            inMemoryCustomTemplates[tenantId] = [];
+        }
 
         const newTemplate: Template = {
             ...sourceTemplate,
@@ -121,15 +132,18 @@ class TemplateService {
             structure: sourceTemplate.structure.map(section => ({...section, id: `section-${Date.now()}-${Math.random()}`}))
         };
         
-        inMemoryCustomTemplates.push(newTemplate);
+        inMemoryCustomTemplates[tenantId].push(newTemplate);
         return newTemplate;
     }
 
     public async deleteTemplate(tenantId: string, templateId: string): Promise<boolean> {
-        const templateIndex = inMemoryCustomTemplates.findIndex(t => t.id === templateId && t.tenantId === tenantId);
-        if (templateIndex > -1) {
-            inMemoryCustomTemplates.splice(templateIndex, 1);
-            return true;
+        const tenantTemplates = inMemoryCustomTemplates[tenantId];
+        if (tenantTemplates) {
+            const templateIndex = tenantTemplates.findIndex(t => t.id === templateId);
+            if (templateIndex > -1) {
+                tenantTemplates.splice(templateIndex, 1);
+                return true;
+            }
         }
         return false; // Can't delete system templates
     }
