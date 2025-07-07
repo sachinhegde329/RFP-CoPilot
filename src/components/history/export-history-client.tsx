@@ -1,6 +1,7 @@
+
 'use client'
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import { format, formatDistanceToNow } from "date-fns"
 import type { ExportRecord } from "@/lib/export.service"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -22,6 +23,20 @@ export function ExportHistoryClient({ initialHistory }: ExportHistoryClientProps
     const [history, setHistory] = useState(initialHistory);
     const [selectedRecord, setSelectedRecord] = useState<ExportRecord | null>(null);
 
+    const groupedHistory = useMemo(() => {
+        return history.reduce((acc, record) => {
+            const key = record.rfpName;
+            if (!acc[key]) {
+                acc[key] = [];
+            }
+            acc[key].push(record);
+            return acc;
+        }, {} as Record<string, ExportRecord[]>);
+    }, [history]);
+
+    const rfpNames = Object.keys(groupedHistory);
+
+
     return (
         <>
             <div className="flex items-center justify-between mb-6">
@@ -30,67 +45,79 @@ export function ExportHistoryClient({ initialHistory }: ExportHistoryClientProps
                     <p className="text-muted-foreground">View the complete version history for all of your workspace's RFPs.</p>
                 </div>
             </div>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Version History</CardTitle>
-                    <CardDescription>A chronological record of all exported versions for your RFPs.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {history.length > 0 ? (
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>Version</TableHead>
-                                    <TableHead>RFP Name</TableHead>
-                                    <TableHead>Date</TableHead>
-                                    <TableHead>Exported By</TableHead>
-                                    <TableHead>Format</TableHead>
-                                    <TableHead>Questions</TableHead>
-                                    <TableHead className="text-right">Actions</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {history.map(record => (
-                                    <TableRow key={record.id} onClick={() => setSelectedRecord(record)} className="cursor-pointer">
-                                        <TableCell>
-                                            <Badge variant="outline">{record.version}</Badge>
-                                        </TableCell>
-                                        <TableCell className="font-medium">{record.rfpName}</TableCell>
-                                        <TableCell>
-                                            <TooltipProvider>
-                                                <Tooltip>
-                                                    <TooltipTrigger asChild>
-                                                        <span>{formatDistanceToNow(new Date(record.exportedAt), { addSuffix: true })}</span>
-                                                    </TooltipTrigger>
-                                                    <TooltipContent>
-                                                        <p>{format(new Date(record.exportedAt), "PPpp")}</p>
-                                                    </TooltipContent>
-                                                </Tooltip>
-                                            </TooltipProvider>
-                                        </TableCell>
-                                        <TableCell>{record.exportedBy.name}</TableCell>
-                                        <TableCell>{record.format.toUpperCase()}</TableCell>
-                                        <TableCell>{record.questionCount}</TableCell>
-                                        <TableCell className="text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <Button variant="outline" size="sm" onClick={(e) => {e.stopPropagation(); setSelectedRecord(record)}}>
-                                                    View Details
-                                                </Button>
-                                            </div>
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    ) : (
-                        <div className="flex flex-col items-center justify-center gap-4 text-center p-8 border-2 border-dashed border-muted rounded-lg">
+
+            {rfpNames.length > 0 ? (
+                <div className="space-y-8">
+                    {rfpNames.map(rfpName => {
+                        const records = groupedHistory[rfpName];
+                        return (
+                             <Card key={rfpName}>
+                                <CardHeader>
+                                    <CardTitle>{rfpName}</CardTitle>
+                                    <CardDescription>
+                                        Version history for this RFP.
+                                    </CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Version</TableHead>
+                                                <TableHead>Date</TableHead>
+                                                <TableHead>Exported By</TableHead>
+                                                <TableHead>Format</TableHead>
+                                                <TableHead>Questions</TableHead>
+                                                <TableHead className="text-right">Actions</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {records.map(record => (
+                                                <TableRow key={record.id} onClick={() => setSelectedRecord(record)} className="cursor-pointer">
+                                                    <TableCell>
+                                                        <Badge variant="outline">{record.version}</Badge>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <TooltipProvider>
+                                                            <Tooltip>
+                                                                <TooltipTrigger asChild>
+                                                                    <span>{formatDistanceToNow(new Date(record.exportedAt), { addSuffix: true })}</span>
+                                                                </TooltipTrigger>
+                                                                <TooltipContent>
+                                                                    <p>{format(new Date(record.exportedAt), "PPpp")}</p>
+                                                                </TooltipContent>
+                                                            </Tooltip>
+                                                        </TooltipProvider>
+                                                    </TableCell>
+                                                    <TableCell>{record.exportedBy.name}</TableCell>
+                                                    <TableCell>{record.format.toUpperCase()}</TableCell>
+                                                    <TableCell>{record.questionCount}</TableCell>
+                                                    <TableCell className="text-right">
+                                                        <div className="flex justify-end gap-2">
+                                                            <Button variant="outline" size="sm" onClick={(e) => {e.stopPropagation(); setSelectedRecord(record)}}>
+                                                                View Details
+                                                            </Button>
+                                                        </div>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+                        )
+                    })}
+                </div>
+            ) : (
+                <Card>
+                    <CardContent className="p-0">
+                        <div className="flex flex-col items-center justify-center gap-4 text-center p-8 border-2 border-dashed border-muted rounded-lg m-6">
                             <History className="size-12 text-muted-foreground" />
                             <h3 className="font-semibold">No RFP History</h3>
                             <p className="text-sm text-muted-foreground">When you export an RFP from the main dashboard, its version history will appear here.</p>
                         </div>
-                    )}
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
+            )}
 
             <Dialog open={!!selectedRecord} onOpenChange={(isOpen) => !isOpen && setSelectedRecord(null)}>
                 <DialogContent className="max-w-4xl h-[90vh] flex flex-col">
