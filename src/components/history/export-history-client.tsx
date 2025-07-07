@@ -14,13 +14,16 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
+import type { RFP } from "@/lib/rfp-types"
 
 type ExportHistoryClientProps = {
     initialHistory: ExportRecord[];
+    initialRfps: RFP[];
 }
 
-export function ExportHistoryClient({ initialHistory }: ExportHistoryClientProps) {
+export function ExportHistoryClient({ initialHistory, initialRfps }: ExportHistoryClientProps) {
     const [history, setHistory] = useState(initialHistory);
+    const [rfps, setRfps] = useState(initialRfps);
     const [selectedRecord, setSelectedRecord] = useState<ExportRecord | null>(null);
 
     const groupedHistory = useMemo(() => {
@@ -36,6 +39,11 @@ export function ExportHistoryClient({ initialHistory }: ExportHistoryClientProps
 
     const rfpNames = Object.keys(groupedHistory);
 
+    const getRfpStatus = (rfpName: string) => {
+        const rfp = rfps.find(r => r.name === rfpName);
+        return rfp?.status;
+    };
+
 
     return (
         <>
@@ -50,13 +58,19 @@ export function ExportHistoryClient({ initialHistory }: ExportHistoryClientProps
                 <div className="space-y-8">
                     {rfpNames.map(rfpName => {
                         const records = groupedHistory[rfpName];
+                        const status = getRfpStatus(rfpName);
                         return (
                              <Card key={rfpName}>
                                 <CardHeader>
-                                    <CardTitle>{rfpName}</CardTitle>
-                                    <CardDescription>
-                                        Version history for this RFP.
-                                    </CardDescription>
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <CardTitle>{rfpName}</CardTitle>
+                                            <CardDescription>
+                                                Version history for this RFP.
+                                            </CardDescription>
+                                        </div>
+                                        {status && <Badge variant={status === 'Won' ? 'default' : status === 'Lost' ? 'destructive' : 'secondary'}>{status}</Badge>}
+                                    </div>
                                 </CardHeader>
                                 <CardContent>
                                     <Table>
