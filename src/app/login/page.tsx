@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -25,6 +25,8 @@ import { signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get('redirect') || '/megacorp';
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -38,9 +40,7 @@ export default function LoginPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // In a real app, you would redirect to the user's specific tenant.
-      // For now, we redirect to the demo tenant.
-      router.push('/megacorp'); 
+      router.push(redirectUrl); 
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -58,8 +58,7 @@ export default function LoginPage() {
     const provider = new GoogleAuthProvider();
     try {
         await signInWithPopup(auth, provider);
-        // In a real app, you would handle user creation in your DB and redirect.
-        router.push('/megacorp');
+        router.push(redirectUrl);
     } catch (error: any) {
          toast({
             variant: 'destructive',

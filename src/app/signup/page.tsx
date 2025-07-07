@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -24,6 +24,8 @@ import { createUserWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } f
 
 export default function SignUpPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get('redirect') || '/megacorp';
   const { toast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -38,7 +40,7 @@ export default function SignUpPage() {
     try {
       await createUserWithEmailAndPassword(auth, email, password);
       // In a real app, create tenant, etc.
-      router.push('/megacorp'); 
+      router.push(redirectUrl); 
     } catch (error: any) {
       toast({
         variant: 'destructive',
@@ -56,7 +58,7 @@ export default function SignUpPage() {
     const provider = new GoogleAuthProvider();
     try {
         await signInWithPopup(auth, provider);
-        router.push('/megacorp');
+        router.push(redirectUrl);
     } catch (error: any) {
          toast({
             variant: 'destructive',
