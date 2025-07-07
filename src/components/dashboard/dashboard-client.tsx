@@ -20,14 +20,13 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { RfpSelector } from "./rfp-selector"
 import { Checkbox } from "@/components/ui/checkbox"
 
-function RfpWorkspaceView() {
+function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
   const { tenant } = useTenant();
   const router = useRouter();
   const searchParams = useSearchParams();
   
-  const [rfps, setRfps] = useState<RFP[]>([]);
+  const [rfps, setRfps] = useState<RFP[]>(initialRfps);
   const [selectedRfp, setSelectedRfp] = useState<RFP | undefined>();
-  const [isDataLoading, setIsDataLoading] = useState(true);
   const [isAutoGenerating, setIsAutoGenerating] = useState(false);
   const [isAutogenDialogOpen, setIsAutogenDialogOpen] = useState(false);
 
@@ -44,21 +43,6 @@ function RfpWorkspaceView() {
   const { toast } = useToast();
 
   const currentUser = tenant.members[0];
-
-  useEffect(() => {
-    async function fetchInitialData() {
-        setIsDataLoading(true);
-        const result = await getRfpsAction(tenant.id);
-        
-        if (result.rfps) {
-            setRfps(result.rfps);
-        } else {
-            toast({ variant: "destructive", title: "Error", description: "Could not load RFP data." });
-        }
-        setIsDataLoading(false);
-    }
-    fetchInitialData();
-  }, [tenant.id, toast]);
 
   useEffect(() => {
     const rfpIdFromUrl = searchParams.get('rfpId');
@@ -157,10 +141,6 @@ function RfpWorkspaceView() {
       description: `Generated ${successCount} answers. Failed on ${errorCount} questions.`,
     });
   };
-
-  if (isDataLoading) {
-    return <DashboardSkeleton />;
-  }
   
   const progressPercentage = selectedRfp?.questions ? (selectedRfp.questions.filter(q => q.status === 'Completed').length / selectedRfp.questions.length) * 100 : 0;
 
@@ -311,6 +291,6 @@ function RfpWorkspaceView() {
     )
 }
 
-export function HomepageClient() {
-  return <RfpWorkspaceView />;
+export function HomepageClient({ initialRfps }: { initialRfps: RFP[] }) {
+  return <RfpWorkspaceView initialRfps={initialRfps} />;
 }
