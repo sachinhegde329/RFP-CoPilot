@@ -1,4 +1,3 @@
-
 "use client"
 
 import {
@@ -42,10 +41,10 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="p-4 flex items-center justify-start group-data-[state=collapsed]:justify-center">
+      <SidebarHeader>
         <SidebarTrigger />
       </SidebarHeader>
-      <SidebarContent className="p-4">
+      <SidebarContent>
         <SidebarMenu>
           {navItems.map((item) => (
             <SidebarMenuItem key={item.label}>
@@ -59,7 +58,7 @@ export function AppSidebar() {
           ))}
         </SidebarMenu>
       </SidebarContent>
-      <SidebarFooter className="p-4">
+      <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
              <SidebarMenuButton asChild isActive={isSettingsActive}>
