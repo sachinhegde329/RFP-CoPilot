@@ -195,6 +195,7 @@ function RfpWorkspaceView() {
                             members={tenant.members} 
                             onUpdateQuestion={handleUpdateQuestion}
                             onAddQuestion={handleAddQuestion}
+                            onOpenAutogenSettings={() => setIsAutogenDialogOpen(true)}
                             />
                     </div>
                 </>

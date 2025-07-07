@@ -23,9 +23,10 @@ type QAndAListProps = {
   members: TeamMember[]
   onUpdateQuestion: (questionId: number, updates: Partial<Question>) => void;
   onAddQuestion: (questionData: Omit<Question, 'id'>) => Promise<boolean>;
+  onOpenAutogenSettings: () => void;
 }
 
-export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestion, onAddQuestion }: QAndAListProps) {
+export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestion, onAddQuestion, onOpenAutogenSettings }: QAndAListProps) {
   const { tenant } = useTenant(); 
   const currentUser = tenant.members[0];
 
@@ -153,7 +154,7 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
             </div>
           </PopoverContent>
         </Popover>
-        <Button variant="outline" size="icon" className="ml-auto"><Settings /></Button>
+        <Button variant="outline" size="icon" className="ml-auto" onClick={onOpenAutogenSettings}><Settings /></Button>
       </div>
       
       {/* Table Header */}
