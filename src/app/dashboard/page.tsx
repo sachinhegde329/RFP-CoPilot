@@ -1,6 +1,7 @@
 
 import { getSession } from '@auth0/nextjs-auth0';
 import { redirect } from 'next/navigation';
+import { getTenantBySubdomain } from '@/lib/tenants';
 
 /**
  * This page acts as a server-side router after a user authenticates.
@@ -15,9 +16,17 @@ export default async function DashboardPage() {
     redirect('/api/auth/login');
   }
 
-  // With the simplified tenancy model, the user's workspace subdomain is their user ID (`sub`).
-  const workspaceSubdomain = user.sub;
+  // The user's workspace subdomain is their user ID (`sub`).
+  const tenant = await getTenantBySubdomain(user.sub);
 
+  // If the tenant record doesn't exist (which is unlikely with our on-the-fly creation)
+  // or if their onboarding isn't marked as complete, send them to the setup page.
+  if (!tenant || !tenant.onboardingCompleted) {
+    redirect('/create-workspace');
+  }
+
+  // If onboarding is complete, redirect to their workspace subdomain.
+  const workspaceSubdomain = user.sub;
   const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'localhost:3000';
   const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
   redirect(`${protocol}://${workspaceSubdomain}.${rootDomain}`);

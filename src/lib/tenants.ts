@@ -20,6 +20,7 @@ const getDemoTenant = (): Tenant => {
         id: 'megacorp', // The ID and subdomain are both 'megacorp' for the demo
         name: 'MegaCorp (Demo)',
         subdomain: 'megacorp',
+        onboardingCompleted: true,
         domains: ['megacorp.com'],
         plan: plan,
         ssoProvider: null,
@@ -75,6 +76,7 @@ export async function getTenantBySubdomain(subdomain: string): Promise<Tenant | 
             id: user.sub,
             subdomain: user.sub,
             name: `${user.name || 'My'}'s Workspace`,
+            onboardingCompleted: false, // Onboarding is not complete for new users.
             domains: [],
             plan: 'free',
             members: [newTenantMember],

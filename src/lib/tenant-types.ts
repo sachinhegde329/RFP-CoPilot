@@ -22,6 +22,7 @@ export interface Tenant {
   id: string; // Subdomain
   name: string;
   subdomain: string;
+  onboardingCompleted?: boolean;
   domains: string[];
   plan: 'free' | 'starter' | 'team' | 'business' | 'enterprise';
   ssoProvider?: 'microsoft' | 'okta' | 'google' | null;

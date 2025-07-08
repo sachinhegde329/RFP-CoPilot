@@ -24,7 +24,7 @@ import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType, Page
 import PDFDocument from 'pdfkit';
 
 // With Auth0, we get the current user from the session on the server.
-async function getCurrentUser(): Promise<{ id: string; role: Role; name: string; } | null> {
+async function getCurrentUserFromSession(): Promise<TeamMember | null> {
     const session = await getSession();
     if (!session || !session.user) return null;
     
@@ -33,7 +33,10 @@ async function getCurrentUser(): Promise<{ id: string; role: Role; name: string;
     return {
         id: session.user.sub,
         name: session.user.name || session.user.email,
-        role: 'Owner', 
+        email: session.user.email,
+        role: 'Owner',
+        avatar: session.user.picture,
+        status: 'Active',
     };
 }
 
@@ -1238,4 +1241,20 @@ export async function deleteFromLibraryAction(tenantId: string, id: string) {
         const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
         return { error: `Failed to delete answer from library: ${errorMessage}` };
     }
+}
+
+// == ONBOARDING ACTIONS ==
+export async function completeOnboardingAction(tenantId: string) {
+    const session = await getSession();
+    if (!session || !session.user || session.user.sub !== tenantId) {
+        return { error: 'Unauthorized' };
+    }
+    
+    const updatedTenant = await updateTenant(tenantId, { onboardingCompleted: true });
+    
+    if (updatedTenant) {
+        return { success: true, tenant: updatedTenant };
+    }
+    
+    return { error: 'Failed to update workspace.' };
 }

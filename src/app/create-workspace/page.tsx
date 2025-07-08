@@ -1,38 +1,60 @@
 
 'use client'
 
-import { CreateOrganization, OrganizationList } from '@clerk/nextjs';
-import { FileBox, PlusCircle, Building } from 'lucide-react';
-import Link from 'next/link';
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useUser } from '@auth0/nextjs-auth0/client';
+
+import { FileBox, PlusCircle, Building, User as UserIcon, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { completeOnboardingAction } from '@/app/actions';
+import { Button } from '@/components/ui/button';
 
-/**
- * A page to guide new users to either create a new workspace (organization)
- * or join an existing one they have been invited to.
- */
+
 export default function CreateWorkspacePage() {
-  const [view, setView] = useState<'options' | 'create'>('options');
+  const router = useRouter();
+  const { toast } = useToast();
+  const { user } = useUser();
+  const [isLoading, setIsLoading] = useState(false);
 
-  const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'localhost:3000';
-  const protocol = typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'https' : 'http';
-  
-  const getOrgUrl = (org: { slug: string }) => `${protocol}://${org.slug}.${rootDomain}`;
+  const showMockupToast = (action: string) => {
+    toast({
+      title: "Feature Not Implemented",
+      description: `In a production app, ${action} would be handled via your Auth0 dashboard or email invitations.`,
+    });
+  };
 
-  if (view === 'create') {
-    return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-        <CreateOrganization 
-            afterCreateOrganizationUrl={getOrgUrl}
-            skipInvitationScreen={true}
-        />
-      </div>
-    );
-  }
+  const handleContinueSolo = async () => {
+    if (!user || !user.sub) return;
+    setIsLoading(true);
+    
+    const result = await completeOnboardingAction(user.sub);
+
+    if (result.error || !result.tenant) {
+      toast({
+        variant: 'destructive',
+        title: "Setup Failed",
+        description: result.error || "Could not create your personal workspace.",
+      });
+      setIsLoading(false);
+    } else {
+      toast({
+        title: "Workspace Created!",
+        description: "Redirecting you to your new dashboard.",
+      });
+      // Construct the URL and redirect
+      const workspaceSubdomain = result.tenant.subdomain;
+      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'localhost:3000';
+      const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+      window.location.href = `${protocol}://${workspaceSubdomain}.${rootDomain}`;
+    }
+  };
+
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
-      <div className="w-full max-w-md space-y-6">
+      <div className="w-full max-w-lg space-y-6">
         <div className="text-center">
           <div className="flex items-center justify-center gap-2 mb-4">
             <FileBox className="size-8 text-primary" />
@@ -43,34 +65,44 @@ export default function CreateWorkspacePage() {
         </div>
         
         <div className="space-y-4">
-          <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => setView('create')}>
+          <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => showMockupToast('creating a new workspace')}>
             <CardHeader className="flex flex-row items-center gap-4">
-              <PlusCircle className="size-8 text-primary" />
+              <PlusCircle className="size-8 text-primary flex-shrink-0" />
               <div>
-                <CardTitle>Create a Workspace</CardTitle>
-                <CardDescription>Set up a new workspace for your company or personal projects.</CardDescription>
+                <CardTitle>Create a Company Workspace</CardTitle>
+                <CardDescription>Set up a new, shared workspace for your team.</CardDescription>
               </div>
             </CardHeader>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <div className="flex flex-row items-center gap-4 mb-4">
-                <Building className="size-8 text-primary" />
-                <div>
-                  <CardTitle>Join a Workspace</CardTitle>
-                  <CardDescription>Accept an invitation or switch to an existing workspace.</CardDescription>
-                </div>
+          <Card className="hover:border-primary transition-colors cursor-pointer" onClick={() => showMockupToast('joining a workspace')}>
+            <CardHeader className="flex flex-row items-center gap-4">
+              <Building className="size-8 text-primary flex-shrink-0" />
+              <div>
+                <CardTitle>Join a Workspace</CardTitle>
+                <CardDescription>Use an email invitation to join an existing team.</CardDescription>
               </div>
             </CardHeader>
-            <CardContent>
-              <OrganizationList
-                hidePersonal={true}
-                afterSelectOrganizationUrl={getOrgUrl}
-                afterSelectPersonalUrl="/dashboard"
-              />
-            </CardContent>
           </Card>
+          
+          <Card className="hover:border-primary transition-colors cursor-pointer" onClick={handleContinueSolo}>
+            <CardHeader className="flex flex-row items-center gap-4">
+              <UserIcon className="size-8 text-primary flex-shrink-0" />
+              <div>
+                <CardTitle>Continue as a Solo User</CardTitle>
+                <CardDescription>Create a personal workspace for your own projects.</CardDescription>
+              </div>
+            </CardHeader>
+             {isLoading && (
+                <CardContent>
+                    <Button disabled className="w-full">
+                        <Loader2 className="animate-spin mr-2" />
+                        Creating your workspace...
+                    </Button>
+                </CardContent>
+            )}
+          </Card>
+
         </div>
       </div>
     </div>
