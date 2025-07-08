@@ -243,7 +243,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
 
   const renderSourceGrid = (sourceList: typeof potentialSources) => {
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid gap-6 grid-cols-[repeat(auto-fill,minmax(22rem,1fr))]">
             {sourceList.map(potential => {
                 const connected = sources.find(s => s.type === potential.type);
                 const Icon = potential.icon;
