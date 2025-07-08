@@ -18,6 +18,7 @@ import { templateService, type Template, type TemplateSection } from "@/lib/temp
 import { detectRfpTopics } from "@/ai/flows/detect-rfp-topics"
 import { askAi } from "@/ai/flows/ask-ai-flow"
 import { answerLibraryService, type QnAPair } from "@/lib/answer-library.service"
+import { generateRfpInsights, type RfpInsightsOutput } from "@/ai/flows/rfp-insights-flow"
 
 import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType, PageBreak } from 'docx';
 import PDFDocument from 'pdfkit';
@@ -1203,5 +1204,24 @@ export async function deleteFromLibraryAction(tenantId: string, id: string, curr
     } catch (e) {
         const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
         return { error: `Failed to delete answer from library: ${errorMessage}` };
+    }
+}
+
+export async function getRfpInsightsAction(tenantId: string, currentUser: CurrentUser): Promise<{ insights?: RfpInsightsOutput, error?: string }> {
+    const permCheck = await checkPermission(tenantId, currentUser, 'viewContent'); // Assuming 'viewContent' is enough for analytics
+    if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
+    
+    const canAccess = hasFeatureAccess(tenant, 'analytics');
+    if (!canAccess) {
+        return { error: "RFP Insights Dashboard is not available on your current plan." };
+    }
+
+    try {
+        const insights = await generateRfpInsights({ tenantId });
+        return { insights };
+    } catch (e) {
+        const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred while generating insights.";
+        return { error: errorMessage };
     }
 }
