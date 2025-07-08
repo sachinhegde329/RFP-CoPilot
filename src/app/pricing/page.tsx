@@ -18,6 +18,7 @@ import { useToast } from "@/hooks/use-toast"
 import { loadStripe } from "@stripe/stripe-js"
 import { createCheckoutSessionAction } from "@/app/actions"
 import { addOnsConfig } from "@/lib/tenant-types"
+import { SignUpButton, useAuth } from "@clerk/nextjs"
 
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 
@@ -38,7 +39,6 @@ const plans = [
       "Community Support",
     ],
     buttonText: "Get Started for Free",
-    buttonLink: "/signup",
   },
   {
     name: "Starter",
@@ -108,6 +108,7 @@ const plans = [
 export default function PricingPage() {
   const searchParams = useSearchParams()
   const { toast } = useToast()
+  const { isSignedIn } = useAuth();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
 
   const tenantId = searchParams.get('tenant')
@@ -170,16 +171,11 @@ export default function PricingPage() {
             <span className="text-xl font-bold">RFP CoPilot</span>
           </Link>
           <div className="flex items-center gap-4">
-            <Button variant="ghost" asChild>
-                <Link href="/login">
-                Log In
-                </Link>
-            </Button>
-            <Button asChild>
-              <Link href="/signup">
-                Sign Up
-              </Link>
-            </Button>
+             <SignUpButton>
+                <Button>
+                    Sign Up
+                </Button>
+            </SignUpButton>
           </div>
         </div>
       </header>
@@ -242,14 +238,17 @@ export default function PricingPage() {
                                     className="w-full"
                                     variant={plan.popular ? "default" : "outline"}
                                     onClick={() => handleCheckout(planId, plan.name)}
-                                    disabled={isLoading || !tenantId}
+                                    disabled={isLoading || !isSignedIn}
                                 >
-                                    {isLoading ? <Loader2 className="animate-spin" /> : null}
-                                    {!tenantId && plan.name !== 'Free' ? 'Log in to subscribe' : plan.buttonText}
+                                    {isLoading && <Loader2 className="animate-spin" />}
+                                    {!isSignedIn ? 'Log in to subscribe' : plan.buttonText}
                                 </Button>
                             );
                         }
-
+                        if (plan.id === 'free') {
+                           return <SignUpButton><Button className="w-full" variant="outline">{plan.buttonText}</Button></SignUpButton>
+                        }
+                        
                         return (
                            <Button asChild className="w-full" variant={plan.popular ? "default" : "outline"}>
                              <Link href={plan.buttonLink || '#'}>{plan.buttonText}</Link>

@@ -2,6 +2,7 @@ import { FileBox } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
+import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs';
 
 export default function DocsPage() {
   return (
@@ -19,8 +20,17 @@ export default function DocsPage() {
             <Button variant="ghost" asChild><Link href="#">Contact</Link></Button>
           </nav>
           <div className="flex items-center gap-4">
-            <Button variant="outline" asChild className="hidden sm:flex"><Link href="/login">Log In</Link></Button>
-            <Button asChild><Link href="/login">Get Started</Link></Button>
+             <SignedOut>
+              <SignInButton>
+                <Button variant="outline" className="hidden sm:flex">Log In</Button>
+              </SignInButton>
+              <SignUpButton>
+                 <Button>Get Started</Button>
+              </SignUpButton>
+            </SignedOut>
+            <SignedIn>
+              <UserButton />
+            </SignedIn>
           </div>
         </div>
       </header>

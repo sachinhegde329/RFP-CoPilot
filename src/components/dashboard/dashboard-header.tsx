@@ -16,7 +16,7 @@ import {
   DropdownMenuPortal
 } from "@/components/ui/dropdown-menu"
 import Image from "next/image"
-import { Bell, Bot, CheckCircle, CircleUserRound, MessageSquare, UserPlus, Loader2, Sun, Moon, Search, Command } from "lucide-react"
+import { Bell, UserButton, CheckCircle, CircleUserRound, MessageSquare, UserPlus, Loader2, Sun, Moon, Search, Command } from "lucide-react"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { getNotificationsAction, markNotificationsAsReadAction } from "@/app/actions"
 import type { Notification } from "@/lib/notifications.service"
@@ -31,7 +31,7 @@ function getNotificationIcon(type: string) {
     switch (type) {
         case 'assignment': return <UserPlus className={className} />;
         case 'comment': return <MessageSquare className={className} />;
-        case 'review': return <Bot className={className} />;
+        case 'review': return <UserButton className={className} />;
         case 'status': return <CheckCircle className={className} />;
         default: return null;
     }
@@ -43,7 +43,7 @@ export function HomepageHeader() {
   const { toast } = useToast()
   const { setTheme } = useTheme()
   const [notifications, setNotifications] = useState<Notification[]>([])
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(false)
   const [isAskAiOpen, setIsAskAiOpen] = useState(false);
 
   const currentUser = tenant.members[0];
@@ -51,23 +51,23 @@ export function HomepageHeader() {
   const unreadCount = notifications.filter(n => !n.isRead).length
 
   useEffect(() => {
-    const fetchNotifications = async () => {
-      if (!currentUser) return;
-      setIsLoading(true);
-      const result = await getNotificationsAction(tenant.id, currentUser.id);
-      if (result.success && result.notifications) {
-        setNotifications(result.notifications);
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Could not load notifications",
-          description: result.error,
-        });
-      }
-      setIsLoading(false);
-    };
-
-    fetchNotifications();
+    // Temporarily disable notifications as they are tied to Firebase user ID
+    // const fetchNotifications = async () => {
+    //   if (!currentUser) return;
+    //   setIsLoading(true);
+    //   const result = await getNotificationsAction(tenant.id, currentUser.id);
+    //   if (result.success && result.notifications) {
+    //     setNotifications(result.notifications);
+    //   } else {
+    //     toast({
+    //       variant: "destructive",
+    //       title: "Could not load notifications",
+    //       description: result.error,
+    //     });
+    //   }
+    //   setIsLoading(false);
+    // };
+    // fetchNotifications();
   }, [tenant.id, currentUser, toast]);
 
   useEffect(() => {
@@ -123,7 +123,7 @@ export function HomepageHeader() {
           </div>
           <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="rounded-full relative">
+                  <Button variant="ghost" size="icon" className="rounded-full relative" disabled>
                       <Bell className="h-5 w-5"/>
                       {unreadCount > 0 && (
                           <span className="absolute top-1 right-1 flex h-2 w-2">
@@ -135,73 +135,13 @@ export function HomepageHeader() {
                   </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-80">
-                  <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+                  <DropdownMenuLabel>Notifications (Disabled)</DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {isLoading ? (
-                      <div className="flex justify-center items-center p-4">
-                          <Loader2 className="animate-spin" />
-                      </div>
-                  ) : notifications.length > 0 ? (
-                      notifications.map(notification => (
-                          <DropdownMenuItem key={notification.id} className={cn("flex items-start gap-3 whitespace-normal cursor-pointer", !notification.isRead && "font-semibold")}>
-                              <div className="mt-1">
-                                  {getNotificationIcon(notification.type)}
-                              </div>
-                              <div className="flex-1">
-                                  <p className="text-sm">
-                                      <span className="font-medium">{notification.actor.name}</span>
-                                      {' '}{notification.text}
-                                  </p>
-                                  <p className={cn("text-xs", !notification.isRead ? "text-muted-foreground" : "text-muted-foreground/70")}>{notification.timestamp}</p>
-                              </div>
-                          </DropdownMenuItem>
-                      ))
-                  ) : (
-                      <DropdownMenuItem disabled className="text-center justify-center">No notifications</DropdownMenuItem>
-                  )}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem className="justify-center cursor-pointer" onSelect={handleMarkAllAsRead} disabled={isLoading || unreadCount === 0}>
-                      Mark all as read
-                  </DropdownMenuItem>
+                  <DropdownMenuItem disabled className="text-center justify-center">Notifications are temporarily disabled.</DropdownMenuItem>
               </DropdownMenuContent>
           </DropdownMenu>
 
-          <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="rounded-full">
-                  <CircleUserRound />
-                  <span className="sr-only">Toggle user menu</span>
-              </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-              <DropdownMenuLabel>My Account</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuSub>
-                  <DropdownMenuSubTrigger>
-                  <Sun className="mr-2 h-4 w-4" />
-                  <span>Theme</span>
-                  </DropdownMenuSubTrigger>
-                  <DropdownMenuPortal>
-                  <DropdownMenuSubContent>
-                      <DropdownMenuItem onClick={() => setTheme("light")}>
-                      Light
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setTheme("dark")}>
-                      Dark
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => setTheme("system")}>
-                      System
-                      </DropdownMenuItem>
-                  </DropdownMenuSubContent>
-                  </DropdownMenuPortal>
-              </DropdownMenuSub>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>Settings</DropdownMenuItem>
-              <DropdownMenuItem>Support</DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem>Logout</DropdownMenuItem>
-              </DropdownMenuContent>
-          </DropdownMenu>
+          <UserButton afterSignOutUrl="/" />
         </div>
       </header>
       <AskAiDialog open={isAskAiOpen} onOpenChange={setIsAskAiOpen} />

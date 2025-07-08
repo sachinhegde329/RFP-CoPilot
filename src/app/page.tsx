@@ -5,6 +5,7 @@ import { FileBox, FileDown, FileText, Bot, Shield, Check, XCircle, Users, Databa
 import Image from 'next/image';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs';
 
 export default function LandingPage() {
   return (
@@ -23,8 +24,17 @@ export default function LandingPage() {
             <Button variant="ghost" asChild><Link href="/docs">Docs</Link></Button>
           </nav>
           <div className="flex items-center gap-4">
-            <Button variant="outline" asChild className="hidden sm:flex"><Link href="/login">Log In</Link></Button>
-            <Button asChild><Link href="/signup">Start Free</Link></Button>
+            <SignedOut>
+              <SignInButton>
+                <Button variant="ghost">Log In</Button>
+              </SignInButton>
+              <SignUpButton>
+                 <Button>Start Free</Button>
+              </SignUpButton>
+            </SignedOut>
+            <SignedIn>
+              <UserButton />
+            </SignedIn>
           </div>
         </div>
       </header>
@@ -44,7 +54,9 @@ export default function LandingPage() {
                   AI-powered assistant to manage, answer, and export RFPs with your company’s voice — in minutes.
                 </p>
                 <div className="mt-8 flex flex-col sm:flex-row justify-center md:justify-start gap-4">
-                  <Button size="lg" asChild><Link href="/signup">Start Free</Link></Button>
+                  <SignUpButton>
+                    <Button size="lg">Start Free</Button>
+                  </SignUpButton>
                   <Button size="lg" variant="outline" asChild><Link href="#">Book a Demo</Link></Button>
                 </div>
               </div>
@@ -227,9 +239,9 @@ export default function LandingPage() {
               Start Winning RFPs with Less Effort, More Confidence
             </h2>
             <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
-              <Button size="lg" asChild>
-                <Link href="/signup">Try Free for 14 Days</Link>
-              </Button>
+              <SignUpButton>
+                <Button size="lg">Try Free for 14 Days</Button>
+              </SignUpButton>
               <Button size="lg" variant="outline" asChild>
                 <Link href="#">Talk to Sales</Link>
               </Button>

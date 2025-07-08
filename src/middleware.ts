@@ -1,43 +1,63 @@
+import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { type NextRequest, NextResponse } from 'next/server';
 
-export const config = {
-  matcher: [
-    /*
-     * Match all paths except for:
-     * 1. /api routes
-     * 2. /_next (Next.js internals)
-     * 3. /_static (inside /public)
-     * 4. all root files inside /public (e.g. /favicon.ico)
-     */
-    '/((?!api/|_next/|_static/|_vercel|[\\w-]+\\.\\w+).*)',
-  ],
-};
+// Define public routes that do not require authentication
+const isPublicRoute = createRouteMatcher([
+  '/',
+  '/features',
+  '/pricing',
+  '/docs',
+  '/login(.*)',
+  '/signup(.*)',
+  '/api/webhooks/stripe'
+]);
 
-export default function middleware(req: NextRequest) {
+export default clerkMiddleware((auth, req: NextRequest) => {
   const url = req.nextUrl;
   
-  // Use `x-forwarded-host` if present, otherwise use `host`
+  // Get hostname of request (e.g. demo.vercel.pub, localhost:3000)
   const hostname = req.headers.get('x-forwarded-host') || req.headers.get('host')!;
 
-  // For local dev, rootDomain is 'localhost'. In production, set NEXT_PUBLIC_ROOT_DOMAIN.
-  // It should not contain the protocol or port.
   const rootDomain = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'localhost');
-
-  // Remove port from the current host
   const hostWithoutPort = hostname.split(':')[0];
-
   const path = url.pathname;
 
-  // Check if it's a subdomain of the root domain.
-  // e.g. `acme.localhost` is a subdomain of `localhost`.
-  // It handles `www` as a non-subdomain request.
+  // For the demo tenant, all routes are public
+  if (hostWithoutPort.startsWith('megacorp.')) {
+     if (hostWithoutPort.endsWith(`.${rootDomain}`)) {
+        const subdomain = hostWithoutPort.replace(`.${rootDomain}`, '');
+        if (subdomain !== 'www') {
+            return NextResponse.rewrite(new URL(`/${subdomain}${path}`, req.url));
+        }
+    }
+    return NextResponse.next();
+  }
+
+  // Protect all other routes
+  if (!isPublicRoute(req)) {
+    auth().protect();
+  }
+
+  // Rewrite for app subdomains
   if (hostWithoutPort.endsWith(`.${rootDomain}`)) {
     const subdomain = hostWithoutPort.replace(`.${rootDomain}`, '');
     if (subdomain !== 'www') {
         return NextResponse.rewrite(new URL(`/${subdomain}${path}`, req.url));
     }
   }
-  
-  // All other requests (to the root domain, www, or an IP address) are passed through.
+
   return NextResponse.next();
-}
+});
+
+export const config = {
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - `_next/static` (static files)
+     * - `_next/image` (image optimization files)
+     * - `favicon.ico` (favicon file)
+     * Feel free to modify this pattern to include more paths.
+     */
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+  ],
+};

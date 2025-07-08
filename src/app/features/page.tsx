@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileBox, Bot, DatabaseZap, Users, Blocks, ShieldCheck, Shield, BarChartHorizontalBig } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs';
 
 function FeatureSection({ 
     icon: Icon, 
@@ -72,8 +73,17 @@ export default function FeaturesPage() {
             <Button variant="ghost" asChild><Link href="/docs">Docs</Link></Button>
           </nav>
           <div className="flex items-center gap-4">
-            <Button variant="outline" asChild className="hidden sm:flex"><Link href="/login">Log In</Link></Button>
-            <Button asChild><Link href="/signup">Start Free</Link></Button>
+             <SignedOut>
+              <SignInButton>
+                <Button variant="ghost" className="hidden sm:flex">Log In</Button>
+              </SignInButton>
+              <SignUpButton>
+                 <Button>Start Free</Button>
+              </SignUpButton>
+            </SignedOut>
+            <SignedIn>
+              <UserButton />
+            </SignedIn>
           </div>
         </div>
       </header>
@@ -168,9 +178,9 @@ export default function FeaturesPage() {
               Sign up for a free trial today and experience the future of proposal management. No credit card required.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
-              <Button size="lg" asChild>
-                <Link href="/signup">Start Your Free Trial</Link>
-              </Button>
+              <SignUpButton>
+                <Button size="lg">Start Your Free Trial</Button>
+              </SignUpButton>
               <Button size="lg" variant="outline" asChild>
                 <Link href="#">Talk to Sales</Link>
               </Button>
