@@ -6,7 +6,6 @@ import { getTenantBySubdomain } from '@/lib/tenants';
 import { TenantProvider } from '@/components/providers/tenant-provider';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/dashboard/app-sidebar';
-import AuthGuard from '@/components/auth/auth-guard';
 
 export function generateMetadata({ params }: { params: { tenant: string } }): Metadata {
   const tenant = getTenantBySubdomain(params.tenant);
@@ -33,7 +32,9 @@ export default function TenantLayout({
     notFound();
   }
 
-  const TenantContent = (
+  // With authentication removed, all tenant workspaces are publicly accessible.
+  // The AuthGuard component has been disabled.
+  return (
     <TenantProvider tenant={tenant}>
       <SidebarProvider defaultOpen={true}>
         <div className="flex min-h-screen">
@@ -43,12 +44,4 @@ export default function TenantLayout({
       </SidebarProvider>
     </TenantProvider>
   );
-
-  // Allow public access to the 'megacorp' demo tenant
-  if (params.tenant === 'megacorp') {
-    return TenantContent;
-  }
-
-  // Wrap other tenants in the AuthGuard to enforce authentication
-  return <AuthGuard>{TenantContent}</AuthGuard>;
 }
