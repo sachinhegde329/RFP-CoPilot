@@ -160,9 +160,11 @@ export function ExportHistoryClient({ initialHistory, initialRfps }: ExportHisto
                                     </CardHeader>
                                     <CardContent>
                                         <div className="flex items-center gap-3 p-3 bg-muted rounded-md">
-                                            <File className="h-8 w-8 text-muted-foreground" />
-                                            <div>
-                                                <p className="font-medium text-sm truncate">RFP_Response_{selectedRecord.version.replace(/\s+/g, '_')}.{selectedRecord.format}</p>
+                                            <File className="h-8 w-8 text-muted-foreground flex-shrink-0" />
+                                            <div className="min-w-0">
+                                                <p className="font-medium text-sm truncate" title={`RFP_Response_${selectedRecord.version.replace(/\s+/g, '_')}.${selectedRecord.format}`}>
+                                                    RFP_Response_{selectedRecord.version.replace(/\s+/g, '_')}.{selectedRecord.format}
+                                                </p>
                                                 <p className="text-xs text-muted-foreground">{selectedRecord.format.toUpperCase()} Document</p>
                                             </div>
                                         </div>
