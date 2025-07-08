@@ -58,9 +58,9 @@ export default function TeamSettingsPage() {
 
         const result = await inviteMemberAction(tenant.id, inviteEmail, inviteRole);
         if (result.error || !result.member) {
-            toast({ variant: 'destructive', title: 'Invitation Failed', description: result.error || 'This feature is a mock-up in the current prototype.' });
+            toast({ variant: 'destructive', title: 'Invitation Failed', description: result.error || 'Could not send an invitation at this time.' });
         } else {
-            setTenant(prev => ({ ...prev, members: [result.member!, ...prev.members] }));
+            setTenant(prev => ({ ...prev, members: [...prev.members, result.member!] }));
             toast({ title: 'Invitation Sent', description: `An invitation has been sent to ${inviteEmail}.` });
             setIsInviteDialogOpen(false);
             setInviteEmail('');
@@ -115,7 +115,7 @@ export default function TeamSettingsPage() {
                         <DialogHeader>
                             <DialogTitle>Invite a new team member</DialogTitle>
                             <DialogDescription>
-                                Team invitations are handled by your identity provider (e.g., Auth0 dashboard). This is a mock-up.
+                                Enter the email address and role for the new team member. They will receive an invitation to join your workspace.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
@@ -169,13 +169,6 @@ export default function TeamSettingsPage() {
                 </Dialog>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col gap-4">
-                 <Alert>
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Single-User Workspace</AlertTitle>
-                    <AlertDescription>
-                        Multi-user collaboration is not enabled in this prototype. To add users to your workspace, please use your Auth0 dashboard.
-                    </AlertDescription>
-                </Alert>
                 <div className="relative flex-1">
                     <div className="absolute inset-0 overflow-y-auto">
                         <Table>

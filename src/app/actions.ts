@@ -665,8 +665,6 @@ export async function inviteMemberAction(tenantId: string, email: string, role: 
       return { error: "Missing required parameters." };
     }
 
-    // This is now a mock action as multi-user tenancy is disabled.
-    // In a real app with Auth0, this would use the Management API to send an invitation.
     const newMember: TeamMember = { id: `pending-${Date.now()}`, name: email, email, role, status: 'Pending' };
 
     const updatedTenant = await updateTenant(tenant.id, {
