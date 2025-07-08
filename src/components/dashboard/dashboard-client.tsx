@@ -24,7 +24,6 @@ import { canPerformAction } from "@/lib/access-control"
 
 function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
   const { tenant } = useTenant();
-  const router = useRouter();
   const searchParams = useSearchParams();
   
   const [rfps, setRfps] = useState<RFP[]>(initialRfps);
@@ -38,7 +37,6 @@ function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
   const [autogenStyle, setAutogenStyle] = useState('a paragraph');
   const [autogenLength, setAutogenLength] = useState('medium-length');
   const [autogenTags, setAutogenTags] = useState(true);
-
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
@@ -55,13 +53,14 @@ function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
     const rfpIdFromUrl = searchParams.get('rfpId');
     if (activeRfps.length > 0) {
         const rfpToSelect = activeRfps.find(r => r.id === rfpIdFromUrl) || activeRfps[0];
-        setSelectedRfp(rfpToSelect);
-        setQuestions(rfpToSelect?.questions || []);
-    } else {
-        setSelectedRfp(undefined);
-        setQuestions([]);
+        // Only update state if the selection has actually changed
+        if (rfpToSelect.id !== selectedRfp?.id) {
+          setSelectedRfp(rfpToSelect);
+          setQuestions(rfpToSelect.questions || []);
+        }
     }
-  }, [searchParams, activeRfps]);
+    // No else block needed; if activeRfps is empty, this component won't be rendered.
+  }, [searchParams, activeRfps, selectedRfp?.id]);
   
   const handleRfpStatusChange = async (newStatus: RfpStatus) => {
     if (!selectedRfp) return;
@@ -82,7 +81,6 @@ function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
         toast({ title: "RFP Status Updated" });
     }
   };
-
 
   const handleUpdateQuestion = useCallback(async (questionId: number, updates: Partial<Question>) => {
     if (!selectedRfp) return;
@@ -151,7 +149,6 @@ function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
         console.error(`Failed to generate answer for Q${question.id}:`, result.error);
         errorCount++;
       } else if (result.answer) {
-        // This will optimistically update the UI and save to the backend.
         const updates: Partial<Question> = { answer: result.answer, status: 'Completed' };
         if (result.tags && result.tags.length > 0) {
             const existingTags = new Set(question.tags || []);
@@ -172,69 +169,66 @@ function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
   
   const progressPercentage = selectedRfp?.questions ? (selectedRfp.questions.filter(q => q.status === 'Completed').length / selectedRfp.questions.length) * 100 : 0;
 
+    // Show a skeleton or loading state until the useEffect has selected an RFP.
+    if (!selectedRfp) {
+      return (
+        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+            <DashboardSkeleton />
+        </main>
+      )
+    }
+
     return (
       <div className="flex-1 flex flex-col">
         <main className="flex-1 flex flex-col overflow-hidden p-4 sm:p-6 lg:p-8">
-           {selectedRfp ? (
-                <>
-                    <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6 border-b pb-6">
-                        <div className="flex-1 space-y-2">
-                           <div className="flex items-center gap-4">
-                                <RfpSelector rfps={activeRfps} selectedRfpId={selectedRfp.id} />
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="outline" className="w-40 justify-between" disabled={!canEditStatus}>
-                                            <span>{selectedRfp.status}</span>
-                                            <ChevronDown />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent>
-                                        {(['Draft', 'In Progress', 'Submitted', 'Won', 'Lost'] as RfpStatus[]).map(status => (
-                                            <DropdownMenuItem key={status} onSelect={() => handleRfpStatusChange(status as RfpStatus)}>
-                                                {status}
-                                            </DropdownMenuItem>
-                                        ))}
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                           </div>
-                           <div className="flex items-center gap-4 pt-1">
-                                <Progress value={progressPercentage} className="h-2 w-full max-w-sm" />
-                                <p className="text-sm text-muted-foreground whitespace-nowrap">{Math.round(progressPercentage)}% complete</p>
-                           </div>
-                        </div>
-                        <div className="flex gap-2 flex-shrink-0">
-                           <Button onClick={() => setIsAutogenDialogOpen(true)} disabled={isAutoGenerating || !selectedRfp}>
-                                {isAutoGenerating ? <Loader2 className="mr-2 animate-spin" /> : <Sparkles className="mr-2"/>}
-                                {isAutoGenerating ? 'Generating...' : 'Autogenerate All'}
-                           </Button>
-                           <Button variant="outline" onClick={() => selectedRfp && setIsExportDialogOpen(true)} disabled={!selectedRfp}>Export</Button>
-                        </div>
+            <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6 border-b pb-6">
+                <div className="flex-1 space-y-2">
+                    <div className="flex items-center gap-4">
+                        <RfpSelector rfps={activeRfps} selectedRfpId={selectedRfp.id} />
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className="w-40 justify-between" disabled={!canEditStatus}>
+                                    <span>{selectedRfp.status}</span>
+                                    <ChevronDown />
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent>
+                                {(['Draft', 'In Progress', 'Submitted', 'Won', 'Lost'] as RfpStatus[]).map(status => (
+                                    <DropdownMenuItem key={status} onSelect={() => handleRfpStatusChange(status as RfpStatus)}>
+                                        {status}
+                                    </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     </div>
-
-                    <div className="flex-1 flex flex-col overflow-y-auto -mr-6 pr-6">
-                        <QAndAList 
-                            key={selectedRfp.id}
-                            questions={questions} 
-                            tenantId={tenant.id}
-                            rfpId={selectedRfp.id}
-                            members={tenant.members} 
-                            onUpdateQuestion={handleUpdateQuestion}
-                            onAddQuestion={handleAddQuestion}
-                            onOpenAutogenSettings={() => setIsAutogenDialogOpen(true)}
-                            />
+                    <div className="flex items-center gap-4 pt-1">
+                        <Progress value={progressPercentage} className="h-2 w-full max-w-sm" />
+                        <p className="text-sm text-muted-foreground whitespace-nowrap">{Math.round(progressPercentage)}% complete</p>
                     </div>
-                </>
-            ) : (
-              <div className="flex-1 flex items-center justify-center text-center">
-                <div>
-                  <h3 className="text-2xl font-bold">Welcome to RFP CoPilot</h3>
-                  <p className="text-muted-foreground">There are no active RFPs. Check the export history or upload a new one to get started.</p>
-                  <Button className="mt-4"><Upload className="mr-2"/> Upload New RFP</Button>
                 </div>
-              </div>
-            )}
+                <div className="flex gap-2 flex-shrink-0">
+                    <Button onClick={() => setIsAutogenDialogOpen(true)} disabled={isAutoGenerating || !selectedRfp}>
+                        {isAutoGenerating ? <Loader2 className="mr-2 animate-spin" /> : <Sparkles className="mr-2"/>}
+                        {isAutoGenerating ? 'Generating...' : 'Autogenerate All'}
+                    </Button>
+                    <Button variant="outline" onClick={() => setIsExportDialogOpen(true)} disabled={!selectedRfp}>Export</Button>
+                </div>
+            </div>
+
+            <div className="flex-1 flex flex-col overflow-y-auto -mr-6 pr-6">
+                <QAndAList 
+                    key={selectedRfp.id}
+                    questions={questions} 
+                    tenantId={tenant.id}
+                    rfpId={selectedRfp.id}
+                    members={tenant.members} 
+                    onUpdateQuestion={handleUpdateQuestion}
+                    onAddQuestion={handleAddQuestion}
+                    onOpenAutogenSettings={() => setIsAutogenDialogOpen(true)}
+                />
+            </div>
         </main>
-        {selectedRfp && <ExportRfpDialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen} rfp={selectedRfp} />}
+        <ExportRfpDialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen} rfp={selectedRfp} />
         
         <Dialog open={isAutogenDialogOpen} onOpenChange={setIsAutogenDialogOpen}>
           <DialogContent>
