@@ -66,14 +66,16 @@ export function ExportHistoryClient({ initialHistory, initialRfps }: ExportHisto
                         const rfpHistory = historyByRfpId[rfp.id] || [];
                         return (
                              <AccordionItem key={rfp.id} value={rfp.id} className="border rounded-lg bg-card shadow-sm">
-                                 <AccordionTrigger className="p-4 hover:no-underline rounded-lg">
-                                     <div className="flex flex-col md:flex-row md:items-center gap-x-6 gap-y-2 w-full">
-                                        <div className="flex-1 min-w-0 text-left">
-                                            <p className="font-semibold truncate">{rfp.name}</p>
+                                 <AccordionTrigger className="p-4 hover:no-underline rounded-lg text-left">
+                                     <div className="grid grid-cols-12 items-center gap-x-4 gap-y-2 w-full">
+                                        <div className="col-span-12 md:col-span-8 min-w-0">
+                                            <p className="font-semibold truncate" title={rfp.name}>{rfp.name}</p>
                                             <p className="text-sm text-muted-foreground">{rfp.questions.length} questions</p>
                                         </div>
-                                        <div className="flex items-center gap-x-4 shrink-0">
+                                        <div className="col-span-6 md:col-span-2">
                                             {getStatusBadge(rfp.status)}
+                                        </div>
+                                        <div className="col-span-6 md:col-span-2">
                                             <Badge variant="outline">{rfpHistory.length} Exports</Badge>
                                         </div>
                                      </div>
