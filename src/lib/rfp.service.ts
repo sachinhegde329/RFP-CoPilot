@@ -147,5 +147,3 @@ class RfpService {
 }
 
 export const rfpService = new RfpService();
-
-    
