@@ -10,20 +10,17 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-  DropdownMenuSub,
-  DropdownMenuSubContent,
-  DropdownMenuSubTrigger,
-  DropdownMenuPortal
 } from "@/components/ui/dropdown-menu"
 import Image from "next/image"
-import { Bell, UserButton, CheckCircle, CircleUserRound, MessageSquare, UserPlus, Loader2, Sun, Moon, Search, Command } from "lucide-react"
+import { Bell, CheckCircle, CircleUserRound, MessageSquare, UserPlus, Loader2, Sun, Moon, Search, Command } from "lucide-react"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { getNotificationsAction, markNotificationsAsReadAction } from "@/app/actions"
 import type { Notification } from "@/lib/notifications.service"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
-import { Input } from "../ui/input"
 import { AskAiDialog } from "./ask-ai-dialog"
+import { useUser } from '@auth0/nextjs-auth0/client'
+import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
 
 
 function getNotificationIcon(type: string) {
@@ -31,7 +28,7 @@ function getNotificationIcon(type: string) {
     switch (type) {
         case 'assignment': return <UserPlus className={className} />;
         case 'comment': return <MessageSquare className={className} />;
-        case 'review': return <UserButton className={className} />;
+        case 'review': return <CircleUserRound className={className} />;
         case 'status': return <CheckCircle className={className} />;
         default: return null;
     }
@@ -45,29 +42,14 @@ export function HomepageHeader() {
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isAskAiOpen, setIsAskAiOpen] = useState(false);
+  const { user } = useUser();
 
   const currentUser = tenant.members[0];
 
   const unreadCount = notifications.filter(n => !n.isRead).length
 
   useEffect(() => {
-    // Temporarily disable notifications as they are tied to Firebase user ID
-    // const fetchNotifications = async () => {
-    //   if (!currentUser) return;
-    //   setIsLoading(true);
-    //   const result = await getNotificationsAction(tenant.id, currentUser.id);
-    //   if (result.success && result.notifications) {
-    //     setNotifications(result.notifications);
-    //   } else {
-    //     toast({
-    //       variant: "destructive",
-    //       title: "Could not load notifications",
-    //       description: result.error,
-    //     });
-    //   }
-    //   setIsLoading(false);
-    // };
-    // fetchNotifications();
+    // This feature is currently disabled post-migration
   }, [tenant.id, currentUser, toast]);
 
   useEffect(() => {
@@ -141,7 +123,31 @@ export function HomepageHeader() {
               </DropdownMenuContent>
           </DropdownMenu>
 
-          <UserButton afterSignOutUrl="/" />
+            {user && (
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                            <Avatar className="h-8 w-8">
+                                {user.picture ? <AvatarImage src={user.picture} alt={user.name || 'User'} /> : null}
+                                <AvatarFallback>{user.name ? user.name.charAt(0) : 'U'}</AvatarFallback>
+                            </Avatar>
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent className="w-56" align="end" forceMount>
+                        <DropdownMenuLabel className="font-normal">
+                        <div className="flex flex-col space-y-1">
+                            <p className="text-sm font-medium leading-none">{user.name}</p>
+                            <p className="text-xs leading-none text-muted-foreground">
+                            {user.email}
+                            </p>
+                        </div>
+                        </DropdownMenuLabel>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem asChild><Link href={`/${tenant.subdomain}/settings`}>Settings</Link></DropdownMenuItem>
+                        <DropdownMenuItem asChild><a href="/api/auth/logout">Log out</a></DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            )}
         </div>
       </header>
       <AskAiDialog open={isAskAiOpen} onOpenChange={setIsAskAiOpen} />

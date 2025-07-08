@@ -1,17 +1,13 @@
-
-import { auth, currentUser } from '@clerk/nextjs/server';
+import { getSession } from '@auth0/nextjs-auth0';
 import { type Tenant, type TeamMember, plansConfig, type Role } from './tenant-types';
 
 export * from './tenant-types';
-
-// NOTE: With Firebase removed, this service now uses a temporary in-memory store.
-// Data will NOT persist across server restarts.
 
 const getLimitsForTenant = (plan: Tenant['plan']): Tenant['limits'] => {
     return plansConfig[plan];
 }
 
-const getDemoTenant = (orgId: string): Tenant => {
+const getDemoTenant = (): Tenant => {
     const members: TeamMember[] = [
         { id: 'user_2fJAnr9bhdC7r4bDBaQzJt0iGzJ', name: 'Alex Johnson', email: 'alex.j@megacorp.com', role: 'Owner', avatar: 'https://placehold.co/100x100.png', status: 'Active' },
         { id: 'user_2fKAnr9bhdC7r4bDBaQzJt0iGzK', name: 'Maria Garcia', email: 'maria.g@megacorp.com', role: 'Admin', avatar: 'https://placehold.co/100x100.png', status: 'Active' },
@@ -21,9 +17,9 @@ const getDemoTenant = (orgId: string): Tenant => {
     const plan = 'team';
 
     return {
-        id: orgId, // Use the orgId
+        id: 'megacorp', // The ID and subdomain are both 'megacorp' for the demo
         name: 'MegaCorp (Demo)',
-        subdomain: orgId,
+        subdomain: 'megacorp',
         domains: ['megacorp.com'],
         plan: plan,
         ssoProvider: null,
@@ -35,93 +31,78 @@ const getDemoTenant = (orgId: string): Tenant => {
     };
 };
 
-// Key in-memory tenants by orgId
+// Key in-memory tenants by their ID (which is the subdomain for users, or 'megacorp' for demo)
 let inMemoryTenants: Record<string, Tenant> = {
-    'megacorp': getDemoTenant('megacorp')
+    'megacorp': getDemoTenant()
 };
 
 
 export async function getTenantBySubdomain(subdomain: string): Promise<Tenant | null> {
     
     // For the public demo, we always return the mock tenant as-is without checking auth.
-    // The ID and subdomain are both 'megacorp' for simplicity.
     if (subdomain === 'megacorp') {
         return inMemoryTenants['megacorp'];
     }
 
-    const { orgId, orgSlug, orgRole } = auth();
-    const user = await currentUser();
+    const session = await getSession();
+    const user = session?.user;
 
-    if (!orgId || !user || orgSlug !== subdomain) {
-      // If there's no active org, or the user is not logged in, or the slug doesn't match the subdomain,
-      // the user doesn't have access.
+    // If there's no active user session, deny access.
+    if (!user || !user.sub) {
       return null;
     }
 
-    let tenant = inMemoryTenants[orgId];
+    // After migration to Auth0, the user's `sub` (unique ID) is their tenant ID and subdomain.
+    // This check ensures a user can only access their own subdomain.
+    if (user.sub !== subdomain) {
+        return null;
+    }
+
+    let tenant = inMemoryTenants[user.sub];
     
-    // If the tenant doesn't exist in our mock store, create it on the fly.
-    // This simulates what would happen when a new org is created via Clerk.
+    // If the tenant doesn't exist in our mock store, create it on the fly for the new user.
     if (!tenant) {
-        const { orgName } = auth();
+        const newTenantMember: TeamMember = {
+            id: user.sub,
+            name: user.name || user.email || 'New User',
+            email: user.email || '',
+            role: 'Owner', // The first user is the owner
+            avatar: user.picture,
+            status: 'Active'
+        };
+
         const newTenant: Tenant = {
-            id: orgId,
-            subdomain: orgSlug,
-            name: orgName || `${orgSlug}'s Workspace`,
+            id: user.sub,
+            subdomain: user.sub,
+            name: `${user.name || 'My'}'s Workspace`,
             domains: [],
             plan: 'free',
-            members: [], // will be populated next
+            members: [newTenantMember],
             branding: { logoUrl: 'https://placehold.co/128x32.png', logoDataAiHint: 'company logo' },
             defaultTone: 'Formal',
             limits: getLimitsForTenant('free'),
         };
-        inMemoryTenants[orgId] = newTenant;
+        inMemoryTenants[user.sub] = newTenant;
         tenant = newTenant;
     }
 
-    // Map Clerk role to application role
-    const appRole: Role = orgRole === 'admin' ? 'Owner' : 'Editor';
-
-    const currentUserMember: TeamMember = {
-        id: user.id,
-        name: user.fullName || user.emailAddresses[0].emailAddress,
-        email: user.emailAddresses[0].emailAddress,
-        role: appRole,
-        avatar: user.imageUrl,
-        status: 'Active'
-    };
-    
-    // Make the current user the first member in the array for easy access
-    // This is a prototype simplification. A real app would manage the full member list from a database.
-    const otherMembers = tenant.members.filter(m => m.id !== user.id);
-    const tenantWithCurrentUser = {
-        ...tenant,
-        members: [currentUserMember, ...otherMembers],
-    };
-
     // Return a deep copy to avoid modifying the in-memory store directly in components
-    return JSON.parse(JSON.stringify(tenantWithCurrentUser));
+    return JSON.parse(JSON.stringify(tenant));
 }
 
 
-export async function updateTenant(orgId: string, updates: Partial<Omit<Tenant, 'id' | 'subdomain' | 'limits'>>): Promise<Tenant | null> {
-    if (!inMemoryTenants[orgId]) {
-      // Attempt to create a tenant on the fly if it doesn't exist
-      const { orgSlug } = auth();
-      // This is a fallback and might not have the correct subdomain if called in a non-request context.
-      const tenant = await getTenantBySubdomain(orgSlug || orgId);
-      if (!tenant) return null;
+export async function updateTenant(tenantId: string, updates: Partial<Omit<Tenant, 'id' | 'subdomain' | 'limits'>>): Promise<Tenant | null> {
+    if (!inMemoryTenants[tenantId]) {
+      return null;
     }
 
-    inMemoryTenants[orgId] = {
-        ...inMemoryTenants[orgId],
+    inMemoryTenants[tenantId] = {
+        ...inMemoryTenants[tenantId],
         ...updates,
     };
     // Recalculate limits if plan changed
     if (updates.plan) {
-        inMemoryTenants[orgId].limits = getLimitsForTenant(updates.plan);
+        inMemoryTenants[tenantId].limits = getLimitsForTenant(updates.plan);
     }
-    return inMemoryTenants[orgId];
+    return inMemoryTenants[tenantId];
 }
-
-    

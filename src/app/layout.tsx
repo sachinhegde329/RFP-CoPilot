@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster"
 import { Inter } from 'next/font/google';
 import { ThemeProvider } from '@/components/providers/theme-provider';
-import { ClerkProvider } from '@clerk/nextjs';
+import { UserProvider } from '@auth0/nextjs-auth0/client';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -23,10 +23,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <ClerkProvider>
-      <html lang="en" className={`${inter.variable} antialiased`} suppressHydrationWarning>
-        <head />
-        <body suppressHydrationWarning={true}>
+    <html lang="en" className={`${inter.variable} antialiased`} suppressHydrationWarning>
+      <head />
+      <body suppressHydrationWarning={true}>
+        <UserProvider>
           <ThemeProvider
             attribute="class"
             defaultTheme="system"
@@ -36,8 +36,8 @@ export default function RootLayout({
             {children}
             <Toaster />
           </ThemeProvider>
-        </body>
-      </html>
-    </ClerkProvider>
+        </UserProvider>
+      </body>
+    </html>
   );
 }

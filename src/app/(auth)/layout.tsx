@@ -9,6 +9,9 @@ export default function AuthLayout({
 }: {
   children: React.ReactNode
 }) {
+  // This layout is no longer used in the primary Auth0 flow,
+  // but is kept to avoid breaking routing for now.
+  // The primary login/signup is handled by Auth0's Universal Login page.
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background p-4">
       <div className="mx-auto flex w-full max-w-sm flex-col items-center space-y-6">

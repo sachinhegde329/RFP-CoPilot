@@ -1,4 +1,3 @@
-
 "use client"
 
 import { useState } from "react"
@@ -18,7 +17,7 @@ import { useToast } from "@/hooks/use-toast"
 import { loadStripe } from "@stripe/stripe-js"
 import { createCheckoutSessionAction } from "@/app/actions"
 import { addOnsConfig } from "@/lib/tenant-types"
-import { SignUpButton, useAuth } from "@clerk/nextjs"
+import { useUser } from '@auth0/nextjs-auth0/client';
 
 
 const stripePromise = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY 
@@ -108,7 +107,7 @@ const plans = [
 export default function PricingPage() {
   const searchParams = useSearchParams()
   const { toast } = useToast()
-  const { isSignedIn } = useAuth();
+  const { user, isLoading: isUserLoading } = useUser();
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
 
   const tenantId = searchParams.get('tenant')
@@ -171,11 +170,7 @@ export default function PricingPage() {
             <span className="text-xl font-bold">RFP CoPilot</span>
           </Link>
           <div className="flex items-center gap-4">
-             <SignUpButton>
-                <Button>
-                    Sign Up
-                </Button>
-            </SignUpButton>
+             <Button asChild><a href="/api/auth/signup">Sign Up</a></Button>
           </div>
         </div>
       </header>
@@ -238,15 +233,15 @@ export default function PricingPage() {
                                     className="w-full"
                                     variant={plan.popular ? "default" : "outline"}
                                     onClick={() => handleCheckout(planId, plan.name)}
-                                    disabled={isLoading || !isSignedIn}
+                                    disabled={isLoading || !user}
                                 >
                                     {isLoading && <Loader2 className="animate-spin" />}
-                                    {!isSignedIn ? 'Log in to subscribe' : plan.buttonText}
+                                    {!user ? 'Log in to subscribe' : plan.buttonText}
                                 </Button>
                             );
                         }
                         if (plan.id === 'free') {
-                           return <SignUpButton><Button className="w-full" variant="outline">{plan.buttonText}</Button></SignUpButton>
+                           return <Button asChild className="w-full" variant="outline"><a href="/api/auth/signup">{plan.buttonText}</a></Button>
                         }
                         
                         return (

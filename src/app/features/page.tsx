@@ -1,10 +1,11 @@
+'use client';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { FileBox, Bot, DatabaseZap, Users, Blocks, ShieldCheck, Shield, BarChartHorizontalBig } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs';
+import { useUser } from '@auth0/nextjs-auth0/client';
 
 function FeatureSection({ 
     icon: Icon, 
@@ -58,6 +59,7 @@ function FeatureSection({
 
 
 export default function FeaturesPage() {
+    const { user, isLoading } = useUser();
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       {/* Header */}
@@ -73,17 +75,18 @@ export default function FeaturesPage() {
             <Button variant="ghost" asChild><Link href="/docs">Docs</Link></Button>
           </nav>
           <div className="flex items-center gap-4">
-             <SignedOut>
-              <SignInButton>
-                <Button variant="ghost" className="hidden sm:flex">Log In</Button>
-              </SignInButton>
-              <SignUpButton>
-                 <Button>Start Free</Button>
-              </SignUpButton>
-            </SignedOut>
-            <SignedIn>
-              <UserButton />
-            </SignedIn>
+             {!isLoading && !user && (
+                 <>
+                  <Button variant="ghost" className="hidden sm:flex" asChild><a href="/api/auth/login">Log In</a></Button>
+                  <Button asChild><a href="/api/auth/signup">Start Free</a></Button>
+                 </>
+             )}
+             {!isLoading && user && (
+                 <>
+                  <Button variant="outline" asChild><Link href="/dashboard">Dashboard</Link></Button>
+                  <Button asChild><a href="/api/auth/logout">Log Out</a></Button>
+                 </>
+             )}
           </div>
         </div>
       </header>
@@ -178,9 +181,7 @@ export default function FeaturesPage() {
               Sign up for a free trial today and experience the future of proposal management. No credit card required.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
-              <SignUpButton>
-                <Button size="lg">Start Your Free Trial</Button>
-              </SignUpButton>
+              <Button size="lg" asChild><a href="/api/auth/signup">Start Your Free Trial</a></Button>
               <Button size="lg" variant="outline" asChild>
                 <Link href="#">Talk to Sales</Link>
               </Button>

@@ -6,7 +6,7 @@ import { getTenantBySubdomain } from '@/lib/tenants';
 import { TenantProvider } from '@/components/providers/tenant-provider';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/dashboard/app-sidebar';
-import { auth } from '@clerk/nextjs/server';
+import { getSession } from '@auth0/nextjs-auth0';
 
 export async function generateMetadata({ params }: { params: { tenant: string } }): Promise<Metadata> {
   const tenant = await getTenantBySubdomain(params.tenant);
@@ -27,19 +27,24 @@ export default async function TenantLayout({
   children: React.ReactNode;
   params: { tenant: string };
 }) {
-  const { orgId } = auth();
+  const session = await getSession();
   const tenant = await getTenantBySubdomain(params.tenant);
   
   if (!tenant) {
     notFound();
   }
   
-  // Protect the route if the user is not a member of the org, except for the public demo tenant
-  if (params.tenant !== 'megacorp' && tenant.id !== orgId) {
+  // For non-demo tenants, user must be logged in. Middleware should handle redirect, but this is a failsafe.
+  if (params.tenant !== 'megacorp' && !session?.user) {
       notFound();
   }
 
-  // The route protection is now handled by Clerk's middleware, so the AuthGuard is no longer needed here.
+  // After Auth0 migration, the tenancy model is user-centric. The user's ID must match the tenant ID.
+  if (params.tenant !== 'megacorp' && tenant.id !== session?.user?.sub) {
+      notFound();
+  }
+
+  // The route protection is now handled by middleware.
   return (
     <TenantProvider tenant={tenant}>
       <SidebarProvider defaultOpen={true}>

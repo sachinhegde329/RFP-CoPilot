@@ -1,4 +1,3 @@
-
 'use client'
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -46,8 +45,6 @@ export default function TeamSettingsPage() {
     const usedSeats = teamMembers.length;
     const availableSeats = totalSeats - usedSeats;
 
-    // For demo purposes, we'll assume the current user is the first member of the tenant.
-    // In a real application, this would come from an authentication context.
     const currentUser = tenant.members[0];
     const canManageTeam = canPerformAction(currentUser.role, 'manageTeam');
 
@@ -58,9 +55,9 @@ export default function TeamSettingsPage() {
         }
         setIsLoading(true);
 
-        const result = await inviteMemberAction(tenant.id, inviteEmail, inviteRole, currentUser);
+        const result = await inviteMemberAction(tenant.id, inviteEmail, inviteRole);
         if (result.error || !result.member) {
-            toast({ variant: 'destructive', title: 'Invitation Failed', description: result.error });
+            toast({ variant: 'destructive', title: 'Invitation Failed', description: result.error || 'This feature is a mock-up in the current prototype.' });
         } else {
             setTenant(prev => ({ ...prev, members: [result.member!, ...prev.members] }));
             toast({ title: 'Invitation Sent', description: `An invitation has been sent to ${inviteEmail}.` });
@@ -72,7 +69,7 @@ export default function TeamSettingsPage() {
     };
 
     const handleRemoveMember = async (member: TeamMember) => {
-        const result = await removeMemberAction(tenant.id, member.id, currentUser);
+        const result = await removeMemberAction(tenant.id, member.id);
         if (result.error) {
             toast({ variant: 'destructive', title: 'Error', description: result.error });
         } else {
@@ -88,8 +85,8 @@ export default function TeamSettingsPage() {
         });
     }
 
-    const handleRoleChange = async (memberId: number, newRole: Role) => {
-        const result = await updateMemberRoleAction(tenant.id, memberId, newRole, currentUser);
+    const handleRoleChange = async (memberId: string, newRole: Role) => {
+        const result = await updateMemberRoleAction(tenant.id, memberId, newRole);
          if (result.error || !result.member) {
             toast({ variant: 'destructive', title: 'Error', description: result.error });
         } else {
@@ -117,7 +114,7 @@ export default function TeamSettingsPage() {
                         <DialogHeader>
                             <DialogTitle>Invite a new team member</DialogTitle>
                             <DialogDescription>
-                                Enter the email address and select a role for the new member.
+                                Team invitations are handled by your identity provider (e.g., Auth0 dashboard). This is a mock-up.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
@@ -171,31 +168,13 @@ export default function TeamSettingsPage() {
                 </Dialog>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col gap-4">
-                {availableSeats > 0 ? (
-                    <div className="border rounded-lg p-4 flex justify-between items-center">
-                        <div>
-                            <p className="font-medium">{usedSeats} of {totalSeats} seats used</p>
-                            <p className="text-sm text-muted-foreground">
-                                You have {availableSeats} {availableSeats === 1 ? 'seat' : 'seats'} available.
-                                <Link href={`/pricing?tenant=${tenant.subdomain}`} className="text-primary underline ml-1">Upgrade plan</Link> for more.
-                            </p>
-                        </div>
-                        <Button variant="outline" asChild>
-                            <Link href={`/pricing?tenant=${tenant.subdomain}`}>Manage Seats</Link>
-                        </Button>
-                    </div>
-                ) : (
-                    <Alert variant="destructive">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>You've reached your seat limit!</AlertTitle>
-                        <AlertDescription>
-                            You have used all {totalSeats} seats available on your plan. To invite more team members, please upgrade your subscription.
-                             <Button asChild size="sm" className="ml-4">
-                                <Link href={`/pricing?tenant=${tenant.subdomain}`}>Upgrade Plan</Link>
-                            </Button>
-                        </AlertDescription>
-                    </Alert>
-                )}
+                 <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Single-User Workspace</AlertTitle>
+                    <AlertDescription>
+                        Multi-user collaboration is not enabled in this prototype. To add users to your workspace, please use your Auth0 dashboard.
+                    </AlertDescription>
+                </Alert>
                 <div className="relative flex-1">
                     <div className="absolute inset-0 overflow-y-auto">
                         <Table>

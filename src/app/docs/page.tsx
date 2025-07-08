@@ -1,10 +1,13 @@
+'use client';
+
 import { FileBox } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { SignedIn, SignedOut, SignInButton, SignUpButton, UserButton } from '@clerk/nextjs';
+import { useUser } from '@auth0/nextjs-auth0/client';
 
 export default function DocsPage() {
+    const { user, isLoading } = useUser();
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -20,17 +23,18 @@ export default function DocsPage() {
             <Button variant="ghost" asChild><Link href="#">Contact</Link></Button>
           </nav>
           <div className="flex items-center gap-4">
-             <SignedOut>
-              <SignInButton>
-                <Button variant="outline" className="hidden sm:flex">Log In</Button>
-              </SignInButton>
-              <SignUpButton>
-                 <Button>Get Started</Button>
-              </SignUpButton>
-            </SignedOut>
-            <SignedIn>
-              <UserButton />
-            </SignedIn>
+             {!isLoading && !user && (
+                 <>
+                    <Button variant="outline" className="hidden sm:flex" asChild><a href="/api/auth/login">Log In</a></Button>
+                    <Button asChild><a href="/api/auth/signup">Get Started</a></Button>
+                 </>
+             )}
+             {!isLoading && user && (
+                 <>
+                    <Button variant="outline" asChild><Link href="/dashboard">Dashboard</Link></Button>
+                    <Button asChild><a href="/api/auth/logout">Log Out</a></Button>
+                 </>
+             )}
           </div>
         </div>
       </header>
