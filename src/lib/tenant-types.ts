@@ -1,5 +1,6 @@
 
 export type AddOn = 'analytics' | 'customTemplates' | 'complianceValidation' | 'aiAnswerPack';
+// Role 'Approver' maps to 'Reviewer'. 'Editor' maps to 'Contributor'.
 export type Role = 'Owner' | 'Admin' | 'Approver' | 'Editor' | 'Viewer';
 export type MemberStatus = 'Active' | 'Pending';
 export type BrandTone = 'Formal' | 'Consultative' | 'Technical';
@@ -9,7 +10,7 @@ export type Feature = keyof typeof addOnsConfig | 'aiExpertReview' | 'compliance
 
 
 export interface TeamMember {
-  id: string; // Firebase User UID
+  id: string; // Clerk User ID
   name: string;
   email: string;
   role: Role;

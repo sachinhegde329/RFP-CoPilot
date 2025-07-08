@@ -6,9 +6,10 @@ import { getTenantBySubdomain } from '@/lib/tenants';
 import { TenantProvider } from '@/components/providers/tenant-provider';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/dashboard/app-sidebar';
+import { auth } from '@clerk/nextjs/server';
 
-export function generateMetadata({ params }: { params: { tenant: string } }): Metadata {
-  const tenant = getTenantBySubdomain(params.tenant);
+export async function generateMetadata({ params }: { params: { tenant: string } }): Promise<Metadata> {
+  const tenant = await getTenantBySubdomain(params.tenant);
   if (!tenant) {
     return {
       title: 'Not Found'
@@ -19,17 +20,23 @@ export function generateMetadata({ params }: { params: { tenant: string } }): Me
   };
 }
 
-export default function TenantLayout({
+export default async function TenantLayout({
   children,
   params,
 }: {
   children: React.ReactNode;
   params: { tenant: string };
 }) {
-  const tenant = getTenantBySubdomain(params.tenant);
+  const { orgId } = auth();
+  const tenant = await getTenantBySubdomain(params.tenant);
   
   if (!tenant) {
     notFound();
+  }
+  
+  // Protect the route if the user is not a member of the org, except for the public demo tenant
+  if (params.tenant !== 'megacorp' && tenant.id !== orgId) {
+      notFound();
   }
 
   // The route protection is now handled by Clerk's middleware, so the AuthGuard is no longer needed here.

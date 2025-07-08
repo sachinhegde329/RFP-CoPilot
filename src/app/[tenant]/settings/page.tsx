@@ -3,13 +3,18 @@ import { redirect } from 'next/navigation';
 import { getTenantBySubdomain } from '@/lib/tenants';
 import { canPerformAction, type Action } from '@/lib/access-control';
 
-export default function SettingsPage({ params }: { params: { tenant: string } }) {
-  const tenant = getTenantBySubdomain(params.tenant);
+export default async function SettingsPage({ params }: { params: { tenant: string } }) {
+  const tenant = await getTenantBySubdomain(params.tenant);
   if (!tenant) {
     // This case should be handled by layout, but for safety:
     redirect('/');
   }
+  // Because of the logic in getTenantBySubdomain, the first user is always the current user.
   const currentUser = tenant.members[0];
+  if (!currentUser) {
+      // User might not be logged in or part of the org, redirect to the root which will handle auth.
+      redirect('/');
+  }
 
   // Define the settings pages and their required permissions.
   // The order determines the redirect priority.
@@ -33,5 +38,6 @@ export default function SettingsPage({ params }: { params: { tenant: string } })
   }
 
   // Fallback to the dashboard if no settings pages are accessible, which is unlikely.
-  redirect(`/${tenant.subdomain}`);
+  // A viewer-only role might end up here, so redirecting to their profile is a safe fallback.
+  redirect(`/${tenant.subdomain}/settings/profile`);
 }
