@@ -1210,12 +1210,6 @@ export async function deleteFromLibraryAction(tenantId: string, id: string, curr
 export async function getRfpInsightsAction(tenantId: string, currentUser: CurrentUser): Promise<{ insights?: RfpInsightsOutput, error?: string }> {
     const permCheck = await checkPermission(tenantId, currentUser, 'viewContent'); // Assuming 'viewContent' is enough for analytics
     if (permCheck.error) return { error: permCheck.error };
-    const { tenant } = permCheck;
-    
-    const canAccess = hasFeatureAccess(tenant, 'analytics');
-    if (!canAccess) {
-        return { error: "RFP Insights Dashboard is not available on your current plan." };
-    }
 
     try {
         const insights = await generateRfpInsights({ tenantId });
