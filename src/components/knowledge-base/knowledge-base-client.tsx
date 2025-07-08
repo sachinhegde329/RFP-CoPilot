@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { canPerformAction } from "@/lib/access-control"
 import { ConnectSourceDialog } from "./connect-source-dialog"
 import { ConfigureSourceDialog } from "./configure-source-dialog"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 const knowledgeBaseStats = {
   totalAnswers: 2345,
@@ -257,7 +258,14 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
                                     <CardTitle className="text-lg">{connected.name}</CardTitle>
                                 </div>
                                 <DropdownMenu>
-                                    <DropdownMenuTrigger asChild><Button variant="ghost" size="icon" className="h-7 w-7" disabled={!canManageIntegrations || connected.status === 'Syncing'}><MoreHorizontal /></Button></DropdownMenuTrigger>
+                                    <Tooltip>
+                                        <TooltipTrigger asChild>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={!canManageIntegrations || connected.status === 'Syncing'}><MoreHorizontal /></Button>
+                                            </DropdownMenuTrigger>
+                                        </TooltipTrigger>
+                                        <TooltipContent><p>Options</p></TooltipContent>
+                                    </Tooltip>
                                     <DropdownMenuContent><DropdownMenuItem onSelect={() => handleResync(connected)}><RefreshCw className="mr-2"/> Sync Now</DropdownMenuItem><DropdownMenuItem onSelect={() => setEditingSource(connected)}><Settings className="mr-2" /> Settings</DropdownMenuItem><DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteSource(connected.id)}><Trash2 className="mr-2"/> Remove</DropdownMenuItem></DropdownMenuContent>
                                 </DropdownMenu>
                             </CardHeader>
@@ -302,7 +310,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
 
 
   return (
-    <>
+    <TooltipProvider>
         <div className="flex items-center justify-between mb-6">
             <div>
                 <h1 className="text-3xl font-bold">Knowledge Base</h1>
@@ -357,7 +365,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
                                 <TableBody>
                                     {isLoadingSources && initialSources.length === 0 ? (Array.from({length: 3}).map((_, i) => (<TableRow key={`skel-up-${i}`}><TableCell><Skeleton className="h-5 w-48" /></TableCell><TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-24" /></TableCell><TableCell><Skeleton className="h-5 w-20" /></TableCell><TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-12" /></TableCell><TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell></TableRow>))) 
                                     : uploadedFiles.length === 0 ? (<TableRow><TableCell colSpan={5} className="h-24 text-center">No documents uploaded yet.</TableCell></TableRow>) 
-                                    : (uploadedFiles.map(file => (<TableRow key={file.id}><TableCell className="font-medium flex items-center gap-2">{getSourceIcon(file.type)}{file.name}</TableCell><TableCell className="hidden md:table-cell">{file.uploader}</TableCell><TableCell>{getStatusBadge(file.status)}</TableCell><TableCell className="hidden md:table-cell">{file.itemCount ?? 'N/A'}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={!canManageIntegrations}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem>View Content</DropdownMenuItem><DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteSource(file.id)}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>)))}
+                                    : (uploadedFiles.map(file => (<TableRow key={file.id}><TableCell className="font-medium flex items-center gap-2">{getSourceIcon(file.type)}{file.name}</TableCell><TableCell className="hidden md:table-cell">{file.uploader}</TableCell><TableCell>{getStatusBadge(file.status)}</TableCell><TableCell className="hidden md:table-cell">{file.itemCount ?? 'N/A'}</TableCell><TableCell className="text-right"><DropdownMenu><Tooltip><TooltipTrigger asChild><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={!canManageIntegrations}><MoreHorizontal /></Button></DropdownMenuTrigger></TooltipTrigger><TooltipContent><p>Options</p></TooltipContent></Tooltip><DropdownMenuContent><DropdownMenuItem>View Content</DropdownMenuItem><DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteSource(file.id)}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>)))}
                                 </TableBody>
                             </Table>
                         </CardContent>
@@ -384,7 +392,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
                                 ) : answerLibrary.length === 0 ? (
                                     <TableRow><TableCell colSpan={5} className="h-24 text-center">Your Answer Library is empty. Save approved answers from your RFPs to build it up.</TableCell></TableRow>
                                 ) : (
-                                    answerLibrary.map(item => (<TableRow key={item.id}><TableCell><div className="font-medium">{item.question}</div><div className="text-sm text-muted-foreground truncate">{item.answer}</div></TableCell><TableCell className="hidden md:table-cell"><Badge variant="outline">{item.category}</Badge></TableCell><TableCell className="hidden md:table-cell">{item.usageCount}</TableCell><TableCell>{getStatusBadge(item.status)}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={!canEditContent}><MoreHorizontal /></Button></DropdownMenuTrigger><DropdownMenuContent><DropdownMenuItem><Edit className="mr-2" />Edit</DropdownMenuItem><DropdownMenuItem>View History</DropdownMenuItem><DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteFromLibrary(item.id)}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))
+                                    answerLibrary.map(item => (<TableRow key={item.id}><TableCell><div className="font-medium">{item.question}</div><div className="text-sm text-muted-foreground truncate">{item.answer}</div></TableCell><TableCell className="hidden md:table-cell"><Badge variant="outline">{item.category}</Badge></TableCell><TableCell className="hidden md:table-cell">{item.usageCount}</TableCell><TableCell>{getStatusBadge(item.status)}</TableCell><TableCell className="text-right"><DropdownMenu><Tooltip><TooltipTrigger asChild><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={!canEditContent}><MoreHorizontal /></Button></DropdownMenuTrigger></TooltipTrigger><TooltipContent><p>Options</p></TooltipContent></Tooltip><DropdownMenuContent><DropdownMenuItem><Edit className="mr-2" />Edit</DropdownMenuItem><DropdownMenuItem>View History</DropdownMenuItem><DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteFromLibrary(item.id)}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))
                                 )}
                             </TableBody>
                         </Table>
@@ -418,6 +426,6 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
             onOpenChange={() => setEditingSource(null)}
             onSourceUpdated={handleSourceUpdated}
         />
-    </>
+    </TooltipProvider>
   )
 }
