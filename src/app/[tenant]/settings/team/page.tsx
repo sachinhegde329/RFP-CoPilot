@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { MoreHorizontal, PlusCircle, Trash2, Mail, Edit, Loader2, AlertTriangle } from 'lucide-react'
+import { MoreHorizontal, PlusCircle, Trash2, Mail, Edit, Loader2, AlertTriangle, ExternalLink } from 'lucide-react'
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { 
@@ -169,6 +169,18 @@ export default function TeamSettingsPage() {
                 </Dialog>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col gap-4">
+                <Alert>
+                  <Mail className="h-4 w-4" />
+                  <AlertTitle>Manage Live Users in Auth0</AlertTitle>
+                  <AlertDescription>
+                    This page provides a functional preview of team management. To send real email invitations and manage live user accounts, use your Auth0 dashboard.
+                    <Button asChild variant="link" className="p-0 h-auto font-semibold ml-1">
+                        <a href="https://manage.auth0.com" target="_blank" rel="noopener noreferrer">
+                            Open Auth0 Dashboard <ExternalLink className="inline-block ml-1" />
+                        </a>
+                    </Button>
+                  </AlertDescription>
+                </Alert>
                 <div className="relative flex-1">
                     <div className="absolute inset-0 overflow-y-auto">
                         <Table>
