@@ -65,7 +65,7 @@ export interface SearchFilters {
     tags?: string[];
 }
 
-// In-memory store for demo purposes, keyed by tenantId
+// In-memory store for demo purposes, keyed by tenantId (orgId)
 let inMemorySources: Record<string, DataSource[]> = {};
 let inMemoryChunks: Record<string, DocumentChunk[]> = {};
 
@@ -235,3 +235,5 @@ class KnowledgeBaseService {
 }
 
 export const knowledgeBaseService = new KnowledgeBaseService();
+
+    

@@ -25,12 +25,13 @@ import PDFDocument from 'pdfkit';
 type CurrentUser = { id: string; role: Role; name: string; }
 
 // Helper function to check permissions before executing an action
-async function checkPermission(tenantId: string, currentUser: CurrentUser, action: Action): Promise<{ tenant: Tenant, user: TeamMember, error?: undefined } | { error: string }> {
-    const tenant = getTenantBySubdomain(tenantId);
+async function checkPermission(tenantSubdomain: string, currentUser: CurrentUser, action: Action): Promise<{ tenant: Tenant, user: TeamMember, error?: undefined } | { error: string }> {
+    const tenant = await getTenantBySubdomain(tenantSubdomain);
     if (!tenant) return { error: "Tenant not found." };
     
-    const user = tenant.members.find(m => m.id === currentUser.id); 
-    if (!user) return { error: "User not found." };
+    // The getTenantBySubdomain function places the current user as the first member.
+    const user = tenant.members[0]; 
+    if (!user || user.id !== currentUser.id) return { error: "Permission denied. User not a member of this workspace." };
     
     if (!canPerformAction(user.role, action)) {
         return { error: "You do not have permission to perform this action." };
@@ -40,8 +41,8 @@ async function checkPermission(tenantId: string, currentUser: CurrentUser, actio
 }
 
 // This action is used by the main dashboard's RfpSummaryCard
-export async function parseDocumentAction(documentDataUri: string, tenantId: string, currentUser: CurrentUser) {
-    const permCheck = await checkPermission(tenantId, currentUser, 'uploadRfps');
+export async function parseDocumentAction(documentDataUri: string, tenantSubdomain: string, currentUser: CurrentUser) {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'uploadRfps');
     if (permCheck.error) return { error: permCheck.error };
     const { tenant } = permCheck;
 
@@ -73,7 +74,7 @@ export async function parseDocumentAction(documentDataUri: string, tenantId: str
 export async function generateAnswerAction(payload: {
     question: string;
     rfpId: string;
-    tenantId: string;
+    tenantSubdomain: string;
     currentUser: CurrentUser;
     language?: string;
     tone?: string;
@@ -81,9 +82,9 @@ export async function generateAnswerAction(payload: {
     length?: string;
     autogenerateTags?: boolean;
 }) {
-  const { question, rfpId, tenantId, currentUser, language, tone, style, length, autogenerateTags } = payload;
+  const { question, rfpId, tenantSubdomain, currentUser, language, tone, style, length, autogenerateTags } = payload;
   
-  const permCheck = await checkPermission(tenantId, currentUser, 'editContent');
+  const permCheck = await checkPermission(tenantSubdomain, currentUser, 'editContent');
   if (permCheck.error) return { error: permCheck.error };
   const { tenant } = permCheck;
 
@@ -94,7 +95,7 @@ export async function generateAnswerAction(payload: {
       return { error: "You have no AI answers remaining this month. Please upgrade your plan or purchase an AI Answer Pack." };
   }
 
-  const rfp = await rfpService.getRfp(tenantId, rfpId);
+  const rfp = await rfpService.getRfp(tenant.id, rfpId);
   if (!rfp) {
       return { error: "RFP not found." };
   }
@@ -104,9 +105,9 @@ export async function generateAnswerAction(payload: {
   }
 
   // Step 1: Check Answer Library for an exact match
-  const libraryMatch = await answerLibraryService.findByQuestion(tenantId, question);
+  const libraryMatch = await answerLibraryService.findByQuestion(tenant.id, question);
   if (libraryMatch) {
-    await answerLibraryService.incrementUsage(tenantId, libraryMatch.id);
+    await answerLibraryService.incrementUsage(tenant.id, libraryMatch.id);
     return {
       answer: libraryMatch.answer,
       sources: [`Answer Library (ID: ${libraryMatch.id})`], // Indicate source is the library
@@ -118,7 +119,7 @@ export async function generateAnswerAction(payload: {
   
   // Step 2: If no match, proceed to RAG
   try {
-    const relevantChunks = await knowledgeBaseService.searchChunks(tenantId, question, {
+    const relevantChunks = await knowledgeBaseService.searchChunks(tenant.id, question, {
         topK: 5,
         sourceTypes: ['document', 'website'],
         tags: rfp.topics
@@ -143,8 +144,8 @@ export async function generateAnswerAction(payload: {
   }
 }
 
-export async function reviewAnswerAction(question: string, answer: string, tenantId: string, currentUser: CurrentUser) {
-  const permCheck = await checkPermission(tenantId, currentUser, 'editContent');
+export async function reviewAnswerAction(question: string, answer: string, tenantSubdomain: string, currentUser: CurrentUser) {
+  const permCheck = await checkPermission(tenantSubdomain, currentUser, 'editContent');
   if (permCheck.error) return { error: permCheck.error };
   const { tenant } = permCheck;
   
@@ -169,8 +170,8 @@ export async function reviewAnswerAction(question: string, answer: string, tenan
   }
 }
 
-export async function extractQuestionsAction(rfpText: string, rfpName: string, tenantId: string, currentUser: CurrentUser): Promise<{ rfp?: RFP, error?: string }> {
-  const permCheck = await checkPermission(tenantId, currentUser, 'editWorkspace');
+export async function extractQuestionsAction(rfpText: string, rfpName: string, tenantSubdomain: string, currentUser: CurrentUser): Promise<{ rfp?: RFP, error?: string }> {
+  const permCheck = await checkPermission(tenantSubdomain, currentUser, 'editWorkspace');
     if (permCheck.error) return { error: permCheck.error };
   const { tenant, user } = permCheck;
 
@@ -197,7 +198,7 @@ export async function extractQuestionsAction(rfpText: string, rfpName: string, t
       status: "In Progress" as const,
     }));
     
-    const newRfp = await rfpService.addRfp(tenantId, rfpName, questionsWithStatus, topicResult.topics);
+    const newRfp = await rfpService.addRfp(tenant.id, rfpName, questionsWithStatus, topicResult.topics);
     return { rfp: newRfp }
   } catch (e) {
     console.error(e)
@@ -205,9 +206,10 @@ export async function extractQuestionsAction(rfpText: string, rfpName: string, t
   }
 }
 
-export async function updateQuestionAction(tenantId: string, rfpId: string, questionId: number, updates: Partial<Question>, currentUser: CurrentUser) {
-    const permCheck = await checkPermission(tenantId, currentUser, 'editContent');
+export async function updateQuestionAction(tenantSubdomain: string, rfpId: string, questionId: number, updates: Partial<Question>, currentUser: CurrentUser) {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'editContent');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
     
     if (!questionId) {
         return { error: "Missing question ID." };
@@ -220,7 +222,7 @@ export async function updateQuestionAction(tenantId: string, rfpId: string, ques
     }
 
     try {
-        const updatedQuestion = await rfpService.updateQuestion(tenantId, rfpId, questionId, updates);
+        const updatedQuestion = await rfpService.updateQuestion(tenant.id, rfpId, questionId, updates);
         if (!updatedQuestion) {
             return { error: "Question not found or could not be updated." };
         }
@@ -228,7 +230,7 @@ export async function updateQuestionAction(tenantId: string, rfpId: string, ques
         // If question is marked as completed, save to answer library
         if (updates.status === 'Completed' && updatedQuestion.answer) {
              await saveToLibraryAction({
-                tenantId,
+                tenantSubdomain: tenant.subdomain,
                 question: updatedQuestion.question,
                 answer: updatedQuestion.answer,
                 category: updatedQuestion.category,
@@ -245,15 +247,16 @@ export async function updateQuestionAction(tenantId: string, rfpId: string, ques
     }
 }
 
-export async function addQuestionAction(tenantId: string, rfpId: string, questionData: Omit<Question, 'id'>, currentUser: CurrentUser) {
-    const permCheck = await checkPermission(tenantId, currentUser, 'editContent');
+export async function addQuestionAction(tenantSubdomain: string, rfpId: string, questionData: Omit<Question, 'id'>, currentUser: CurrentUser) {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'editContent');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
 
     if (!questionData) {
         return { error: "Missing required parameters." };
     }
     try {
-        const newQuestion = await rfpService.addQuestion(tenantId, rfpId, questionData);
+        const newQuestion = await rfpService.addQuestion(tenant.id, rfpId, questionData);
         return { success: true, question: newQuestion };
     } catch (e) {
         console.error(e);
@@ -273,12 +276,13 @@ export async function getRfpsAction(tenantId: string): Promise<{ rfps?: RFP[] }>
     }
 }
 
-export async function updateRfpStatusAction(tenantId: string, rfpId: string, status: RfpStatus, currentUser: CurrentUser) {
-    const permCheck = await checkPermission(tenantId, currentUser, 'editContent');
+export async function updateRfpStatusAction(tenantSubdomain: string, rfpId: string, status: RfpStatus, currentUser: CurrentUser) {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'editContent');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
     
     try {
-        const updatedRfp = await rfpService.updateRfpStatus(tenantId, rfpId, status);
+        const updatedRfp = await rfpService.updateRfpStatus(tenant.id, rfpId, status);
         if (!updatedRfp) {
             return { error: "RFP not found or could not be updated." };
         }
@@ -306,16 +310,17 @@ export async function getKnowledgeSourcesAction(tenantId: string) {
     }
 }
 
-export async function addDocumentSourceAction(documentDataUri: string, tenantId: string, fileName: string, currentUser: CurrentUser) {
-    const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
+export async function addDocumentSourceAction(documentDataUri: string, tenantSubdomain: string, fileName: string, currentUser: CurrentUser) {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'manageIntegrations');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
 
     if (!documentDataUri || !fileName) {
         return { error: "Missing required parameters for adding document." };
     }
 
     const newSource = await knowledgeBaseService.addDataSource({
-        tenantId,
+        tenantId: tenant.id,
         type: 'document',
         name: fileName,
         status: 'Syncing',
@@ -327,15 +332,15 @@ export async function addDocumentSourceAction(documentDataUri: string, tenantId:
     (async () => {
         try {
             const parseResult = await parseDocument({ documentDataUri });
-            await knowledgeBaseService.addChunks(tenantId, newSource.id, 'document', fileName, parseResult.chunks);
-            await knowledgeBaseService.updateDataSource(tenantId, newSource.id, {
+            await knowledgeBaseService.addChunks(tenant.id, newSource.id, 'document', fileName, parseResult.chunks);
+            await knowledgeBaseService.updateDataSource(tenant.id, newSource.id, {
                 status: 'Synced',
                 lastSynced: new Date().toLocaleDateString(),
                 itemCount: parseResult.chunks.length,
             });
         } catch (error) {
             console.error(`Failed to parse and embed document ${fileName}:`, error);
-            await knowledgeBaseService.updateDataSource(tenantId, newSource.id, {
+            await knowledgeBaseService.updateDataSource(tenant.id, newSource.id, {
                 status: 'Error',
                 lastSynced: 'Failed to process',
             });
@@ -345,16 +350,17 @@ export async function addDocumentSourceAction(documentDataUri: string, tenantId:
     return { source: newSource };
 }
 
-export async function addWebsiteSourceAction(tenantId: string, currentUser: CurrentUser, config: { url: string; maxDepth: number, maxPages: number, scopePath?: string, excludePaths?: string[], filterKeywords?: string[] }) {
-    const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
+export async function addWebsiteSourceAction(tenantSubdomain: string, currentUser: CurrentUser, config: { url: string; maxDepth: number, maxPages: number, scopePath?: string, excludePaths?: string[], filterKeywords?: string[] }) {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'manageIntegrations');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
 
     if (!config.url) {
         return { error: "Missing required parameters for adding website." };
     }
 
     const newSource = await knowledgeBaseService.addDataSource({
-        tenantId,
+        tenantId: tenant.id,
         type: 'website',
         name: new URL(config.url).hostname,
         status: 'Syncing',
@@ -363,22 +369,23 @@ export async function addWebsiteSourceAction(tenantId: string, currentUser: Curr
         config: config,
     });
 
-    knowledgeBaseService.syncDataSource(tenantId, newSource.id);
+    knowledgeBaseService.syncDataSource(tenant.id, newSource.id);
 
     return { source: newSource };
 }
 
 // Helper for API-based source connections
 async function addApiBasedSourceAction(
-    tenantId: string,
+    tenantSubdomain: string,
     currentUser: CurrentUser,
     type: DataSourceType,
     name: string,
     config: { url: string; apiKey: string;[key: string]: any },
     auth: { apiKey: string;[key: string]: any }
 ) {
-    const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'manageIntegrations');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
 
     if (!config.url || !config.apiKey) {
         return { error: `Missing required connection details for ${name}.` };
@@ -387,7 +394,7 @@ async function addApiBasedSourceAction(
     const hostname = new URL(config.url).hostname;
 
     const newSource = await knowledgeBaseService.addDataSource({
-        tenantId,
+        tenantId: tenant.id,
         type,
         name: `${name} (${hostname})`,
         status: 'Syncing',
@@ -398,22 +405,23 @@ async function addApiBasedSourceAction(
     });
 
     // Don't await this, let it run in the background
-    knowledgeBaseService.syncDataSource(tenantId, newSource.id);
+    knowledgeBaseService.syncDataSource(tenant.id, newSource.id);
 
     return { source: newSource };
 }
 
 
-export async function addGitHubSourceAction(tenantId: string, currentUser: CurrentUser, config: { repo: string; token: string }) {
-    const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
+export async function addGitHubSourceAction(tenantSubdomain: string, currentUser: CurrentUser, config: { repo: string; token: string }) {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'manageIntegrations');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
 
     if (!config.repo || !config.token) {
         return { error: "Missing required GitHub connection details." };
     }
 
     const newSource = await knowledgeBaseService.addDataSource({
-        tenantId,
+        tenantId: tenant.id,
         type: 'github',
         name: `GitHub (${config.repo})`,
         status: 'Syncing',
@@ -424,28 +432,29 @@ export async function addGitHubSourceAction(tenantId: string, currentUser: Curre
     });
 
     // Don't await this, let it run in the background
-    knowledgeBaseService.syncDataSource(tenantId, newSource.id);
+    knowledgeBaseService.syncDataSource(tenant.id, newSource.id);
 
     return { source: newSource };
 }
 
-export async function addConfluenceSourceAction(tenantId: string, currentUser: CurrentUser, config: { url: string; username: string; apiKey: string }) {
-    return addApiBasedSourceAction(tenantId, currentUser, 'confluence', 'Confluence', config, {
+export async function addConfluenceSourceAction(tenantSubdomain: string, currentUser: CurrentUser, config: { url: string; username: string; apiKey: string }) {
+    return addApiBasedSourceAction(tenantSubdomain, currentUser, 'confluence', 'Confluence', config, {
         username: config.username,
         apiKey: config.apiKey,
     });
 }
 
-export async function addNotionSourceAction(tenantId: string, currentUser: CurrentUser, config: { apiKey: string }) {
-    const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
+export async function addNotionSourceAction(tenantSubdomain: string, currentUser: CurrentUser, config: { apiKey: string }) {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'manageIntegrations');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
 
     if (!config.apiKey) {
         return { error: "Missing required Notion connection details (API Key)." };
     }
 
     const newSource = await knowledgeBaseService.addDataSource({
-        tenantId,
+        tenantId: tenant.id,
         type: 'notion',
         name: `Notion Workspace`,
         status: 'Syncing',
@@ -455,64 +464,66 @@ export async function addNotionSourceAction(tenantId: string, currentUser: Curre
     });
 
     // Don't await this, let it run in the background
-    knowledgeBaseService.syncDataSource(tenantId, newSource.id);
+    knowledgeBaseService.syncDataSource(tenant.id, newSource.id);
 
     return { source: newSource };
 }
 
-export async function addHighspotSourceAction(tenantId: string, currentUser: CurrentUser, config: { url: string; apiKey: string }) {
-    return addApiBasedSourceAction(tenantId, currentUser, 'highspot', 'Highspot', config, { apiKey: config.apiKey });
+export async function addHighspotSourceAction(tenantSubdomain: string, currentUser: CurrentUser, config: { url: string; apiKey: string }) {
+    return addApiBasedSourceAction(tenantSubdomain, currentUser, 'highspot', 'Highspot', config, { apiKey: config.apiKey });
 }
 
-export async function addShowpadSourceAction(tenantId: string, currentUser: CurrentUser, config: { url: string; apiKey: string }) {
-    return addApiBasedSourceAction(tenantId, currentUser, 'showpad', 'Showpad', config, { apiKey: config.apiKey });
+export async function addShowpadSourceAction(tenantSubdomain: string, currentUser: CurrentUser, config: { url: string; apiKey: string }) {
+    return addApiBasedSourceAction(tenantSubdomain, currentUser, 'showpad', 'Showpad', config, { apiKey: config.apiKey });
 }
 
-export async function addSeismicSourceAction(tenantId: string, currentUser: CurrentUser, config: { url: string; apiKey: string }) {
-    return addApiBasedSourceAction(tenantId, currentUser, 'seismic', 'Seismic', config, { apiKey: config.apiKey });
+export async function addSeismicSourceAction(tenantSubdomain: string, currentUser: CurrentUser, config: { url: string; apiKey: string }) {
+    return addApiBasedSourceAction(tenantSubdomain, currentUser, 'seismic', 'Seismic', config, { apiKey: config.apiKey });
 }
 
-export async function addMindtickleSourceAction(tenantId: string, currentUser: CurrentUser, config: { url: string; apiKey: string }) {
-    return addApiBasedSourceAction(tenantId, currentUser, 'mindtickle', 'Mindtickle', config, { apiKey: config.apiKey });
+export async function addMindtickleSourceAction(tenantSubdomain: string, currentUser: CurrentUser, config: { url: string; apiKey: string }) {
+    return addApiBasedSourceAction(tenantSubdomain, currentUser, 'mindtickle', 'Mindtickle', config, { apiKey: config.apiKey });
 }
 
-export async function addEnableusSourceAction(tenantId: string, currentUser: CurrentUser, config: { url: string; apiKey: string }) {
-    return addApiBasedSourceAction(tenantId, currentUser, 'enableus', 'Enable.us', config, { apiKey: config.apiKey });
+export async function addEnableusSourceAction(tenantSubdomain: string, currentUser: CurrentUser, config: { url: string; apiKey: string }) {
+    return addApiBasedSourceAction(tenantSubdomain, currentUser, 'enableus', 'Enable.us', config, { apiKey: config.apiKey });
 }
 
 
-export async function resyncKnowledgeSourceAction(tenantId: string, sourceId: string, currentUser: CurrentUser) {
-    const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
+export async function resyncKnowledgeSourceAction(tenantSubdomain: string, sourceId: string, currentUser: CurrentUser) {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'manageIntegrations');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
     
     if (!sourceId) {
         return { error: "Missing required parameters." };
     }
     
-    const source = await knowledgeBaseService.getDataSource(tenantId, sourceId);
+    const source = await knowledgeBaseService.getDataSource(tenant.id, sourceId);
     if (!source) {
         return { error: "Source not found." };
     }
 
-    await knowledgeBaseService.updateDataSource(tenantId, sourceId, {
+    await knowledgeBaseService.updateDataSource(tenant.id, sourceId, {
         status: 'Syncing',
         lastSynced: 'In progress...',
     });
 
-    knowledgeBaseService.syncDataSource(tenantId, sourceId);
+    knowledgeBaseService.syncDataSource(tenant.id, sourceId);
 
     return { success: true };
 }
 
-export async function deleteKnowledgeSourceAction(tenantId: string, sourceId: string, currentUser: CurrentUser) {
-    const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
+export async function deleteKnowledgeSourceAction(tenantSubdomain: string, sourceId: string, currentUser: CurrentUser) {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'manageIntegrations');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
 
     if (!sourceId) {
         return { error: "Missing required parameters for deleting source." };
     }
     try {
-        const success = await knowledgeBaseService.deleteDataSource(tenantId, sourceId);
+        const success = await knowledgeBaseService.deleteDataSource(tenant.id, sourceId);
         if (!success) {
             return { error: "Source not found or could not be deleted." };
         }
@@ -544,7 +555,7 @@ const STRIPE_PRICE_IDS = {
     business: 'price_1Ph_SAMPLE_BUSINESS',
 };
 
-export async function createCheckoutSessionAction(plan: 'starter' | 'team' | 'business', tenantId: string) {
+export async function createCheckoutSessionAction(plan: 'starter' | 'team' | 'business', tenantSubdomain: string) {
     if (!process.env.STRIPE_SECRET_KEY || !process.env.NEXT_PUBLIC_APP_URL) {
         return { error: "Stripe is not configured. Please set STRIPE_SECRET_KEY and NEXT_PUBLIC_APP_URL." };
     }
@@ -554,7 +565,7 @@ export async function createCheckoutSessionAction(plan: 'starter' | 'team' | 'bu
         return { error: "Invalid plan selected." };
     }
 
-    const tenant = getTenantBySubdomain(tenantId);
+    const tenant = await getTenantBySubdomain(tenantSubdomain);
     if (!tenant) {
         return { error: "Tenant not found." };
     }
@@ -596,12 +607,12 @@ export async function createCheckoutSessionAction(plan: 'starter' | 'team' | 'bu
     }
 }
 
-export async function createCustomerPortalSessionAction(tenantId: string) {
+export async function createCustomerPortalSessionAction(tenantSubdomain: string) {
   if (!process.env.STRIPE_SECRET_KEY || !process.env.NEXT_PUBLIC_APP_URL) {
     return { error: "Stripe is not configured." };
   }
 
-  const tenant = getTenantBySubdomain(tenantId);
+  const tenant = await getTenantBySubdomain(tenantSubdomain);
   if (!tenant) {
     return { error: "Tenant not found." };
   }
@@ -629,18 +640,16 @@ export async function createCustomerPortalSessionAction(tenantId: string) {
 
 // == TEAM MANAGEMENT ACTIONS ==
 
-export async function inviteMemberAction(tenantId: string, email: string, role: Role, currentUser: CurrentUser) {
-    const permCheck = await checkPermission(tenantId, currentUser, 'manageTeam');
+export async function inviteMemberAction(tenantSubdomain: string, email: string, role: Role, currentUser: CurrentUser) {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'manageTeam');
     if (permCheck.error) return { error: permCheck.error };
-
-    const tenant = getTenantBySubdomain(tenantId);
-    if (!tenant) return { error: 'Tenant not found.' };
+    const { tenant } = permCheck;
     
     if (!email || !role) {
       return { error: "Missing required parameters." };
     }
 
-    const updatedTenant = await updateTenant(tenantId, {
+    const updatedTenant = await updateTenant(tenant.id, {
         members: [...tenant.members, { id: Date.now().toString(), name: email, email, role, status: 'Pending' }]
     });
 
@@ -650,8 +659,8 @@ export async function inviteMemberAction(tenantId: string, email: string, role: 
     return { error: "Failed to invite member" };
 }
 
-export async function removeMemberAction(tenantId: string, memberId: string, currentUser: CurrentUser) {
-    const permCheck = await checkPermission(tenantId, currentUser, 'manageTeam');
+export async function removeMemberAction(tenantSubdomain: string, memberId: string, currentUser: CurrentUser) {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'manageTeam');
     if (permCheck.error) return { error: permCheck.error };
     const { tenant } = permCheck;
 
@@ -665,13 +674,13 @@ export async function removeMemberAction(tenantId: string, memberId: string, cur
     }
 
     const updatedMembers = tenant.members.filter(m => m.id !== memberId);
-    const updatedTenant = await updateTenant(tenantId, { members: updatedMembers });
+    const updatedTenant = await updateTenant(tenant.id, { members: updatedMembers });
 
     return { success: !!updatedTenant };
 }
 
-export async function updateMemberRoleAction(tenantId: string, memberId: string, newRole: Role, currentUser: CurrentUser) {
-    const permCheck = await checkPermission(tenantId, currentUser, 'manageTeam');
+export async function updateMemberRoleAction(tenantSubdomain: string, memberId: string, newRole: Role, currentUser: CurrentUser) {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'manageTeam');
     if (permCheck.error) return { error: permCheck.error };
     const { tenant } = permCheck;
 
@@ -685,32 +694,34 @@ export async function updateMemberRoleAction(tenantId: string, memberId: string,
     }
 
     const updatedMembers = tenant.members.map(m => m.id === memberId ? { ...m, role: newRole } : m);
-    const updatedTenant = await updateTenant(tenantId, { members: updatedMembers });
+    const updatedTenant = await updateTenant(tenant.id, { members: updatedMembers });
     const updatedMember = updatedTenant?.members.find(m => m.id === memberId);
     
     return { success: !!updatedTenant, member: updatedMember };
 }
 
 // == SETTINGS ACTIONS ==
-export async function updateProfileSettingsAction(tenantId: string, userId: string, data: { name: string }, currentUser: CurrentUser) {
+export async function updateProfileSettingsAction(tenantSubdomain: string, userId: string, data: { name: string }, currentUser: CurrentUser) {
     if (currentUser.id !== userId) {
         return { error: "You can only update your own profile." };
     }
-    const tenant = getTenantBySubdomain(tenantId);
-    if (!tenant) return { error: "Tenant not found." };
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'viewContent');
+    if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
     
     const updatedMembers = tenant.members.map(m => m.id === userId ? { ...m, ...data } : m);
-    const updatedTenant = await updateTenant(tenantId, { members: updatedMembers });
+    const updatedTenant = await updateTenant(tenant.id, { members: updatedMembers });
     
     return { member: updatedTenant?.members.find(m => m.id === userId) };
 }
 
-export async function updateWorkspaceSettingsAction(tenantId: string, data: Partial<Pick<Tenant, 'name' | 'defaultTone'>>, currentUser: CurrentUser) {
-    const permCheck = await checkPermission(tenantId, currentUser, 'editWorkspace');
+export async function updateWorkspaceSettingsAction(tenantSubdomain: string, data: Partial<Pick<Tenant, 'name' | 'defaultTone'>>, currentUser: CurrentUser) {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'editWorkspace');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
     
     try {
-        const updatedTenant = await updateTenant(tenantId, data);
+        const updatedTenant = await updateTenant(tenant.id, data);
         if (!updatedTenant) return { error: "Tenant not found." };
         return { tenant: updatedTenant };
     } catch (e) {
@@ -719,12 +730,13 @@ export async function updateWorkspaceSettingsAction(tenantId: string, data: Part
     }
 }
 
-export async function updateSecuritySettingsAction(tenantId: string, data: Partial<Pick<Tenant, 'domains'>>, currentUser: CurrentUser) {
-    const permCheck = await checkPermission(tenantId, currentUser, 'manageSecurity');
+export async function updateSecuritySettingsAction(tenantSubdomain: string, data: Partial<Pick<Tenant, 'domains'>>, currentUser: CurrentUser) {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'manageSecurity');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
 
     try {
-        const updatedTenant = await updateTenant(tenantId, data);
+        const updatedTenant = await updateTenant(tenant.id, data);
         if (!updatedTenant) return { error: "Tenant not found." };
         return { tenant: updatedTenant };
     } catch (e) {
@@ -823,7 +835,7 @@ const renderAcknowledgmentsDOCX = (acknowledgments: any[]): Paragraph[] => {
 
 
 export async function exportRfpAction(payload: {
-    tenantId: string;
+    tenantSubdomain: string;
     rfpId: string;
     templateId: string;
     currentUser: CurrentUser,
@@ -831,13 +843,13 @@ export async function exportRfpAction(payload: {
     format: 'pdf' | 'docx',
     acknowledgments: { name: string; role: string; comment: string }[]
 }) {
-    const { tenantId, rfpId, templateId, currentUser, exportVersion, format, acknowledgments } = payload;
+    const { tenantSubdomain, rfpId, templateId, currentUser, exportVersion, format, acknowledgments } = payload;
     
-    const permCheck = await checkPermission(tenantId, currentUser, 'finalizeExport');
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'finalizeExport');
     if (permCheck.error) return { error: permCheck.error };
     const { user, tenant } = permCheck;
 
-    const template = await templateService.getTemplate(tenantId, templateId);
+    const template = await templateService.getTemplate(tenant.id, templateId);
     if (!template) {
         return { error: "Template not found." };
     }
@@ -846,7 +858,7 @@ export async function exportRfpAction(payload: {
         return { error: 'Custom export templates are not available on your current plan. Please upgrade or use a system template.' };
     }
 
-    const rfp = await rfpService.getRfp(tenantId, rfpId);
+    const rfp = await rfpService.getRfp(tenant.id, rfpId);
     if (!rfp) {
         return { error: "RFP not found." };
     }
@@ -979,7 +991,7 @@ export async function exportRfpAction(payload: {
             return { error: "Invalid export format specified." };
         }
         
-        await exportService.addExportRecord(tenantId, {
+        await exportService.addExportRecord(tenant.id, {
             rfpId,
             rfpName: rfp.name,
             version: exportVersion,
@@ -1020,24 +1032,26 @@ export async function getExportHistoryAction(tenantId: string, rfpId?: string) {
 
 // == TEMPLATE ACTIONS ==
 
-export async function getTemplatesAction(tenantId: string, currentUser: CurrentUser): Promise<{ templates?: Template[], error?: string }> {
-    const permCheck = await checkPermission(tenantId, currentUser, 'viewContent');
+export async function getTemplatesAction(tenantSubdomain: string, currentUser: CurrentUser): Promise<{ templates?: Template[], error?: string }> {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'viewContent');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
     
     try {
-        const templates = await templateService.getTemplates(tenantId);
+        const templates = await templateService.getTemplates(tenant.id);
         return { templates };
     } catch (e) {
         return { error: 'Failed to retrieve templates.' };
     }
 }
 
-export async function getTemplateAction(tenantId: string, templateId: string, currentUser: CurrentUser): Promise<{ template?: Template, error?: string }> {
-    const permCheck = await checkPermission(tenantId, currentUser, 'viewContent');
+export async function getTemplateAction(tenantSubdomain: string, templateId: string, currentUser: CurrentUser): Promise<{ template?: Template, error?: string }> {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'viewContent');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
     
     try {
-        const template = await templateService.getTemplate(tenantId, templateId);
+        const template = await templateService.getTemplate(tenant.id, templateId);
         if (!template) return { error: 'Template not found.' };
         return { template };
     } catch (e) {
@@ -1045,24 +1059,26 @@ export async function getTemplateAction(tenantId: string, templateId: string, cu
     }
 }
 
-export async function createTemplateAction(tenantId: string, data: { name: string; description: string }, currentUser: CurrentUser): Promise<{ template?: Template, error?: string }> {
-    const permCheck = await checkPermission(tenantId, currentUser, 'editWorkspace');
+export async function createTemplateAction(tenantSubdomain: string, data: { name: string; description: string }, currentUser: CurrentUser): Promise<{ template?: Template, error?: string }> {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'editWorkspace');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
     
     try {
-        const template = await templateService.createTemplate(tenantId, data);
+        const template = await templateService.createTemplate(tenant.id, data);
         return { template };
     } catch (e) {
         return { error: 'Failed to create template.' };
     }
 }
 
-export async function updateTemplateAction(tenantId: string, templateId: string, data: { name?: string; description?: string; structure?: TemplateSection[] }, currentUser: CurrentUser): Promise<{ template?: Template, error?: string }> {
-    const permCheck = await checkPermission(tenantId, currentUser, 'editWorkspace');
+export async function updateTemplateAction(tenantSubdomain: string, templateId: string, data: { name?: string; description?: string; structure?: TemplateSection[] }, currentUser: CurrentUser): Promise<{ template?: Template, error?: string }> {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'editWorkspace');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
 
     try {
-        const template = await templateService.updateTemplate(tenantId, templateId, data);
+        const template = await templateService.updateTemplate(tenant.id, templateId, data);
         if (!template) return { error: 'Could not update template. System templates are protected or template not found.' };
         return { template };
     } catch (e) {
@@ -1070,12 +1086,13 @@ export async function updateTemplateAction(tenantId: string, templateId: string,
     }
 }
 
-export async function duplicateTemplateAction(tenantId: string, templateId: string, currentUser: CurrentUser): Promise<{ template?: Template, error?: string }> {
-    const permCheck = await checkPermission(tenantId, currentUser, 'editWorkspace');
+export async function duplicateTemplateAction(tenantSubdomain: string, templateId: string, currentUser: CurrentUser): Promise<{ template?: Template, error?: string }> {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'editWorkspace');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
 
     try {
-        const template = await templateService.duplicateTemplate(tenantId, templateId);
+        const template = await templateService.duplicateTemplate(tenant.id, templateId);
         if (!template) return { error: 'Template not found.' };
         return { template };
     } catch (e) {
@@ -1083,12 +1100,13 @@ export async function duplicateTemplateAction(tenantId: string, templateId: stri
     }
 }
 
-export async function deleteTemplateAction(tenantId: string, templateId: string, currentUser: CurrentUser): Promise<{ success?: boolean, error?: string }> {
-    const permCheck = await checkPermission(tenantId, currentUser, 'editWorkspace');
+export async function deleteTemplateAction(tenantSubdomain: string, templateId: string, currentUser: CurrentUser): Promise<{ success?: boolean, error?: string }> {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'editWorkspace');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
 
     try {
-        const success = await templateService.deleteTemplate(tenantId, templateId);
+        const success = await templateService.deleteTemplate(tenant.id, templateId);
         if (!success) return { error: 'Could not delete template. System templates are protected.' };
         return { success };
     } catch (e) {
@@ -1098,7 +1116,7 @@ export async function deleteTemplateAction(tenantId: string, templateId: string,
 
 export async function getTenantBySubdomainAction(subdomain: string): Promise<{ tenant?: Tenant, error?: string }> {
     try {
-        const tenant = getTenantBySubdomain(subdomain);
+        const tenant = await getTenantBySubdomain(subdomain);
         if (!tenant) {
             return { error: 'Tenant not found.' };
         }
@@ -1109,22 +1127,23 @@ export async function getTenantBySubdomainAction(subdomain: string): Promise<{ t
     }
 }
 
-export async function updateKnowledgeSourceConfigAction(tenantId: string, sourceId: string, config: DataSource['config'], currentUser: CurrentUser) {
-    const permCheck = await checkPermission(tenantId, currentUser, 'manageIntegrations');
+export async function updateKnowledgeSourceConfigAction(tenantSubdomain: string, sourceId: string, config: DataSource['config'], currentUser: CurrentUser) {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'manageIntegrations');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
 
     if (!sourceId || !config) {
         return { error: "Missing required parameters." };
     }
 
     try {
-        const source = await knowledgeBaseService.updateDataSource(tenantId, sourceId, { config });
+        const source = await knowledgeBaseService.updateDataSource(tenant.id, sourceId, { config });
         if (!source) {
             return { error: "Source not found or could not be updated." };
         }
 
         // Trigger a re-sync in the background
-        knowledgeBaseService.syncDataSource(tenantId, sourceId);
+        knowledgeBaseService.syncDataSource(tenant.id, sourceId);
 
         return { success: true, source };
     } catch (e) {
@@ -1168,21 +1187,22 @@ export async function getAnswerLibraryAction(tenantId: string): Promise<{ answer
 }
 
 export async function saveToLibraryAction(payload: {
-    tenantId: string;
+    tenantSubdomain: string;
     question: string;
     answer: string;
     category: string;
     tags: string[];
     currentUser: CurrentUser;
 }) {
-    const { tenantId, currentUser, ...data } = payload;
-    const permCheck = await checkPermission(tenantId, currentUser, 'editContent');
+    const { tenantSubdomain, currentUser, ...data } = payload;
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'editContent');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
 
     try {
         const savedAnswer = await answerLibraryService.addOrUpdate({
             ...data,
-            tenantId,
+            tenantId: tenant.id,
             status: 'Approved',
             createdBy: currentUser,
         });
@@ -1193,15 +1213,18 @@ export async function saveToLibraryAction(payload: {
     }
 }
 
-export async function deleteFromLibraryAction(tenantId: string, id: string, currentUser: CurrentUser) {
-    const permCheck = await checkPermission(tenantId, currentUser, 'editContent');
+export async function deleteFromLibraryAction(tenantSubdomain: string, id: string, currentUser: CurrentUser) {
+    const permCheck = await checkPermission(tenantSubdomain, currentUser, 'editContent');
     if (permCheck.error) return { error: permCheck.error };
+    const { tenant } = permCheck;
 
     try {
-        const success = await answerLibraryService.deleteAnswer(tenantId, id);
+        const success = await answerLibraryService.deleteAnswer(tenant.id, id);
         return { success };
     } catch (e) {
         const errorMessage = e instanceof Error ? e.message : "An unexpected error occurred.";
         return { error: `Failed to delete answer from library: ${errorMessage}` };
     }
 }
+
+    

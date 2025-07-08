@@ -44,14 +44,16 @@ const getDemoQuestions = (): Question[] => [
     }
 ];
 
+// Keyed by tenantId (orgId)
 let inMemoryExportHistory: Record<string, ExportRecord[]> = {};
 
 const initializeDemoData = () => {
-    if (!inMemoryExportHistory['megacorp']) {
-        inMemoryExportHistory['megacorp'] = [
+    const tenantId = 'megacorp'; // Demo tenant ID
+    if (!inMemoryExportHistory[tenantId]) {
+        inMemoryExportHistory[tenantId] = [
             {
                 id: 'export-demo-1',
-                tenantId: 'megacorp',
+                tenantId: tenantId,
                 rfpId: 'rfp-1',
                 rfpName: 'Q3 Enterprise Security RFP',
                 version: 'v1.0 Final',
@@ -64,7 +66,7 @@ const initializeDemoData = () => {
             },
             {
                 id: 'export-demo-2',
-                tenantId: 'megacorp',
+                tenantId: tenantId,
                 rfpId: 'rfp-1',
                 rfpName: 'Q3 Enterprise Security RFP',
                 version: 'v0.9 Draft',
@@ -77,7 +79,7 @@ const initializeDemoData = () => {
             },
             {
                 id: 'export-demo-3',
-                tenantId: 'megacorp',
+                tenantId: tenantId,
                 rfpId: 'rfp-2',
                 rfpName: 'Project Titan Proposal',
                 version: 'v1.0',
@@ -124,3 +126,5 @@ class ExportService {
 }
 
 export const exportService = new ExportService();
+
+    

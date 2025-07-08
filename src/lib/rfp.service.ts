@@ -55,18 +55,19 @@ const getSampleQuestions = (members: TeamMember[]): Question[] => [
     }
 ];
 
-// The data store is now an object keyed by tenantId for true multi-tenancy.
+// The data store is now an object keyed by tenantId (orgId) for true multi-tenancy.
 let inMemoryRfps: Record<string, RFP[]> = {};
 
 // Seed data function to be called when needed
 const initializeDemoData = () => {
+    const demoTenantId = 'megacorp';
     // Only initialize if the 'megacorp' tenant data doesn't exist
-    if (!inMemoryRfps['megacorp']) {
+    if (!inMemoryRfps[demoTenantId]) {
         const sampleQuestions = getSampleQuestions(demoMembers);
-        inMemoryRfps['megacorp'] = [
-            { id: 'rfp-1', tenantId: 'megacorp', name: 'Q3 Enterprise Security RFP', status: 'In Progress', questions: sampleQuestions, topics: ['security', 'compliance', 'enterprise'] },
-            { id: 'rfp-2', tenantId: 'megacorp', name: 'Project Titan Proposal', status: 'Won', questions: [sampleQuestions[3], sampleQuestions[2]], topics: ['product', 'pricing'] },
-            { id: 'rfp-3', tenantId: 'megacorp', name: '2023 Compliance Audit', status: 'Lost', questions: [sampleQuestions[0], sampleQuestions[1]], topics: ['security', 'legal', 'audit'] },
+        inMemoryRfps[demoTenantId] = [
+            { id: 'rfp-1', tenantId: demoTenantId, name: 'Q3 Enterprise Security RFP', status: 'In Progress', questions: sampleQuestions, topics: ['security', 'compliance', 'enterprise'] },
+            { id: 'rfp-2', tenantId: demoTenantId, name: 'Project Titan Proposal', status: 'Won', questions: [sampleQuestions[3], sampleQuestions[2]], topics: ['product', 'pricing'] },
+            { id: 'rfp-3', tenantId: demoTenantId, name: '2023 Compliance Audit', status: 'Lost', questions: [sampleQuestions[0], sampleQuestions[1]], topics: ['security', 'legal', 'audit'] },
         ];
     }
 };
@@ -146,3 +147,5 @@ class RfpService {
 }
 
 export const rfpService = new RfpService();
+
+    

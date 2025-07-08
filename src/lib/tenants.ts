@@ -11,7 +11,7 @@ const getLimitsForTenant = (plan: Tenant['plan']): Tenant['limits'] => {
     return plansConfig[plan];
 }
 
-const getDemoTenant = (subdomain: string): Tenant => {
+const getDemoTenant = (orgId: string): Tenant => {
     const members: TeamMember[] = [
         { id: 'user_2fJAnr9bhdC7r4bDBaQzJt0iGzJ', name: 'Alex Johnson', email: 'alex.j@megacorp.com', role: 'Owner', avatar: 'https://placehold.co/100x100.png', status: 'Active' },
         { id: 'user_2fKAnr9bhdC7r4bDBaQzJt0iGzK', name: 'Maria Garcia', email: 'maria.g@megacorp.com', role: 'Admin', avatar: 'https://placehold.co/100x100.png', status: 'Active' },
@@ -21,9 +21,9 @@ const getDemoTenant = (subdomain: string): Tenant => {
     const plan = 'team';
 
     return {
-        id: subdomain,
+        id: orgId, // Use the orgId
         name: 'MegaCorp (Demo)',
-        subdomain: subdomain,
+        subdomain: orgId,
         domains: ['megacorp.com'],
         plan: plan,
         ssoProvider: null,
@@ -35,6 +35,7 @@ const getDemoTenant = (subdomain: string): Tenant => {
     };
 };
 
+// Key in-memory tenants by orgId
 let inMemoryTenants: Record<string, Tenant> = {
     'megacorp': getDemoTenant('megacorp')
 };
@@ -43,47 +44,41 @@ let inMemoryTenants: Record<string, Tenant> = {
 export async function getTenantBySubdomain(subdomain: string): Promise<Tenant | null> {
     
     // For the public demo, we always return the mock tenant as-is without checking auth.
+    // The ID and subdomain are both 'megacorp' for simplicity.
     if (subdomain === 'megacorp') {
         return inMemoryTenants['megacorp'];
     }
 
-    let tenant = inMemoryTenants[subdomain];
+    const { orgId, orgSlug, orgRole } = auth();
+    const user = await currentUser();
+
+    if (!orgId || !user || orgSlug !== subdomain) {
+      // If there's no active org, or the user is not logged in, or the slug doesn't match the subdomain,
+      // the user doesn't have access.
+      return null;
+    }
+
+    let tenant = inMemoryTenants[orgId];
     
     // If the tenant doesn't exist in our mock store, create it on the fly.
     // This simulates what would happen when a new org is created via Clerk.
     if (!tenant) {
-        const { orgSlug, orgName } = auth();
-        if (orgSlug === subdomain) {
-             const newTenant: Tenant = {
-                id: orgSlug,
-                subdomain: orgSlug,
-                name: orgName || `${orgSlug}'s Workspace`,
-                domains: [],
-                plan: 'free',
-                members: [], // will be populated next
-                branding: { logoUrl: 'https://placehold.co/128x32.png', logoDataAiHint: 'company logo' },
-                defaultTone: 'Formal',
-                limits: getLimitsForTenant('free'),
-            };
-            inMemoryTenants[subdomain] = newTenant;
-            tenant = newTenant;
-        }
+        const { orgName } = auth();
+        const newTenant: Tenant = {
+            id: orgId,
+            subdomain: orgSlug,
+            name: orgName || `${orgSlug}'s Workspace`,
+            domains: [],
+            plan: 'free',
+            members: [], // will be populated next
+            branding: { logoUrl: 'https://placehold.co/128x32.png', logoDataAiHint: 'company logo' },
+            defaultTone: 'Formal',
+            limits: getLimitsForTenant('free'),
+        };
+        inMemoryTenants[orgId] = newTenant;
+        tenant = newTenant;
     }
 
-    if (!tenant) {
-        return null;
-    }
-    
-    // Fetch the current user from Clerk
-    const user = await currentUser();
-    const { orgRole } = auth();
-    
-    if (!user || !orgRole) {
-        // Not authenticated for this org, return tenant without the user.
-        // The auth guard will handle redirection.
-        return tenant;
-    }
-    
     // Map Clerk role to application role
     const appRole: Role = orgRole === 'admin' ? 'Owner' : 'Editor';
 
@@ -98,9 +93,10 @@ export async function getTenantBySubdomain(subdomain: string): Promise<Tenant | 
     
     // Make the current user the first member in the array for easy access
     // This is a prototype simplification. A real app would manage the full member list from a database.
+    const otherMembers = tenant.members.filter(m => m.id !== user.id);
     const tenantWithCurrentUser = {
         ...tenant,
-        members: [currentUserMember],
+        members: [currentUserMember, ...otherMembers],
     };
 
     // Return a deep copy to avoid modifying the in-memory store directly in components
@@ -108,17 +104,24 @@ export async function getTenantBySubdomain(subdomain: string): Promise<Tenant | 
 }
 
 
-export function updateTenant(tenantId: string, updates: Partial<Omit<Tenant, 'id' | 'subdomain' | 'limits'>>): Tenant | null {
-    if (inMemoryTenants[tenantId]) {
-        inMemoryTenants[tenantId] = {
-            ...inMemoryTenants[tenantId],
-            ...updates,
-        };
-        // Recalculate limits if plan changed
-        if (updates.plan) {
-            inMemoryTenants[tenantId].limits = getLimitsForTenant(updates.plan);
-        }
-        return inMemoryTenants[tenantId];
+export async function updateTenant(orgId: string, updates: Partial<Omit<Tenant, 'id' | 'subdomain' | 'limits'>>): Promise<Tenant | null> {
+    if (!inMemoryTenants[orgId]) {
+      // Attempt to create a tenant on the fly if it doesn't exist
+      const { orgSlug } = auth();
+      // This is a fallback and might not have the correct subdomain if called in a non-request context.
+      const tenant = await getTenantBySubdomain(orgSlug || orgId);
+      if (!tenant) return null;
     }
-    return null;
+
+    inMemoryTenants[orgId] = {
+        ...inMemoryTenants[orgId],
+        ...updates,
+    };
+    // Recalculate limits if plan changed
+    if (updates.plan) {
+        inMemoryTenants[orgId].limits = getLimitsForTenant(updates.plan);
+    }
+    return inMemoryTenants[orgId];
 }
+
+    
