@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Download, History, File } from "lucide-react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import { Tooltip, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion"
@@ -21,14 +21,27 @@ type ExportHistoryClientProps = {
     initialRfps: RFP[];
 }
 
+const getStatusBadge = (status: RFP['status']) => {
+    const variant = {
+        'Won': 'default',
+        'Lost': 'destructive',
+        'Submitted': 'secondary',
+        'In Progress': 'outline',
+        'Draft': 'outline',
+    }[status];
+
+    return <Badge variant={variant as any}>{status}</Badge>;
+}
+
+
 export function ExportHistoryClient({ initialHistory, initialRfps }: ExportHistoryClientProps) {
     const [history, setHistory] = useState(initialHistory);
     const [rfps, setRfps] = useState(initialRfps);
     const [selectedRecord, setSelectedRecord] = useState<ExportRecord | null>(null);
 
-    const groupedHistory = useMemo(() => {
+    const historyByRfpId = useMemo(() => {
         return history.reduce((acc, record) => {
-            const key = record.rfpName;
+            const key = record.rfpId;
             if (!acc[key]) {
                 acc[key] = [];
             }
@@ -37,89 +50,92 @@ export function ExportHistoryClient({ initialHistory, initialRfps }: ExportHisto
         }, {} as Record<string, ExportRecord[]>);
     }, [history]);
 
-    const rfpNames = Object.keys(groupedHistory);
-
-    const getRfpStatus = (rfpName: string) => {
-        const rfp = rfps.find(r => r.name === rfpName);
-        return rfp?.status;
-    };
-
 
     return (
         <>
             <div className="flex items-center justify-between mb-6">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">RFP Export History</h1>
-                    <p className="text-muted-foreground">View the complete version history for all of your workspace's RFPs.</p>
+                    <h1 className="text-3xl font-bold tracking-tight">RFP History</h1>
+                    <p className="text-muted-foreground">View all RFPs and their export history.</p>
                 </div>
             </div>
 
-            {rfpNames.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                    {rfpNames.map(rfpName => {
-                        const records = groupedHistory[rfpName];
-                        const status = getRfpStatus(rfpName);
+            {rfps.length > 0 ? (
+                <Accordion type="multiple" className="w-full space-y-2">
+                    {rfps.sort((a,b) => a.name.localeCompare(b.name)).map(rfp => {
+                        const rfpHistory = historyByRfpId[rfp.id] || [];
                         return (
-                             <Card key={rfpName} className="flex flex-col">
-                                <CardHeader>
-                                    <div className="flex justify-between items-start">
-                                        <div>
-                                            <CardTitle>{rfpName}</CardTitle>
-                                            <CardDescription>
-                                                Version history for this RFP.
-                                            </CardDescription>
+                             <AccordionItem key={rfp.id} value={rfp.id} className="border rounded-lg bg-card shadow-sm">
+                                 <AccordionTrigger className="p-4 hover:no-underline rounded-lg">
+                                     <div className="flex items-center gap-4 justify-between w-full">
+                                        <div className="flex-1 text-left">
+                                            <p className="font-semibold">{rfp.name}</p>
+                                            <p className="text-sm text-muted-foreground">{rfp.questions.length} questions</p>
                                         </div>
-                                        {status && <Badge variant={status === 'Won' ? 'default' : status === 'Lost' ? 'destructive' : 'secondary'}>{status}</Badge>}
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="flex-1">
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Version</TableHead>
-                                                <TableHead>Date</TableHead>
-                                                <TableHead className="text-right">Actions</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {records.map(record => (
-                                                <TableRow key={record.id} onClick={() => setSelectedRecord(record)} className="cursor-pointer">
-                                                    <TableCell>
-                                                        <Badge variant="outline">{record.version}</Badge>
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <TooltipProvider>
-                                                            <Tooltip>
-                                                                <TooltipTrigger asChild>
-                                                                    <span>{formatDistanceToNow(new Date(record.exportedAt), { addSuffix: true })}</span>
-                                                                </TooltipTrigger>
-                                                                <TooltipContent>
-                                                                    <p>{format(new Date(record.exportedAt), "PPpp")}</p>
-                                                                </TooltipContent>
-                                                            </Tooltip>
-                                                        </TooltipProvider>
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Button variant="ghost" size="sm" onClick={(e) => {e.stopPropagation(); setSelectedRecord(record)}}>
-                                                            Details
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                </CardContent>
-                            </Card>
+                                        <div className="flex items-center gap-4">
+                                            {getStatusBadge(rfp.status)}
+                                            <Badge variant="outline">{rfpHistory.length} Exports</Badge>
+                                        </div>
+                                     </div>
+                                 </AccordionTrigger>
+                                 <AccordionContent className="p-0">
+                                     <div className="border-t">
+                                        {rfpHistory.length > 0 ? (
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead>Version</TableHead>
+                                                        <TableHead>Date</TableHead>
+                                                        <TableHead>Exported By</TableHead>
+                                                        <TableHead className="text-right">Actions</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {rfpHistory.sort((a,b) => new Date(b.exportedAt).getTime() - new Date(a.exportedAt).getTime()).map(record => (
+                                                        <TableRow key={record.id}>
+                                                            <TableCell>
+                                                                <Badge variant="outline">{record.version}</Badge>
+                                                            </TableCell>
+                                                            <TableCell>
+                                                                <TooltipProvider>
+                                                                    <Tooltip>
+                                                                        <TooltipTrigger asChild>
+                                                                            <span>{formatDistanceToNow(new Date(record.exportedAt), { addSuffix: true })}</span>
+                                                                        </TooltipTrigger>
+                                                                        <TooltipContent>
+                                                                            <p>{format(new Date(record.exportedAt), "PPpp")}</p>
+                                                                        </TooltipContent>
+                                                                    </Tooltip>
+                                                                </TooltipProvider>
+                                                            </TableCell>
+                                                            <TableCell>{record.exportedBy.name}</TableCell>
+                                                            <TableCell className="text-right">
+                                                                <Button variant="ghost" size="sm" onClick={() => setSelectedRecord(record)}>
+                                                                    View Details
+                                                                </Button>
+                                                            </TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        ) : (
+                                            <div className="p-6 text-center text-muted-foreground text-sm">
+                                                This RFP has not been exported yet.
+                                            </div>
+                                        )}
+                                     </div>
+                                 </AccordionContent>
+                             </AccordionItem>
                         )
                     })}
-                </div>
+                </Accordion>
             ) : (
                 <Card>
                     <CardContent className="p-0">
                         <div className="flex flex-col items-center justify-center gap-4 text-center p-8 border-2 border-dashed border-muted rounded-lg m-6">
                             <History className="size-12 text-muted-foreground" />
-                            <h3 className="font-semibold">No RFP History</h3>
-                            <p className="text-sm text-muted-foreground">When you export an RFP from the main dashboard, its version history will appear here.</p>
+                            <h3 className="font-semibold">No RFPs Found</h3>
+                            <p className="text-sm text-muted-foreground">When you create an RFP, it will appear here.</p>
                         </div>
                     </CardContent>
                 </Card>
