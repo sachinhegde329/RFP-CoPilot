@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { knowledgeBaseService } from '@/lib/knowledge-base';
 import { getTenantBySubdomain } from '@/lib/tenants';
 import { Client } from '@microsoft/microsoft-graph-client';
+import { secretsService } from '@/lib/secrets.service';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -62,13 +63,16 @@ export async function GET(request: NextRequest) {
       expiryDate: Date.now() + tokens.expires_in * 1000,
     };
 
+    // Store tokens securely
+    await secretsService.createOrUpdateSecret(tenantId, sourceId, authData);
+
     const graphClient = Client.init({ authProvider: (done) => done(null, authData.accessToken) });
     const user = await graphClient.api('/me').get();
 
+    // Update the data source with non-sensitive information
     await knowledgeBaseService.updateDataSource(tenantId, sourceId, {
       status: 'Syncing',
       name: `SharePoint (${user.displayName || user.userPrincipalName})`,
-      auth: authData,
       lastSynced: 'In progress...',
     });
     

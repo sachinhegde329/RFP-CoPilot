@@ -3,9 +3,7 @@ import { embeddingService } from './embedding.service';
 import { getConnectorService } from './connectors';
 import { tagContent } from '@/ai/flows/tag-content-flow';
 import { pineconeService } from './pinecone.service';
-
-// NOTE: With Firebase removed, this service now uses a temporary in-memory store.
-// Data will NOT persist across server restarts or be shared across requests.
+import { secretsService } from './secrets.service';
 
 export type DataSourceType = 'website' | 'document' | 'confluence' | 'sharepoint' | 'gdrive' | 'notion' | 'github' | 'dropbox' | 'highspot' | 'showpad' | 'seismic' | 'mindtickle' | 'enableus';
 export type SyncStatus = 'Synced' | 'Syncing' | 'Error' | 'Pending';
@@ -18,32 +16,32 @@ export interface DataSource {
   status: SyncStatus;
   lastSynced: string;
   itemCount?: number;
-  uploader?: string; 
+  uploader?: string;
+  // This is a reference to the secret in Infisical, not the raw token.
+  secretPath?: string;
+  // Populated at runtime for sync jobs, but never persisted.
   auth?: {
-    // OAuth specific
     accessToken?: string;
     refreshToken?: string;
     scope?: string;
     tokenType?: string;
     expiryDate?: number;
-    // API Key/Token specific
     apiKey?: string;
     username?: string;
   } | null;
   config?: {
-    // Website crawler specific
     maxDepth?: number;
     maxPages?: number;
     filterKeywords?: string[];
     scopePath?: string;
     excludePaths?: string[];
-    // For other connectors
-    url?: string; // e.g., Confluence URL, GitHub repo (owner/repo)
-    folderId?: string; // e.g., Google Drive folder ID
-    path?: string; // e.g., Dropbox folder path
-    driveName?: string; // e.g., SharePoint drive name
+    url?: string;
+    folderId?: string;
+    path?: string;
+    driveName?: string;
   };
 }
+
 
 export interface DocumentChunk {
   id: string;
@@ -67,7 +65,6 @@ export interface SearchFilters {
     tags?: string[];
 }
 
-// In-memory store for demo purposes, keyed by tenantId
 let inMemorySources: Record<string, DataSource[]> = {};
 
 const initializeDemoData = (tenantId: string) => {
@@ -95,13 +92,27 @@ class KnowledgeBaseService {
   }
 
   public async addDataSource(sourceData: Omit<DataSource, 'id'>): Promise<DataSource> {
-    const { tenantId } = sourceData;
+    const { tenantId, auth, ...rest } = sourceData;
     initializeDemoData(tenantId);
+    
+    // Create the source object first to generate an ID
+    const newSource: DataSource = { 
+        id: `source-${Date.now()}-${Math.random()}`, 
+        tenantId,
+        ...rest 
+    };
+
+    // If auth data is provided, securely store it and get the reference path.
+    if (auth) {
+        newSource.secretPath = await secretsService.createOrUpdateSecret(tenantId, newSource.id, auth);
+    }
+    
+    // Store the source object in-memory (without the raw auth object).
     if (!inMemorySources[tenantId]) {
         inMemorySources[tenantId] = [];
     }
-    const newSource = { id: `source-${Date.now()}-${Math.random()}`, ...sourceData };
     inMemorySources[tenantId].push(newSource);
+    
     return newSource;
   }
   
@@ -111,6 +122,15 @@ class KnowledgeBaseService {
     if (tenantSources) {
       const sourceIndex = tenantSources.findIndex(s => s.id === sourceId);
       if (sourceIndex > -1) {
+        
+        // If auth data is being updated, store it securely.
+        if (updates.auth) {
+            const secretPath = await secretsService.createOrUpdateSecret(tenantId, sourceId, updates.auth);
+            tenantSources[sourceIndex].secretPath = secretPath;
+            // IMPORTANT: Remove the raw auth data before merging updates to avoid storing it.
+            delete updates.auth;
+        }
+
         tenantSources[sourceIndex] = { ...tenantSources[sourceIndex], ...updates };
         return tenantSources[sourceIndex];
       }
@@ -120,15 +140,19 @@ class KnowledgeBaseService {
 
   public async deleteDataSource(tenantId: string, sourceId: string): Promise<boolean> {
     initializeDemoData(tenantId);
-    await this.deleteChunksBySourceId(tenantId, sourceId);
+    const source = await this.getDataSource(tenantId, sourceId);
+    if (!source) return false;
+
+    // Delete associated vectors and secrets first
+    await pineconeService.deleteBySourceId(tenantId, sourceId);
+    if(source.secretPath) {
+        await secretsService.deleteSecret(tenantId, sourceId);
+    }
     
     const tenantSources = inMemorySources[tenantId];
-    if (tenantSources) {
-      const initialLength = tenantSources.length;
-      inMemorySources[tenantId] = tenantSources.filter(s => s.id !== sourceId);
-      return inMemorySources[tenantId].length < initialLength;
-    }
-    return false;
+    const initialLength = tenantSources.length;
+    inMemorySources[tenantId] = tenantSources.filter(s => s.id !== sourceId);
+    return inMemorySources[tenantId].length < initialLength;
   }
 
   // == CHUNK MANAGEMENT ==
@@ -195,6 +219,11 @@ class KnowledgeBaseService {
     }
     
     try {
+        // If the source has a secret path, fetch the credentials before syncing.
+        if (source.secretPath) {
+            source.auth = await secretsService.getSecret(tenantId, sourceId);
+        }
+
         const connector = getConnectorService(source.type);
         await connector.sync(source);
     } catch (error) {

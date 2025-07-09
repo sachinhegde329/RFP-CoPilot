@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { knowledgeBaseService } from '@/lib/knowledge-base';
 import { getTenantBySubdomain } from '@/lib/tenants';
 import { google } from 'googleapis';
+import { secretsService } from '@/lib/secrets.service';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -56,11 +57,13 @@ export async function GET(request: NextRequest) {
       expiryDate: tokens.expiry_date,
     };
 
-    // In a real app, tokens should be encrypted before storing.
+    // Store tokens securely
+    await secretsService.createOrUpdateSecret(tenantId, sourceId, authData);
+
+    // Update the data source with non-sensitive information
     await knowledgeBaseService.updateDataSource(tenantId, sourceId, {
       status: 'Syncing',
       name: `Google Drive (${userName})`,
-      auth: authData,
       lastSynced: 'In progress...',
     });
 

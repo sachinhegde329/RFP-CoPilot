@@ -2,6 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { Dropbox } from 'dropbox';
 import { knowledgeBaseService } from '@/lib/knowledge-base';
 import { getTenantBySubdomain } from '@/lib/tenants';
+import { secretsService } from '@/lib/secrets.service';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -52,10 +53,11 @@ export async function GET(request: NextRequest) {
     
     const userAccount = await new Dropbox({ accessToken: authData.accessToken }).usersGetCurrentAccount();
 
+    await secretsService.createOrUpdateSecret(tenantId, sourceId, authData);
+
     await knowledgeBaseService.updateDataSource(tenantId, sourceId, {
       status: 'Syncing',
       name: `Dropbox (${userAccount.result.name.display_name})`,
-      auth: authData,
       lastSynced: 'In progress...',
     });
     
