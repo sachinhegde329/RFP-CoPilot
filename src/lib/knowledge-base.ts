@@ -163,14 +163,26 @@ class KnowledgeBaseService {
 
   public async searchChunks(tenantId: string, queryText: string, filters: SearchFilters = {}): Promise<DocumentChunk[]> {
     const { topK = 5, sourceTypes, tags } = filters;
-    // Note: The filter logic for sourceTypes and tags is not implemented in this version of the Pinecone integration.
     
     if (!queryText) return [];
 
     const queryEmbedding = await embeddingService.generateEmbedding(queryText);
     if (queryEmbedding.length === 0) return [];
 
-    const results = await pineconeService.query(tenantId, queryEmbedding, topK);
+    const pineconeFilter: any = {};
+    if (sourceTypes && sourceTypes.length > 0) {
+        pineconeFilter.sourceType = { '$in': sourceTypes };
+    }
+    if (tags && tags.length > 0) {
+        pineconeFilter.tags = { '$in': tags };
+    }
+
+    const results = await pineconeService.query(
+        tenantId, 
+        queryEmbedding, 
+        topK,
+        Object.keys(pineconeFilter).length > 0 ? pineconeFilter : undefined
+    );
     return results;
   }
 

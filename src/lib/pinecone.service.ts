@@ -64,7 +64,7 @@ class PineconeService {
         }
     }
 
-    async query(tenantId: string, embedding: number[], topK: number): Promise<DocumentChunk[]> {
+    async query(tenantId: string, embedding: number[], topK: number, filter?: any): Promise<DocumentChunk[]> {
         if (!this.pinecone) return [];
         const index = await this.getIndex();
         const namespace = index.namespace(tenantId);
@@ -72,6 +72,7 @@ class PineconeService {
         const queryResult = await namespace.query({
             vector: embedding,
             topK,
+            filter,
             includeMetadata: true,
         });
 
