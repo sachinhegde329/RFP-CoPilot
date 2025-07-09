@@ -22,6 +22,7 @@ import { generateRfpInsights, type RfpInsightsOutput } from "@/ai/flows/rfp-insi
 
 import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType, PageBreak } from 'docx';
 import PDFDocument from 'pdfkit';
+import * as xlsx from 'xlsx';
 
 type CurrentUser = { id: string; role: Role; name: string; }
 
@@ -832,7 +833,7 @@ export async function exportRfpAction(payload: {
     templateId: string;
     currentUser: CurrentUser,
     exportVersion: string,
-    format: 'pdf' | 'docx',
+    format: 'pdf' | 'docx' | 'xlsx',
     acknowledgments: { name: string; role: string; comment: string }[]
 }) {
     const { tenantId, rfpId, templateId, currentUser, exportVersion, format, acknowledgments } = payload;
@@ -979,6 +980,34 @@ export async function exportRfpAction(payload: {
             fileData = pdfBuffer.toString('base64');
             mimeType = 'application/pdf';
 
+        } else if (format === 'xlsx') {
+            const worksheetData = questions.map(q => ({
+                'ID': q.id,
+                'Category': q.category,
+                'Question': q.question,
+                'Answer': q.answer,
+                'Status': q.status,
+                'Assignee': q.assignee?.name || 'Unassigned',
+                'Tags': q.tags?.join(', ') || ''
+            }));
+            
+            const worksheet = xlsx.utils.json_to_sheet(worksheetData);
+            const workbook = xlsx.utils.book_new();
+            xlsx.utils.book_append_sheet(workbook, worksheet, 'RFP Questions');
+
+            worksheet['!cols'] = [
+                { wch: 5 },
+                { wch: 15 },
+                { wch: 60 },
+                { wch: 80 },
+                { wch: 15 },
+                { wch: 20 },
+                { wch: 30 },
+            ];
+
+            const excelBuffer = xlsx.write(workbook, { bookType: 'xlsx', type: 'buffer' });
+            fileData = excelBuffer.toString('base64');
+            mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
         } else {
             return { error: "Invalid export format specified." };
         }

@@ -41,7 +41,7 @@ export function ExportRfpDialog({ open, onOpenChange, rfp }: ExportRfpDialogProp
   const { toast } = useToast()
 
   const [version, setVersion] = useState('1.0.0')
-  const [format, setFormat] = useState<'pdf' | 'docx'>('docx')
+  const [format, setFormat] = useState<'pdf' | 'docx' | 'xlsx'>('docx')
   const [templates, setTemplates] = useState<Template[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState('')
   const [acknowledgments, setAcknowledgments] = useState<{ name: string; role: string; comment: string }[]>([])
@@ -140,13 +140,14 @@ export function ExportRfpDialog({ open, onOpenChange, rfp }: ExportRfpDialogProp
               </div>
               <div className="space-y-2">
                 <Label htmlFor="format">Format</Label>
-                <Select value={format} onValueChange={value => setFormat(value as 'pdf' | 'docx')}>
+                <Select value={format} onValueChange={value => setFormat(value as 'pdf' | 'docx' | 'xlsx')}>
                   <SelectTrigger id="format">
                     <SelectValue placeholder="Select a format" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="docx">Word (.docx)</SelectItem>
                     <SelectItem value="pdf">PDF (.pdf)</SelectItem>
+                    <SelectItem value="xlsx">Excel (.xlsx)</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -155,7 +156,7 @@ export function ExportRfpDialog({ open, onOpenChange, rfp }: ExportRfpDialogProp
                 {isLoadingTemplates ? (
                   <div className="h-10 w-full animate-pulse rounded-md bg-muted" />
                 ) : (
-                  <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
+                  <Select value={selectedTemplate} onValueChange={setSelectedTemplate} disabled={format === 'xlsx'}>
                     <SelectTrigger id="template">
                       <SelectValue placeholder="Select a template" />
                     </SelectTrigger>
@@ -167,6 +168,9 @@ export function ExportRfpDialog({ open, onOpenChange, rfp }: ExportRfpDialogProp
                       ))}
                     </SelectContent>
                   </Select>
+                )}
+                 {format === 'xlsx' && (
+                    <p className="text-xs text-muted-foreground">Templates do not apply to Excel exports.</p>
                 )}
               </div>
               {!allQuestionsCompleted && (
