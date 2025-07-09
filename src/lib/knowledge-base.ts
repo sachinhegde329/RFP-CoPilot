@@ -2,6 +2,7 @@
 import { embeddingService } from './embedding.service';
 import { getConnectorService } from './connectors';
 import { tagContent } from '@/ai/flows/tag-content-flow';
+import { pineconeService } from './pinecone.service';
 
 // NOTE: With Firebase removed, this service now uses a temporary in-memory store.
 // Data will NOT persist across server restarts or be shared across requests.
@@ -57,6 +58,7 @@ export interface DocumentChunk {
     url?: string;
     [key: string]: any;
   };
+  score?: number;
 }
 
 export interface SearchFilters {
@@ -67,12 +69,10 @@ export interface SearchFilters {
 
 // In-memory store for demo purposes, keyed by tenantId
 let inMemorySources: Record<string, DataSource[]> = {};
-let inMemoryChunks: Record<string, DocumentChunk[]> = {};
 
 const initializeDemoData = (tenantId: string) => {
     if (!inMemorySources[tenantId]) {
         inMemorySources[tenantId] = [];
-        inMemoryChunks[tenantId] = [];
     }
 }
 
@@ -131,26 +131,10 @@ class KnowledgeBaseService {
     return false;
   }
 
-  private cosineSimilarity(vecA: number[], vecB: number[]): number {
-    if (!vecA || !vecB || vecA.length !== vecB.length) return 0;
-    let dotProduct = 0, normA = 0, normB = 0;
-    for (let i = 0; i < vecA.length; i++) {
-        dotProduct += vecA[i] * vecB[i];
-        normA += vecA[i] * vecA[i];
-        normB += vecB[i] * vecB[i];
-    }
-    const divisor = Math.sqrt(normA) * Math.sqrt(normB);
-    return divisor === 0 ? 0 : dotProduct / divisor;
-  }
-
-
   // == CHUNK MANAGEMENT ==
   public async addChunks(tenantId: string, sourceId: string, sourceType: DataSourceType, title: string, chunks: string[], url?: string, additionalMetadata: Record<string, any> = {}) {
     initializeDemoData(tenantId);
     if (chunks.length === 0) return;
-    if (!inMemoryChunks[tenantId]) {
-        inMemoryChunks[tenantId] = [];
-    }
 
     const processingPromises = chunks.map(content => Promise.all([
         embeddingService.generateEmbedding(content),
@@ -158,58 +142,36 @@ class KnowledgeBaseService {
     ]));
     const processedChunksData = await Promise.all(processingPromises);
       
-    processedChunksData.forEach(([embedding, tagResult], index) => {
-        const newChunk: DocumentChunk = {
-            id: `chunk-${Date.now()}-${index}`,
-            tenantId,
-            sourceId,
-            title,
-            content: chunks[index],
-            embedding: embedding,
-            tags: tagResult.tags,
-            metadata: { sourceType, url, chunkIndex: index, ...additionalMetadata }
-        };
-        inMemoryChunks[tenantId].push(newChunk);
-    });
+    const newChunks: DocumentChunk[] = processedChunksData.map(([embedding, tagResult], index) => ({
+      id: `chunk-${sourceId}-${index}`,
+      tenantId,
+      sourceId,
+      title,
+      content: chunks[index],
+      embedding: embedding,
+      tags: tagResult.tags,
+      metadata: { sourceType, url, chunkIndex: index, ...additionalMetadata }
+    }));
+
+    await pineconeService.upsert(tenantId, newChunks);
   }
 
   public async deleteChunksBySourceId(tenantId: string, sourceId:string): Promise<boolean> {
-    initializeDemoData(tenantId);
-    const tenantChunks = inMemoryChunks[tenantId];
-    if (!tenantChunks) return false;
-
-    const initialLength = tenantChunks.length;
-    inMemoryChunks[tenantId] = tenantChunks.filter(c => c.sourceId !== sourceId);
-    return inMemoryChunks[tenantId].length < initialLength;
+    await pineconeService.deleteBySourceId(tenantId, sourceId);
+    return true;
   }
 
   public async searchChunks(tenantId: string, queryText: string, filters: SearchFilters = {}): Promise<DocumentChunk[]> {
-    initializeDemoData(tenantId);
     const { topK = 5, sourceTypes, tags } = filters;
-    let potentialChunks = inMemoryChunks[tenantId] || [];
+    // Note: The filter logic for sourceTypes and tags is not implemented in this version of the Pinecone integration.
     
-    if (potentialChunks.length === 0 || !queryText) return [];
+    if (!queryText) return [];
 
-    if (sourceTypes && sourceTypes.length > 0) {
-        potentialChunks = potentialChunks.filter(chunk => sourceTypes.includes(chunk.metadata.sourceType));
-    }
-    if (tags && tags.length > 0) {
-        const lowerCaseTags = tags.map(t => t.toLowerCase());
-        potentialChunks = potentialChunks.filter(chunk => 
-            chunk.tags?.some(tag => lowerCaseTags.includes(tag.toLowerCase()))
-        );
-    }
-    
     const queryEmbedding = await embeddingService.generateEmbedding(queryText);
     if (queryEmbedding.length === 0) return [];
-    
-    const scoredChunks = potentialChunks.map(chunk => ({
-        ...chunk,
-        score: this.cosineSimilarity(queryEmbedding, chunk.embedding!),
-    }));
-    
-    scoredChunks.sort((a, b) => b.score - a.score);
-    return scoredChunks.slice(0, topK);
+
+    const results = await pineconeService.query(tenantId, queryEmbedding, topK);
+    return results;
   }
 
   // == SYNCING & LOGGING ==
