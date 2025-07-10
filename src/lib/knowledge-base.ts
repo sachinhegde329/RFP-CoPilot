@@ -65,10 +65,7 @@ export interface SearchFilters {
     tags?: string[];
 }
 
-<<<<<<< HEAD
-=======
 // In-memory store for demo purposes, keyed by tenantId (orgId)
->>>>>>> 5954e458f850ba2b59f99429a3df305982b426b5
 let inMemorySources: Record<string, DataSource[]> = {};
 
 const initializeDemoData = (tenantId: string) => {
@@ -131,7 +128,7 @@ class KnowledgeBaseService {
         if (updates.auth) {
             const secretPath = await secretsService.createOrUpdateSecret(tenantId, sourceId, updates.auth);
             tenantSources[sourceIndex].secretPath = secretPath;
-            // IMPORTANT: Remove the raw auth data before merging updates to avoid storing it.
+            // IMPORTANT: Remove the raw auth data from the updates object to avoid storing it in-memory.
             delete updates.auth;
         }
 
@@ -242,5 +239,3 @@ class KnowledgeBaseService {
 }
 
 export const knowledgeBaseService = new KnowledgeBaseService();
-
-    
