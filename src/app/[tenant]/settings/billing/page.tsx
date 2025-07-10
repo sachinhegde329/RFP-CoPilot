@@ -6,8 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { addOnsConfig } from '@/lib/tenants';
 import { BillingClient } from './billing-client';
 
-export default function BillingSettingsPage({ params }: { params: { tenant: string }}) {
-    const tenant = getTenantBySubdomain(params.tenant);
+export default async function BillingSettingsPage({ params }: { params: Promise<{ tenant: string }>}) {
+    const { tenant: tenantSubdomain } = await params;
+    const tenant = await getTenantBySubdomain(tenantSubdomain);
     if (!tenant) {
         notFound();
     }

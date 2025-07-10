@@ -3,6 +3,9 @@ import { getTenantBySubdomain } from './tenants';
 import type { TeamMember } from './tenant-types';
 import type { Question, RFP, RfpStatus } from './rfp-types';
 
+// Re-export types for convenience
+export type { RFP, Question, RfpStatus } from './rfp-types';
+
 // NOTE: With Firebase removed, this service now uses a temporary in-memory store.
 // Data will NOT persist across server restarts.
 

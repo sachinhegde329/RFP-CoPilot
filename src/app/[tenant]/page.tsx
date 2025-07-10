@@ -25,14 +25,14 @@ function EmptyDashboard({ tenantId }: { tenantId: string }) {
         'use server'
         if (!rfpText) return { error: "RFP text cannot be empty." };
 
-        const tenant = getTenantBySubdomain(tenantId);
+        const tenant = await getTenantBySubdomain(tenantId);
         if (!tenant) return { error: "Tenant not found." };
         
         const rfpName = file ? file.name.replace(/\.[^/.]+$/, "") : `Pasted RFP - ${new Date().toLocaleDateString()}`;
 
         const currentUser = tenant.members[0];
 
-        const result = await extractQuestionsAction(rfpText, rfpName, tenant.id, currentUser);
+        const result = await extractQuestionsAction(rfpText, rfpName, tenant.id);
         
         if (result.error || !result.rfp) {
             // Return an error to be handled by the client component's form state.
@@ -53,8 +53,9 @@ function EmptyDashboard({ tenantId }: { tenantId: string }) {
 }
 
 
-export default async function Homepage({ params }: { params: { tenant: string }}) {
-    const tenant = getTenantBySubdomain(params.tenant);
+export default async function Homepage({ params }: { params: Promise<{ tenant: string }>}) {
+    const { tenant: tenantSubdomain } = await params;
+    const tenant = await getTenantBySubdomain(tenantSubdomain);
     if (!tenant) {
         notFound();
     }

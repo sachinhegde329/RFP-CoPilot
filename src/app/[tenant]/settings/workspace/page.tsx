@@ -57,7 +57,7 @@ export default function WorkspaceSettingsPage() {
     })
 
     async function onSubmit(data: WorkspaceFormValues) {
-        const result = await updateWorkspaceSettingsAction(tenant.id, data, currentUser);
+        const result = await updateWorkspaceSettingsAction(tenant.id, data);
 
         if (result.error || !result.tenant) {
             toast({

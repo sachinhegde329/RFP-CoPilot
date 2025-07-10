@@ -69,7 +69,7 @@ export function RfpSummaryCard({ onProcessRfp }: RfpSummaryCardProps) {
     reader.readAsDataURL(file);
     reader.onload = async () => {
         const dataUri = reader.result as string;
-        const result = await parseDocumentAction(dataUri, tenant.id, currentUser);
+        const result = await parseDocumentAction(dataUri, tenant.id);
         setIsUploading(false);
 
         if (result.error || !result.text) {

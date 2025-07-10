@@ -105,7 +105,7 @@ function CreateTemplateDialog({ open, onOpenChange, onTemplateCreated }: { open:
             return;
         }
         setIsLoading(true);
-        const result = await createTemplateAction(tenant.id, { name, description }, currentUser);
+        const result = await createTemplateAction(tenant.id, { name, description });
         if (result.error || !result.template) {
             toast({ variant: 'destructive', title: "Creation Failed", description: result.error });
         } else {
@@ -165,7 +165,7 @@ export function TemplatesClient({ initialTemplates }: { initialTemplates: Templa
     if (!originalTemplate) return;
     toast({ title: 'Duplicating Template...' });
 
-    const result = await duplicateTemplateAction(tenant.id, templateId, currentUser);
+    const result = await duplicateTemplateAction(tenant.id, templateId);
     if (result.error || !result.template) {
         toast({ variant: 'destructive', title: 'Duplication Failed', description: result.error });
     } else {
@@ -176,7 +176,7 @@ export function TemplatesClient({ initialTemplates }: { initialTemplates: Templa
 
   const handleDelete = async () => {
     if (!templateToDelete) return;
-    const result = await deleteTemplateAction(tenant.id, templateToDelete, currentUser);
+    const result = await deleteTemplateAction(tenant.id, templateToDelete);
     if (result.error) {
         toast({ variant: 'destructive', title: 'Deletion Failed', description: result.error });
     } else {

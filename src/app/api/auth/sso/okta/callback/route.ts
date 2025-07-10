@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
      return NextResponse.redirect(new URL('/login?error=missing_state_data', request.url));
   }
   
-  const tenant = getTenantBySubdomain(tenantId);
+  const tenant = await getTenantBySubdomain(tenantId);
   const redirectUrl = new URL(`/${tenant?.subdomain || ''}/settings/security`, request.url);
 
   try {

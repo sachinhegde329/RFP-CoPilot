@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   
   const { tenantId, sourceId } = decodedState;
   
-  const tenant = getTenantBySubdomain(tenantId);
+  const tenant = await getTenantBySubdomain(tenantId);
   const redirectUrl = new URL(`/${tenant?.subdomain || ''}/knowledge-base`, request.url);
 
   if (!tenantId || !sourceId) {

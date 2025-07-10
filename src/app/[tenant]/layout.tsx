@@ -8,8 +8,9 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/dashboard/app-sidebar';
 import { getSession } from '@auth0/nextjs-auth0';
 
-export async function generateMetadata({ params }: { params: { tenant: string } }): Promise<Metadata> {
-  const tenant = await getTenantBySubdomain(params.tenant);
+export async function generateMetadata({ params }: { params: Promise<{ tenant: string }> }): Promise<Metadata> {
+  const { tenant: tenantSubdomain } = await params;
+  const tenant = await getTenantBySubdomain(tenantSubdomain);
   if (!tenant) {
     return {
       title: 'Not Found'
@@ -25,7 +26,7 @@ export default async function TenantLayout({
   params,
 }: {
   children: React.ReactNode;
-  params: { tenant: string };
+  params: Promise<{ tenant: string }>;
 }) {
   let session;
   // Check if Auth0 environment variables are set before trying to get a session.
@@ -34,19 +35,20 @@ export default async function TenantLayout({
     session = await getSession();
   }
 
-  const tenant = await getTenantBySubdomain(params.tenant);
+  const { tenant: tenantSubdomain } = await params;
+  const tenant = await getTenantBySubdomain(tenantSubdomain);
   
   if (!tenant) {
     notFound();
   }
   
   // For non-demo tenants, user must be logged in. Middleware should handle redirect, but this is a failsafe.
-  if (params.tenant !== 'megacorp' && !session?.user) {
+  if (tenantSubdomain !== 'megacorp' && !session?.user) {
       notFound();
   }
 
   // After Auth0 migration, the tenancy model is user-centric. The user's ID must match the tenant ID.
-  if (params.tenant !== 'megacorp' && tenant.id !== session?.user?.sub) {
+  if (tenantSubdomain !== 'megacorp' && tenant.id !== session?.user?.sub) {
       notFound();
   }
 

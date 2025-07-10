@@ -51,7 +51,7 @@ export default function ProfileSettingsPage() {
     })
 
     async function onSubmit(data: ProfileFormValues) {
-        const result = await updateProfileSettingsAction(tenant.id, currentUser.id, data, currentUser);
+        const result = await updateProfileSettingsAction(tenant.id, currentUser.id, data);
 
         if (result.error || !result.member) {
              toast({

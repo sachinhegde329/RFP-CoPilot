@@ -1,14 +1,14 @@
 
 import { type NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { headers } from 'next/headers';
+import { headers as nextHeaders } from 'next/headers';
 import { stripe } from '@/lib/stripe';
 import { updateTenant } from '@/lib/tenants';
 import type { Tenant } from '@/lib/tenant-types';
 
 export async function POST(req: NextRequest) {
   const body = await req.text();
-  const signature = headers().get('Stripe-Signature') as string;
+  const signature = (await nextHeaders()).get('Stripe-Signature') as string;
 
   if (!process.env.STRIPE_WEBHOOK_SECRET) {
     console.error('Stripe webhook secret is not set.');

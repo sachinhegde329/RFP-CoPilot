@@ -1,8 +1,9 @@
 
 import { redirect } from 'next/navigation';
 
-export default function HistoryPage({ params }: { params: { tenant: string }}) {
+export default async function HistoryPage({ params }: { params: Promise<{ tenant: string }>}) {
   // This page is now merged with the RFPs page.
   // Redirect to the new consolidated view.
-  redirect(`/${params.tenant}/rfps`);
+  const { tenant: tenantSubdomain } = await params;
+  redirect(`/${tenantSubdomain}/rfps`);
 }

@@ -76,7 +76,7 @@ export default function SecuritySettingsPage() {
     }
     setIsUpdatingDomains(true);
     const newDomains = [...tenant.domains, newDomain.trim().toLowerCase()];
-    const result = await updateSecuritySettingsAction(tenant.id, { domains: newDomains }, currentUser);
+    const result = await updateSecuritySettingsAction(tenant.id, { domains: newDomains });
     
     if (result.error || !result.tenant) {
       toast({ variant: 'destructive', title: 'Error', description: result.error });
@@ -91,7 +91,7 @@ export default function SecuritySettingsPage() {
   const handleRemoveDomain = async (domainToRemove: string) => {
     setIsUpdatingDomains(true);
     const newDomains = tenant.domains.filter(d => d !== domainToRemove);
-    const result = await updateSecuritySettingsAction(tenant.id, { domains: newDomains }, currentUser);
+    const result = await updateSecuritySettingsAction(tenant.id, { domains: newDomains });
     
     if (result.error || !result.tenant) {
       toast({ variant: 'destructive', title: 'Error', description: result.error });

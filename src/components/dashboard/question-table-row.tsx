@@ -72,7 +72,6 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
         question, 
         rfpId, 
         tenantId, 
-        currentUser,
         language: genLanguage,
         tone: genTone,
         style: genStyle,
@@ -118,7 +117,6 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
       answer: currentAnswer,
       category,
       tags: tags || [],
-      currentUser,
     });
     setIsSavingToLibrary(false);
 
@@ -142,7 +140,7 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
       return;
     }
     setIsReviewing(true);
-    const result = await reviewAnswerAction(question, currentAnswer, tenant.id, currentUser);
+    const result = await reviewAnswerAction(question, currentAnswer, tenant.id);
     if (result.error) {
       toast({ variant: "destructive", title: "Error", description: result.error });
     } else {
@@ -355,7 +353,7 @@ export const QAndAItem = memo(function QAndAItem({ questionData, tenantId, rfpId
                         <div className="space-y-2"><h4 className="font-medium leading-none">Generation Settings</h4><p className="text-sm text-muted-foreground">Customize the AI's output for this answer.</p></div>
                         <div className="grid gap-2">
                             <div className="grid grid-cols-3 items-center gap-4"><Label>Language</Label><Select value={genLanguage} onValueChange={setGenLanguage}><SelectTrigger className="col-span-2 h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="English">English</SelectItem><SelectItem value="Spanish">Spanish</SelectItem><SelectItem value="French">French</SelectItem></SelectContent></Select></div>
-                            <div className="grid grid-cols-3 items-center gap-4"><Label>Tone</Label><Select value={genTone} onValueChange={setGenTone}><SelectTrigger className="col-span-2 h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Formal">Formal</SelectItem><SelectItem value="Consultative">Consultative</SelectItem><SelectItem value="Technical">Technical</SelectItem></SelectContent></Select></div>
+                            <div className="grid grid-cols-3 items-center gap-4"><Label>Tone</Label><Select value={genTone} onValueChange={value => setGenTone(value as typeof genTone)}><SelectTrigger className="col-span-2 h-8"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="Formal">Formal</SelectItem><SelectItem value="Consultative">Consultative</SelectItem><SelectItem value="Technical">Technical</SelectItem></SelectContent></Select></div>
                              <div className="grid grid-cols-3 items-center gap-4"><Label>Style</Label><RadioGroup value={genStyle} onValueChange={setGenStyle} className="col-span-2 flex gap-4"><div className="flex items-center space-x-2"><RadioGroupItem value="a paragraph" id="style-p" /><Label htmlFor="style-p">Paragraph</Label></div><div className="flex items-center space-x-2"><RadioGroupItem value="bullet points" id="style-b" /><Label htmlFor="style-b">Bullets</Label></div></RadioGroup></div>
                             <div className="grid grid-cols-3 items-center gap-4"><Label>Length</Label><RadioGroup value={genLength} onValueChange={setGenLength} className="col-span-2 flex gap-4"><div className="flex items-center space-x-2"><RadioGroupItem value="short" id="len-s" /><Label htmlFor="len-s">Short</Label></div><div className="flex items-center space-x-2"><RadioGroupItem value="medium-length" id="len-m" /><Label htmlFor="len-m">Medium</Label></div><div className="flex items-center space-x-2"><RadioGroupItem value="detailed" id="len-d" /><Label htmlFor="len-d">Detailed</Label></div></RadioGroup></div>
                             <div className="flex items-center space-x-2 pt-2"><Checkbox id="gen-tags" checked={genTags} onCheckedChange={(c) => setGenTags(Boolean(c))} /><Label htmlFor="gen-tags">Auto-generate tags</Label></div>

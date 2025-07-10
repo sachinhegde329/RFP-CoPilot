@@ -27,15 +27,19 @@ export async function GET(request: NextRequest) {
     
     const dbx = new Dropbox({ clientId: process.env.DROPBOX_APP_KEY });
 
-    const authUrl = await dbx.auth.getAuthenticationUrl(
-        `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/dropbox/callback`,
-        state,
-        'code',
-        'offline', // for refresh token
-        ['files.content.read', 'account_info.read'],
-        'user',
-        false
-    );
+    // TODO: Fix Dropbox API integration
+    // const authUrl = await dbx.auth.getAuthenticationUrl(
+    //     `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/dropbox/callback`,
+    //     state,
+    //     'code',
+    //     'offline', // for refresh token
+    //     ['files.content.read', 'account_info.read'],
+    //     'user',
+    //     false
+    // );
 
-    return NextResponse.redirect(authUrl.toString());
+    // return NextResponse.redirect(authUrl.toString());
+    
+    // Temporary redirect to knowledge base with error
+    return NextResponse.redirect(new URL(`/${tenantId}/knowledge-base?connect_error=dropbox_not_implemented`, process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'));
 }

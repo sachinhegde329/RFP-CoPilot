@@ -5,15 +5,16 @@ import { getTenantBySubdomain } from "@/lib/tenants"
 import { notFound } from "next/navigation"
 import { TemplatesClient } from "./templates-client"
 
-export default async function TemplatesPage({ params }: { params: { tenant: string }}) {
-  const tenant = getTenantBySubdomain(params.tenant);
+export default async function TemplatesPage({ params }: { params: Promise<{ tenant: string }>}) {
+  const { tenant: tenantSubdomain } = await params;
+  const tenant = await getTenantBySubdomain(tenantSubdomain);
   if (!tenant) {
     notFound();
   }
 
   const currentUser = tenant.members[0];
 
-  const result = await getTemplatesAction(tenant.id, currentUser);
+  const result = await getTemplatesAction(tenant.id);
   
   if (result.error) {
     // In a real app, you might render an error component here.

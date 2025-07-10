@@ -41,10 +41,10 @@ const ingestWebsiteContentFlow = ai.defineFlow(
       throw new Error(result.error || `Failed to ingest content from URL: ${url}`);
     }
     return {
-      title: result.title,
-      content: result.content,
-      chunks: result.chunks,
-      url: result.url,
+      title: result.title || 'Untitled',
+      content: result.content || '',
+      chunks: result.chunks || [],
+      url: result.url || url,
     }
   }
 );

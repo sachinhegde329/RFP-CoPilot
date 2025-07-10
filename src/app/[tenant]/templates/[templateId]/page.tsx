@@ -177,7 +177,8 @@ function TemplateStructureEditor({ structure, setStructure, disabled }: { struct
 }
 
 
-export default function ConfigureTemplatePage({ params }: { params: { tenant: string, templateId: string } }) {
+export default async function ConfigureTemplatePage({ params }: { params: Promise<{ tenant: string, templateId: string }> }) {
+  const { tenant: tenantSubdomain, templateId } = await params;
   const router = useRouter()
   const { tenant } = useTenant()
   const { toast } = useToast()
@@ -199,10 +200,10 @@ export default function ConfigureTemplatePage({ params }: { params: { tenant: st
   useEffect(() => {
     async function fetchTemplate() {
       setIsLoading(true)
-      const result = await getTemplateAction(params.tenant, params.templateId, currentUser)
+      const result = await getTemplateAction(tenantSubdomain, templateId)
       if (result.error || !result.template) {
         toast({ variant: 'destructive', title: "Error", description: result.error || "Template not found." })
-        router.push(`/${params.tenant}/templates`)
+        router.push(`/${tenantSubdomain}/templates`)
       } else {
         setTemplate(result.template)
         form.reset({
@@ -214,7 +215,7 @@ export default function ConfigureTemplatePage({ params }: { params: { tenant: st
       setIsLoading(false)
     }
     fetchTemplate()
-  }, [params.tenant, params.templateId, currentUser, router, toast, form])
+  }, [tenantSubdomain, templateId, currentUser, router, toast, form])
 
   useEffect(() => {
     if (!template) return;
@@ -226,7 +227,7 @@ export default function ConfigureTemplatePage({ params }: { params: { tenant: st
   const onSubmit = async (data: TemplateFormValues) => {
     if (!template) return
     
-    const result = await updateTemplateAction(params.tenant, template.id, { ...data, structure }, currentUser)
+    const result = await updateTemplateAction(tenantSubdomain, template.id, { ...data, structure })
 
     if (result.error || !result.template) {
       toast({ variant: 'destructive', title: 'Update Failed', description: result.error })
@@ -234,7 +235,7 @@ export default function ConfigureTemplatePage({ params }: { params: { tenant: st
       toast({ title: 'Template Updated', description: 'Your changes have been saved.' })
       setTemplate(result.template)
       setStructure(result.template.structure);
-      form.reset(data, { keepIsDirty: false });
+      form.reset(data)
     }
   }
 

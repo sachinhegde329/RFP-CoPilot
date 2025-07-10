@@ -70,7 +70,7 @@ function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
     setRfps(optimisticRfps);
     setSelectedRfp(optimisticRfps.find(r => r.id === selectedRfp.id));
 
-    const result = await updateRfpStatusAction(tenant.id, selectedRfp.id, newStatus, currentUser);
+    const result = await updateRfpStatusAction(tenant.id, selectedRfp.id, newStatus);
 
     if (result.error) {
         toast({ variant: "destructive", title: "Update Failed", description: result.error });
@@ -93,16 +93,16 @@ function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
         : r
     ));
 
-    const result = await updateQuestionAction(tenant.id, selectedRfp.id, questionId, updates, currentUser);
+    const result = await updateQuestionAction(tenant.id, selectedRfp.id, questionId, updates);
     if (result.error) {
         toast({ variant: "destructive", title: "Update Failed", description: result.error });
     }
-  }, [selectedRfp, tenant.id, currentUser, toast]);
+  }, [selectedRfp, tenant.id, toast]);
 
   const handleAddQuestion = useCallback(async (questionData: Omit<Question, 'id'>) => {
     if (!selectedRfp) return false;
 
-    const result = await addQuestionAction(tenant.id, selectedRfp.id, questionData, currentUser);
+    const result = await addQuestionAction(tenant.id, selectedRfp.id, questionData);
     if (result.error || !result.question) {
         toast({ variant: "destructive", title: "Error", description: result.error });
         return false;
@@ -113,7 +113,7 @@ function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
         toast({ title: 'Question Added' });
         return true;
     }
-  }, [selectedRfp, tenant.id, currentUser, toast]);
+  }, [selectedRfp, tenant.id, toast]);
 
   const unansweredQuestions = useMemo(() => {
     return selectedRfp?.questions.filter(q => !q.answer) || [];
@@ -137,7 +137,6 @@ function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
         question: question.question,
         rfpId: selectedRfp.id,
         tenantId: tenant.id,
-        currentUser,
         language: autogenLanguage,
         tone: autogenTone,
         style: autogenStyle,
@@ -270,7 +269,7 @@ function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
                 </div>
                 <div className="space-y-2">
                   <Label>Tone</Label>
-                  <Select value={autogenTone} onValueChange={setAutogenTone}>
+                  <Select value={autogenTone} onValueChange={value => setAutogenTone(value as typeof autogenTone)}>
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="Formal">Formal</SelectItem>

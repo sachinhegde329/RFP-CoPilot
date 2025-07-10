@@ -22,8 +22,8 @@ export async function GET(request: NextRequest) {
   }
   
   const { tenantId, sourceId } = decodedState;
-  const tenant = getTenantBySubdomain(tenantId);
-  const redirectUrl = new URL(`/${tenant?.subdomain || ''}/knowledge-base`, request.url);
+  const tenant = await getTenantBySubdomain(tenantId);
+  const redirectUrl = new URL(`/${tenant?.subdomain || tenantId}/knowledge-base`, request.url);
 
   if (!tenantId || !sourceId) {
      redirectUrl.searchParams.set('connect_error', 'dropbox_missing_state');
@@ -36,33 +36,34 @@ export async function GET(request: NextRequest) {
   });
 
   try {
-    const tokenResponse = await dbx.auth.getAccessTokenFromCode(
-      `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/dropbox/callback`,
-      code
-    );
+    // TODO: Fix Dropbox API integration
+    // const tokenResponse = await dbx.auth.getAccessTokenFromCode(
+    //   `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/dropbox/callback`,
+    //   code
+    // );
     
-    const tokens: any = tokenResponse.result;
+    // const tokens: any = tokenResponse.result;
 
-    const authData = {
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token,
-      scope: tokens.scope,
-      tokenType: 'Bearer',
-      expiryDate: Date.now() + tokens.expires_in * 1000,
-    };
+    // const authData = {
+    //   accessToken: tokens.access_token,
+    //   refreshToken: tokens.refresh_token,
+    //   scope: tokens.scope,
+    //   tokenType: 'Bearer',
+    //   expiryDate: Date.now() + tokens.expires_in * 1000,
+    // };
     
-    const userAccount = await new Dropbox({ accessToken: authData.accessToken }).usersGetCurrentAccount();
+    // const userAccount = await new Dropbox({ accessToken: authData.accessToken }).usersGetCurrentAccount();
 
-    await secretsService.createOrUpdateSecret(tenantId, sourceId, authData);
+    // await secretsService.createOrUpdateSecret(tenantId, sourceId, authData);
 
-    await knowledgeBaseService.updateDataSource(tenantId, sourceId, {
-      status: 'Syncing',
-      name: `Dropbox (${userAccount.result.name.display_name})`,
-      lastSynced: 'In progress...',
-    });
+    // await knowledgeBaseService.updateDataSource(tenantId, sourceId, {
+    //   status: 'Syncing',
+    //   name: `Dropbox (${userAccount.result.name.display_name})`,
+    //   lastSynced: 'In progress...',
+    // });
     
-    // Don't await this, let it run in the background
-    knowledgeBaseService.syncDataSource(tenantId, sourceId);
+    // // Don't await this, let it run in the background
+    // knowledgeBaseService.syncDataSource(tenantId, sourceId);
 
     redirectUrl.searchParams.set('connect_success', 'dropbox');
     return NextResponse.redirect(redirectUrl);

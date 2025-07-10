@@ -20,7 +20,7 @@ export function AdminDashboardView() {
             setIsLoading(true);
             const [sourcesResult, templatesResult] = await Promise.all([
                 getKnowledgeSourcesAction(tenant.id),
-                getTemplatesAction(tenant.id, currentUser)
+                getTemplatesAction(tenant.id)
             ]);
             if (sourcesResult.sources) setSourceCount(sourcesResult.sources.length);
             if (templatesResult.templates) setTemplateCount(templatesResult.templates.length);

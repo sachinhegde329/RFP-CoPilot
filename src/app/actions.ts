@@ -53,7 +53,7 @@ async function checkPermission(tenantId: string, action: Action): Promise<{ tena
 export async function parseDocumentAction(documentDataUri: string, tenantId: string) {
     const permCheck = await checkPermission(tenantId, 'uploadRfps');
     if (permCheck.error) return { error: permCheck.error };
-    const { tenant } = permCheck;
+    const { tenant } = permCheck as { tenant: Tenant, user: TeamMember };
 
     if (!documentDataUri) {
         return { error: "Document data cannot be empty." };
@@ -94,7 +94,7 @@ export async function generateAnswerAction(payload: {
   
   const permCheck = await checkPermission(tenantId, 'editContent');
   if (permCheck.error) return { error: permCheck.error };
-  const { tenant } = permCheck;
+  const { tenant } = permCheck as { tenant: Tenant, user: TeamMember };
 
   if (tenant.limits.aiAnswers <= 0) {
       return { error: "You have no AI answers remaining this month. Please upgrade your plan or purchase an AI Answer Pack." };
@@ -138,7 +138,7 @@ export async function generateAnswerAction(payload: {
       tone: tone || tenant.defaultTone || 'Formal',
       style: style || 'a paragraph',
       length: length || 'medium-length',
-      autogenerateTags: autogenerateTags,
+      autogenerateTags: autogenerateTags ?? false,
     })
     return { answer: result.draftAnswer, sources: result.sources, confidenceScore: result.confidenceScore, tags: result.tags, fromLibrary: false }
   } catch (e) {
@@ -150,7 +150,7 @@ export async function generateAnswerAction(payload: {
 export async function reviewAnswerAction(question: string, answer: string, tenantId: string) {
   const permCheck = await checkPermission(tenantId, 'editContent');
   if (permCheck.error) return { error: permCheck.error };
-  const { tenant } = permCheck;
+  const { tenant } = permCheck as { tenant: Tenant, user: TeamMember };
   
   if (!question || !answer) {
     return { error: "Question and answer cannot be empty." }
@@ -175,7 +175,7 @@ export async function reviewAnswerAction(question: string, answer: string, tenan
 export async function extractQuestionsAction(rfpText: string, rfpName: string, tenantId: string): Promise<{ rfp?: RFP, error?: string }> {
   const permCheck = await checkPermission(tenantId, 'editWorkspace');
   if (permCheck.error) return { error: permCheck.error };
-  const { tenant, user } = permCheck;
+  const { tenant, user } = permCheck as { tenant: Tenant, user: TeamMember };
 
   if (!rfpText) {
     return { error: "RFP text cannot be empty." }
@@ -211,7 +211,7 @@ export async function extractQuestionsAction(rfpText: string, rfpName: string, t
 export async function updateQuestionAction(tenantId: string, rfpId: string, questionId: number, updates: Partial<Question>) {
     const permCheck = await checkPermission(tenantId, 'editContent');
     if (permCheck.error) return { error: permCheck.error };
-    const { user } = permCheck;
+    const { user } = permCheck as { tenant: Tenant, user: TeamMember };
     
     if (!questionId) {
         return { error: "Missing question ID." };
@@ -309,7 +309,7 @@ export async function getKnowledgeSourcesAction(tenantId: string) {
 export async function addDocumentSourceAction(documentDataUri: string, tenantId: string, fileName: string) {
     const permCheck = await checkPermission(tenantId, 'manageIntegrations');
     if (permCheck.error) return { error: permCheck.error };
-    const { user } = permCheck;
+    const { user } = permCheck as { tenant: Tenant, user: TeamMember };
 
     if (!documentDataUri || !fileName) {
         return { error: "Missing required parameters for adding document." };
@@ -608,7 +608,7 @@ export async function createCustomerPortalSessionAction(tenantId: string) {
 export async function inviteMemberAction(tenantId: string, email: string, role: Role) {
     const permCheck = await checkPermission(tenantId, 'manageTeam');
     if (permCheck.error) return { error: permCheck.error };
-    const { tenant } = permCheck;
+    const { tenant } = permCheck as { tenant: Tenant, user: TeamMember };
     
     if (!email || !role) {
       return { error: "Missing required parameters." };
@@ -629,7 +629,7 @@ export async function inviteMemberAction(tenantId: string, email: string, role: 
 export async function removeMemberAction(tenantId: string, memberId: string) {
     const permCheck = await checkPermission(tenantId, 'manageTeam');
     if (permCheck.error) return { error: permCheck.error };
-    const { tenant, user } = permCheck;
+    const { tenant, user } = permCheck as { tenant: Tenant, user: TeamMember };
 
     if (!memberId) {
       return { error: "Missing required parameters." };
@@ -653,7 +653,7 @@ export async function removeMemberAction(tenantId: string, memberId: string) {
 export async function updateMemberRoleAction(tenantId: string, memberId: string, newRole: Role) {
     const permCheck = await checkPermission(tenantId, 'manageTeam');
     if (permCheck.error) return { error: permCheck.error };
-    const { tenant } = permCheck;
+    const { tenant } = permCheck as { tenant: Tenant, user: TeamMember };
 
     if (!memberId || !newRole) {
       return { error: "Missing required parameters." };
@@ -681,7 +681,7 @@ export async function updateProfileSettingsAction(tenantId: string, userId: stri
 
     const permCheck = await checkPermission(tenantId, 'viewContent');
     if (permCheck.error) return { error: permCheck.error };
-    const { tenant } = permCheck;
+    const { tenant } = permCheck as { tenant: Tenant, user: TeamMember };
     
     const updatedMembers = tenant.members.map(m => m.id === userId ? { ...m, ...data } : m);
     const updatedTenant = await updateTenant(tenant.id, { members: updatedMembers });
@@ -818,7 +818,7 @@ export async function exportRfpAction(payload: {
     
     const permCheck = await checkPermission(tenantId, 'finalizeExport');
     if (permCheck.error) return { error: permCheck.error };
-    const { user, tenant } = permCheck;
+    const { user, tenant } = permCheck as { tenant: Tenant, user: TeamMember };
 
     const template = await templateService.getTemplate(tenant.id, templateId);
     if (!template) {
@@ -1185,7 +1185,7 @@ export async function saveToLibraryAction(payload: {
     const { tenantId, ...data } = payload;
     const permCheck = await checkPermission(tenantId, 'editContent');
     if (permCheck.error) return { error: permCheck.error };
-    const { user } = permCheck;
+    const { user } = permCheck as { tenant: Tenant, user: TeamMember };
 
     try {
         const savedAnswer = await answerLibraryService.addOrUpdate({

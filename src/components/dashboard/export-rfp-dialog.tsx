@@ -59,7 +59,7 @@ export function ExportRfpDialog({ open, onOpenChange, rfp }: ExportRfpDialogProp
     async function fetchTemplates() {
       if (!open) return
       setIsLoadingTemplates(true)
-      const result = await getTemplatesAction(tenant.id, currentUser)
+      const result = await getTemplatesAction(tenant.id);
       if (result.templates) {
         setTemplates(result.templates)
         const defaultTemplate = result.templates.find(t => t.id === 'system-default-categorized')
@@ -94,7 +94,6 @@ export function ExportRfpDialog({ open, onOpenChange, rfp }: ExportRfpDialogProp
       tenantId: tenant.id,
       rfpId: rfp.id,
       templateId: selectedTemplate,
-      currentUser,
       exportVersion: version,
       format,
       acknowledgments,

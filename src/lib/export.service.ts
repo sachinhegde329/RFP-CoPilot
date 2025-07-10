@@ -11,7 +11,7 @@ export interface ExportRecord {
     rfpId: string;
     rfpName: string;
     version: string;
-    format: 'pdf' | 'docx';
+    format: 'pdf' | 'docx' | 'xlsx';
     exportedAt: string; // ISO string
     exportedBy: {
         id: string;

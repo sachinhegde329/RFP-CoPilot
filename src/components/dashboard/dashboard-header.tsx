@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils"
 import { AskAiDialog } from "./ask-ai-dialog"
 import { useUser } from '@auth0/nextjs-auth0/client'
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar"
+import Link from 'next/link';
 
 
 function getNotificationIcon(type: string) {
