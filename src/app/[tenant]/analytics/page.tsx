@@ -7,7 +7,11 @@ import { RfpInsightsDashboard } from "@/components/analytics/rfp-insights-dashbo
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { BarChartHorizontalBig } from "lucide-react"
 
-export default async function AnalyticsPage({ params }: { params: { tenant: string } }) {
+type AnalyticsPageProps = {
+  params: { tenant: string };
+};
+
+export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
   const tenant = getTenantBySubdomain(params.tenant);
   if (!tenant) {
       notFound();
