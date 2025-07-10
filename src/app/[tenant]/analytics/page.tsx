@@ -18,7 +18,7 @@ export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
   }
 
   const currentUser = tenant.members[0];
-  const result = await getRfpInsightsAction(tenant.id, currentUser);
+  const result = await getRfpInsightsAction(tenant.id);
 
   return (
     <SidebarInset className="flex-1 flex flex-col">
