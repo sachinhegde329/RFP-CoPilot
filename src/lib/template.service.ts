@@ -23,6 +23,7 @@ export interface Template {
   structure: TemplateSection[];
 }
 
+// Keyed by tenantId (orgId)
 let inMemoryCustomTemplates: Record<string, Template[]> = {};
 
 class TemplateService {
@@ -150,3 +151,5 @@ class TemplateService {
 }
 
 export const templateService = new TemplateService();
+
+    

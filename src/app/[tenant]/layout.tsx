@@ -6,9 +6,13 @@ import { getTenantBySubdomain } from '@/lib/tenants';
 import { TenantProvider } from '@/components/providers/tenant-provider';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/dashboard/app-sidebar';
+<<<<<<< HEAD
+=======
+import { getSession } from '@auth0/nextjs-auth0';
+>>>>>>> 5954e458f850ba2b59f99429a3df305982b426b5
 
-export function generateMetadata({ params }: { params: { tenant: string } }): Metadata {
-  const tenant = getTenantBySubdomain(params.tenant);
+export async function generateMetadata({ params }: { params: { tenant: string } }): Promise<Metadata> {
+  const tenant = await getTenantBySubdomain(params.tenant);
   if (!tenant) {
     return {
       title: 'Not Found'
@@ -19,21 +23,36 @@ export function generateMetadata({ params }: { params: { tenant: string } }): Me
   };
 }
 
-export default function TenantLayout({
+export default async function TenantLayout({
   children,
   params,
 }: {
   children: React.ReactNode;
   params: { tenant: string };
 }) {
-  const tenant = getTenantBySubdomain(params.tenant);
+  const session = await getSession();
+  const tenant = await getTenantBySubdomain(params.tenant);
   
   if (!tenant) {
     notFound();
   }
+  
+  // For non-demo tenants, user must be logged in. Middleware should handle redirect, but this is a failsafe.
+  if (params.tenant !== 'megacorp' && !session?.user) {
+      notFound();
+  }
 
+<<<<<<< HEAD
   // With authentication removed, all tenant workspaces are publicly accessible.
   // The AuthGuard component has been disabled.
+=======
+  // After Auth0 migration, the tenancy model is user-centric. The user's ID must match the tenant ID.
+  if (params.tenant !== 'megacorp' && tenant.id !== session?.user?.sub) {
+      notFound();
+  }
+
+  // The route protection is now handled by middleware.
+>>>>>>> 5954e458f850ba2b59f99429a3df305982b426b5
   return (
     <TenantProvider tenant={tenant}>
       <SidebarProvider defaultOpen={true}>

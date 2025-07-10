@@ -6,6 +6,12 @@ import type { Question, RFP, RfpStatus } from './rfp-types';
 // NOTE: With Firebase removed, this service now uses a temporary in-memory store.
 // Data will NOT persist across server restarts.
 
+const demoMembers: TeamMember[] = [
+    { id: 'user_2fJAnr9bhdC7r4bDBaQzJt0iGzJ', name: 'Alex Johnson', email: 'alex.j@megacorp.com', role: 'Owner', avatar: 'https://placehold.co/100x100.png', status: 'Active' },
+    { id: 'user_2fKAnr9bhdC7r4bDBaQzJt0iGzK', name: 'Maria Garcia', email: 'maria.g@megacorp.com', role: 'Admin', avatar: 'https://placehold.co/100x100.png', status: 'Active' },
+    { id: 'user_2fLAnr9bhdC7r4bDBaQzJt0iGzL', name: 'Priya Patel', email: 'priya.p@megacorp.com', role: 'Editor', avatar: 'https://placehold.co/100x100.png', status: 'Active' },
+];
+
 const getSampleQuestions = (members: TeamMember[]): Question[] => [
     {
       id: 1,
@@ -49,22 +55,20 @@ const getSampleQuestions = (members: TeamMember[]): Question[] => [
     }
 ];
 
-// The data store is now an object keyed by tenantId for true multi-tenancy.
+// The data store is now an object keyed by tenantId (orgId) for true multi-tenancy.
 let inMemoryRfps: Record<string, RFP[]> = {};
 
 // Seed data function to be called when needed
 const initializeDemoData = () => {
+    const demoTenantId = 'megacorp';
     // Only initialize if the 'megacorp' tenant data doesn't exist
-    if (!inMemoryRfps['megacorp']) {
-        const tenant = getTenantBySubdomain('megacorp');
-        if (tenant) {
-            const sampleQuestions = getSampleQuestions(tenant.members);
-            inMemoryRfps['megacorp'] = [
-                { id: 'rfp-1', tenantId: 'megacorp', name: 'Q3 Enterprise Security RFP', status: 'In Progress', questions: sampleQuestions, topics: ['security', 'compliance', 'enterprise'] },
-                { id: 'rfp-2', tenantId: 'megacorp', name: 'Project Titan Proposal', status: 'Won', questions: [sampleQuestions[3], sampleQuestions[2]], topics: ['product', 'pricing'] },
-                { id: 'rfp-3', tenantId: 'megacorp', name: '2023 Compliance Audit', status: 'Lost', questions: [sampleQuestions[0], sampleQuestions[1]], topics: ['security', 'legal', 'audit'] },
-            ];
-        }
+    if (!inMemoryRfps[demoTenantId]) {
+        const sampleQuestions = getSampleQuestions(demoMembers);
+        inMemoryRfps[demoTenantId] = [
+            { id: 'rfp-1', tenantId: demoTenantId, name: 'Q3 Enterprise Security RFP', status: 'In Progress', questions: sampleQuestions, topics: ['security', 'compliance', 'enterprise'] },
+            { id: 'rfp-2', tenantId: demoTenantId, name: 'Project Titan Proposal', status: 'Won', questions: [sampleQuestions[3], sampleQuestions[2]], topics: ['product', 'pricing'] },
+            { id: 'rfp-3', tenantId: demoTenantId, name: '2023 Compliance Audit', status: 'Lost', questions: [sampleQuestions[0], sampleQuestions[1]], topics: ['security', 'legal', 'audit'] },
+        ];
     }
 };
 

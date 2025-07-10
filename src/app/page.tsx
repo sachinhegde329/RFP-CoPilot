@@ -1,3 +1,4 @@
+'use client';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,8 +6,11 @@ import { FileBox, FileDown, FileText, Bot, Shield, Check, XCircle, Users, Databa
 import Image from 'next/image';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useUser } from '@auth0/nextjs-auth0/client';
 
 export default function LandingPage() {
+  const { user, isLoading } = useUser();
+
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       {/* Header */}
@@ -23,8 +27,18 @@ export default function LandingPage() {
             <Button variant="ghost" asChild><Link href="/docs">Docs</Link></Button>
           </nav>
           <div className="flex items-center gap-4">
-            <Button variant="outline" asChild className="hidden sm:flex"><Link href="/login">Log In</Link></Button>
-            <Button asChild><Link href="/signup">Start Free</Link></Button>
+            {!isLoading && !user && (
+               <>
+                <Button variant="ghost" asChild><a href="/api/auth/login">Log In</a></Button>
+                <Button asChild><a href="/api/auth/signup">Start Free</a></Button>
+               </>
+            )}
+            {!isLoading && user && (
+                <>
+                    <Button variant="outline" asChild><Link href="/dashboard">Dashboard</Link></Button>
+                    <Button asChild><a href="/api/auth/logout">Log Out</a></Button>
+                </>
+            )}
           </div>
         </div>
       </header>
@@ -44,7 +58,7 @@ export default function LandingPage() {
                   AI-powered assistant to manage, answer, and export RFPs with your company’s voice — in minutes.
                 </p>
                 <div className="mt-8 flex flex-col sm:flex-row justify-center md:justify-start gap-4">
-                  <Button size="lg" asChild><Link href="/signup">Start Free</Link></Button>
+                  <Button size="lg" asChild><a href="/api/auth/signup">Start Free</a></Button>
                   <Button size="lg" variant="outline" asChild><Link href="#">Book a Demo</Link></Button>
                 </div>
               </div>
@@ -227,9 +241,7 @@ export default function LandingPage() {
               Start Winning RFPs with Less Effort, More Confidence
             </h2>
             <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
-              <Button size="lg" asChild>
-                <Link href="/signup">Try Free for 14 Days</Link>
-              </Button>
+              <Button size="lg" asChild><a href="/api/auth/signup">Try Free for 14 Days</a></Button>
               <Button size="lg" variant="outline" asChild>
                 <Link href="#">Talk to Sales</Link>
               </Button>

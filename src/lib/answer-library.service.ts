@@ -15,12 +15,12 @@ export interface QnAPair {
   createdBy: { id: string; name: string; role: Role };
 }
 
-// In-memory store for demo purposes, keyed by tenantId
+// In-memory store for demo purposes, keyed by tenantId (which is the orgId)
 let inMemoryLibrary: Record<string, QnAPair[]> = {};
 
-const initializeDemoData = () => {
+const initializeDemoData = async () => {
   if (!inMemoryLibrary['megacorp']) {
-    const tenant = getTenantBySubdomain('megacorp');
+    const tenant = await getTenantBySubdomain('megacorp');
     if (tenant) {
       const demoUser = tenant.members[0];
       inMemoryLibrary['megacorp'] = [
@@ -56,12 +56,12 @@ const initializeDemoData = () => {
 class AnswerLibraryService {
 
   public async getLibrary(tenantId: string): Promise<QnAPair[]> {
-    initializeDemoData();
+    await initializeDemoData();
     return inMemoryLibrary[tenantId] || [];
   }
 
   public async findByQuestion(tenantId: string, question: string): Promise<QnAPair | undefined> {
-    initializeDemoData();
+    await initializeDemoData();
     const tenantLibrary = inMemoryLibrary[tenantId] || [];
     // In a real system, this would use fuzzy search or semantic search.
     // For the prototype, we'll do a case-insensitive exact match.
@@ -72,7 +72,7 @@ class AnswerLibraryService {
 
   public async addOrUpdate(itemData: Omit<QnAPair, 'id' | 'usageCount' | 'lastUsedAt'>): Promise<QnAPair> {
     const { tenantId } = itemData;
-    initializeDemoData();
+    await initializeDemoData();
     if (!inMemoryLibrary[tenantId]) {
       inMemoryLibrary[tenantId] = [];
     }
@@ -103,7 +103,7 @@ class AnswerLibraryService {
   }
 
   public async incrementUsage(tenantId: string, id: string): Promise<void> {
-    initializeDemoData();
+    await initializeDemoData();
     const tenantLibrary = inMemoryLibrary[tenantId] || [];
     const itemIndex = tenantLibrary.findIndex(i => i.id === id);
     if (itemIndex > -1) {
@@ -113,7 +113,7 @@ class AnswerLibraryService {
   }
 
    public async deleteAnswer(tenantId: string, id: string): Promise<boolean> {
-      initializeDemoData();
+      await initializeDemoData();
       const tenantLibrary = inMemoryLibrary[tenantId];
       if (!tenantLibrary) return false;
 
@@ -124,3 +124,5 @@ class AnswerLibraryService {
 }
 
 export const answerLibraryService = new AnswerLibraryService();
+
+    

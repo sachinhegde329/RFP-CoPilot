@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { MoreHorizontal, PlusCircle, Trash2, Mail, Edit, Loader2, AlertTriangle } from 'lucide-react'
+import { MoreHorizontal, PlusCircle, Trash2, Mail, Edit, Loader2, AlertTriangle, ExternalLink } from 'lucide-react'
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { 
@@ -46,8 +46,6 @@ export default function TeamSettingsPage() {
     const usedSeats = teamMembers.length;
     const availableSeats = totalSeats - usedSeats;
 
-    // For demo purposes, we'll assume the current user is the first member of the tenant.
-    // In a real application, this would come from an authentication context.
     const currentUser = tenant.members[0];
     const canManageTeam = canPerformAction(currentUser.role, 'manageTeam');
 
@@ -58,11 +56,11 @@ export default function TeamSettingsPage() {
         }
         setIsLoading(true);
 
-        const result = await inviteMemberAction(tenant.id, inviteEmail, inviteRole, currentUser);
+        const result = await inviteMemberAction(tenant.id, inviteEmail, inviteRole);
         if (result.error || !result.member) {
-            toast({ variant: 'destructive', title: 'Invitation Failed', description: result.error });
+            toast({ variant: 'destructive', title: 'Invitation Failed', description: result.error || 'Could not send an invitation at this time.' });
         } else {
-            setTenant(prev => ({ ...prev, members: [result.member!, ...prev.members] }));
+            setTenant(prev => ({ ...prev, members: [...prev.members, result.member!] }));
             toast({ title: 'Invitation Sent', description: `An invitation has been sent to ${inviteEmail}.` });
             setIsInviteDialogOpen(false);
             setInviteEmail('');
@@ -72,7 +70,7 @@ export default function TeamSettingsPage() {
     };
 
     const handleRemoveMember = async (member: TeamMember) => {
-        const result = await removeMemberAction(tenant.id, member.id, currentUser);
+        const result = await removeMemberAction(tenant.id, member.id);
         if (result.error) {
             toast({ variant: 'destructive', title: 'Error', description: result.error });
         } else {
@@ -88,8 +86,8 @@ export default function TeamSettingsPage() {
         });
     }
 
-    const handleRoleChange = async (memberId: number, newRole: Role) => {
-        const result = await updateMemberRoleAction(tenant.id, memberId, newRole, currentUser);
+    const handleRoleChange = async (memberId: string, newRole: Role) => {
+        const result = await updateMemberRoleAction(tenant.id, memberId, newRole);
          if (result.error || !result.member) {
             toast({ variant: 'destructive', title: 'Error', description: result.error });
         } else {
@@ -117,7 +115,7 @@ export default function TeamSettingsPage() {
                         <DialogHeader>
                             <DialogTitle>Invite a new team member</DialogTitle>
                             <DialogDescription>
-                                Enter the email address and select a role for the new member.
+                                Enter the email address and role for the new team member. They will receive an invitation to join your workspace.
                             </DialogDescription>
                         </DialogHeader>
                         <div className="grid gap-4 py-4">
@@ -171,31 +169,18 @@ export default function TeamSettingsPage() {
                 </Dialog>
             </CardHeader>
             <CardContent className="flex-1 flex flex-col gap-4">
-                {availableSeats > 0 ? (
-                    <div className="border rounded-lg p-4 flex justify-between items-center">
-                        <div>
-                            <p className="font-medium">{usedSeats} of {totalSeats} seats used</p>
-                            <p className="text-sm text-muted-foreground">
-                                You have {availableSeats} {availableSeats === 1 ? 'seat' : 'seats'} available.
-                                <Link href={`/pricing?tenant=${tenant.subdomain}`} className="text-primary underline ml-1">Upgrade plan</Link> for more.
-                            </p>
-                        </div>
-                        <Button variant="outline" asChild>
-                            <Link href={`/pricing?tenant=${tenant.subdomain}`}>Manage Seats</Link>
-                        </Button>
-                    </div>
-                ) : (
-                    <Alert variant="destructive">
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertTitle>You've reached your seat limit!</AlertTitle>
-                        <AlertDescription>
-                            You have used all {totalSeats} seats available on your plan. To invite more team members, please upgrade your subscription.
-                             <Button asChild size="sm" className="ml-4">
-                                <Link href={`/pricing?tenant=${tenant.subdomain}`}>Upgrade Plan</Link>
-                            </Button>
-                        </AlertDescription>
-                    </Alert>
-                )}
+                <Alert>
+                  <Mail className="h-4 w-4" />
+                  <AlertTitle>Manage Live Users in Auth0</AlertTitle>
+                  <AlertDescription>
+                    This page provides a functional preview of team management. To send real email invitations and manage live user accounts, use your Auth0 dashboard.
+                    <Button asChild variant="link" className="p-0 h-auto font-semibold ml-1">
+                        <a href="https://manage.auth0.com" target="_blank" rel="noopener noreferrer">
+                            Open Auth0 Dashboard <ExternalLink className="inline-block ml-1" />
+                        </a>
+                    </Button>
+                  </AlertDescription>
+                </Alert>
                 <div className="relative flex-1">
                     <div className="absolute inset-0 overflow-y-auto">
                         <Table>

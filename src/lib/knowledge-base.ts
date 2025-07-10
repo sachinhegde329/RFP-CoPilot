@@ -65,6 +65,10 @@ export interface SearchFilters {
     tags?: string[];
 }
 
+<<<<<<< HEAD
+=======
+// In-memory store for demo purposes, keyed by tenantId (orgId)
+>>>>>>> 5954e458f850ba2b59f99429a3df305982b426b5
 let inMemorySources: Record<string, DataSource[]> = {};
 
 const initializeDemoData = (tenantId: string) => {
@@ -238,3 +242,5 @@ class KnowledgeBaseService {
 }
 
 export const knowledgeBaseService = new KnowledgeBaseService();
+
+    

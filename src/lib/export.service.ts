@@ -44,46 +44,48 @@ const getDemoQuestions = (): Question[] => [
     }
 ];
 
+// Keyed by tenantId (orgId)
 let inMemoryExportHistory: Record<string, ExportRecord[]> = {};
 
 const initializeDemoData = () => {
-    if (!inMemoryExportHistory['megacorp']) {
-        inMemoryExportHistory['megacorp'] = [
+    const tenantId = 'megacorp'; // Demo tenant ID
+    if (!inMemoryExportHistory[tenantId]) {
+        inMemoryExportHistory[tenantId] = [
             {
                 id: 'export-demo-1',
-                tenantId: 'megacorp',
+                tenantId: tenantId,
                 rfpId: 'rfp-1',
                 rfpName: 'Q3 Enterprise Security RFP',
                 version: 'v1.0 Final',
                 format: 'docx',
                 exportedAt: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString(), // 1 day ago
-                exportedBy: { id: 'demo-user-id', name: 'Alex Johnson', role: 'Owner' },
+                exportedBy: { id: 'user_2fJAnr9bhdC7r4bDBaQzJt0iGzJ', name: 'Alex Johnson', role: 'Owner' },
                 questionCount: getDemoQuestions().length,
                 questions: getDemoQuestions(),
                 acknowledgments: [{ name: 'Maria Garcia', role: 'Legal Review', comment: 'Approved for submission.' }]
             },
             {
                 id: 'export-demo-2',
-                tenantId: 'megacorp',
+                tenantId: tenantId,
                 rfpId: 'rfp-1',
                 rfpName: 'Q3 Enterprise Security RFP',
                 version: 'v0.9 Draft',
                 format: 'pdf',
                 exportedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(), // 2 days ago
-                exportedBy: { id: '3', name: 'Priya Patel', role: 'Editor' },
+                exportedBy: { id: 'user_2fLAnr9bhdC7r4bDBaQzJt0iGzL', name: 'Priya Patel', role: 'Editor' },
                 questionCount: getDemoQuestions().length,
                 questions: getDemoQuestions(),
                 acknowledgments: [],
             },
             {
                 id: 'export-demo-3',
-                tenantId: 'megacorp',
+                tenantId: tenantId,
                 rfpId: 'rfp-2',
                 rfpName: 'Project Titan Proposal',
                 version: 'v1.0',
                 format: 'docx',
                 exportedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(), // 5 days ago
-                exportedBy: { id: 'demo-user-id', name: 'Alex Johnson', role: 'Owner' },
+                exportedBy: { id: 'user_2fJAnr9bhdC7r4bDBaQzJt0iGzJ', name: 'Alex Johnson', role: 'Owner' },
                 questionCount: 2,
                 questions: getDemoQuestions(),
                 acknowledgments: [{ name: 'Alex Johnson', role: 'Final Review', comment: 'Looks good.' }]
@@ -124,3 +126,5 @@ class ExportService {
 }
 
 export const exportService = new ExportService();
+
+    

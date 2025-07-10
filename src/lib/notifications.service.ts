@@ -25,6 +25,7 @@ const getSeedNotifications = (tenantId: string, userId: string): Notification[] 
     { id: '4', tenantId, userId, type: 'status', actor: { name: 'Priya Patel' }, text: "marked 'CRM Integration' as Completed.", timestamp: new Date(Date.now() - 24 * 3600 * 1000).toISOString(), isRead: true },
 ];
 
+// Keyed by tenantId (orgId)
 let inMemoryNotifications: Record<string, Notification[]> = {};
 
 const initializeDemoData = (tenantId: string, userId: string) => {
@@ -54,3 +55,5 @@ class NotificationService {
 }
 
 export const notificationService = new NotificationService();
+
+    

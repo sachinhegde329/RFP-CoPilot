@@ -1,43 +1,60 @@
 import { type NextRequest, NextResponse } from 'next/server';
 
+// Define public routes that do not require authentication
+const publicRoutes = [
+  '/',
+  '/features',
+  '/pricing',
+  '/docs',
+  '/api/webhooks/stripe',
+  '/api/auth/login',
+  '/api/auth/logout',
+  '/api/auth/signup',
+  '/api/auth/callback',
+  '/api/auth/me', // Auth0 endpoints
+];
+
+// Helper to check if a route is public
+function isPublicRoute(path: string): boolean {
+    return publicRoutes.some(publicPath => {
+        if (publicPath.endsWith('(.*)')) {
+            return path.startsWith(publicPath.slice(0, -4));
+        }
+        return path === publicPath;
+    });
+}
+
+export function middleware(req: NextRequest) {
+  const url = req.nextUrl;
+  const hostname = req.headers.get('x-forwarded-host') || req.headers.get('host')!;
+  const rootDomain = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'localhost');
+  const hostWithoutPort = hostname.split(':')[0];
+  const path = url.pathname;
+
+  // For the demo tenant, all routes are public and just need rewriting
+  if (hostWithoutPort === `megacorp.${rootDomain}`) {
+    return NextResponse.rewrite(new URL(`/megacorp${path}`, req.url));
+  }
+  
+  // Rewrite for app subdomains
+  if (hostWithoutPort.endsWith(`.${rootDomain}`) && hostWithoutPort !== `www.${rootDomain}`) {
+    const subdomain = hostWithoutPort.replace(`.${rootDomain}`, '');
+    return NextResponse.rewrite(new URL(`/${subdomain}${path}`, req.url));
+  }
+  
+  // All other routes on the root domain are public by design in this app
+  return NextResponse.next();
+}
+
 export const config = {
   matcher: [
     /*
-     * Match all paths except for:
-     * 1. /api routes
-     * 2. /_next (Next.js internals)
-     * 3. /_static (inside /public)
-     * 4. all root files inside /public (e.g. /favicon.ico)
+     * Match all request paths except for the ones starting with:
+     * - `_next/static` (static files)
+     * - `_next/image` (image optimization files)
+     * - `favicon.ico` (favicon file)
+     * Feel free to modify this pattern to include more paths.
      */
-    '/((?!api/|_next/|_static/|_vercel|[\\w-]+\\.\\w+).*)',
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };
-
-export default function middleware(req: NextRequest) {
-  const url = req.nextUrl;
-  
-  // Use `x-forwarded-host` if present, otherwise use `host`
-  const hostname = req.headers.get('x-forwarded-host') || req.headers.get('host')!;
-
-  // For local dev, rootDomain is 'localhost'. In production, set NEXT_PUBLIC_ROOT_DOMAIN.
-  // It should not contain the protocol or port.
-  const rootDomain = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'localhost');
-
-  // Remove port from the current host
-  const hostWithoutPort = hostname.split(':')[0];
-
-  const path = url.pathname;
-
-  // Check if it's a subdomain of the root domain.
-  // e.g. `acme.localhost` is a subdomain of `localhost`.
-  // It handles `www` as a non-subdomain request.
-  if (hostWithoutPort.endsWith(`.${rootDomain}`)) {
-    const subdomain = hostWithoutPort.replace(`.${rootDomain}`, '');
-    if (subdomain !== 'www') {
-        return NextResponse.rewrite(new URL(`/${subdomain}${path}`, req.url));
-    }
-  }
-  
-  // All other requests (to the root domain, www, or an IP address) are passed through.
-  return NextResponse.next();
-}
