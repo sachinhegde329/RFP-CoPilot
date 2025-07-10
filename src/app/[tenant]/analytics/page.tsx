@@ -8,11 +8,11 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { BarChartHorizontalBig } from "lucide-react"
 
 type AnalyticsPageProps = {
-  params: Promise<{ tenant: string }>;
+  params: { tenant: string };
 };
 
 export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
-  const { tenant: tenantSubdomain } = await params;
+  const { tenant: tenantSubdomain } = params;
   const tenant = await getTenantBySubdomain(tenantSubdomain);
   if (!tenant) {
       notFound();
