@@ -5,8 +5,8 @@ import { getTenantBySubdomain } from "@/lib/tenants"
 import { notFound } from "next/navigation"
 import { TemplatesClient } from "./templates-client"
 
-export default async function TemplatesPage({ params }: { params: Promise<{ tenant: string }>}) {
-  const { tenant: tenantSubdomain } = await params;
+export default async function TemplatesPage({ params }: { params: { tenant: string }}) {
+  const { tenant: tenantSubdomain } = params;
   const tenant = await getTenantBySubdomain(tenantSubdomain);
   if (!tenant) {
     notFound();

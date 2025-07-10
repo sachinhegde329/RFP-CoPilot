@@ -3,8 +3,8 @@ import { redirect } from 'next/navigation';
 import { getTenantBySubdomain } from '@/lib/tenants';
 import { canPerformAction, type Action } from '@/lib/access-control';
 
-export default async function SettingsPage({ params }: { params: Promise<{ tenant: string }> }) {
-  const { tenant: tenantSubdomain } = await params;
+export default async function SettingsPage({ params }: { params: { tenant: string } }) {
+  const { tenant: tenantSubdomain } = params;
   const tenant = await getTenantBySubdomain(tenantSubdomain);
   if (!tenant) {
     // This case should be handled by layout, but for safety:

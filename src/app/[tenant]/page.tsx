@@ -53,8 +53,8 @@ function EmptyDashboard({ tenantId }: { tenantId: string }) {
 }
 
 
-export default async function Homepage({ params }: { params: Promise<{ tenant: string }>}) {
-    const { tenant: tenantSubdomain } = await params;
+export default async function Homepage({ params }: { params: { tenant: string }}) {
+    const { tenant: tenantSubdomain } = params;
     const tenant = await getTenantBySubdomain(tenantSubdomain);
     if (!tenant) {
         notFound();

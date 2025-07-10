@@ -177,8 +177,8 @@ function TemplateStructureEditor({ structure, setStructure, disabled }: { struct
 }
 
 
-export default async function ConfigureTemplatePage({ params }: { params: Promise<{ tenant: string, templateId: string }> }) {
-  const { tenant: tenantSubdomain, templateId } = await params;
+export default function ConfigureTemplatePage({ params }: { params: { tenant: string, templateId: string } }) {
+  const { tenant: tenantSubdomain, templateId } = params;
   const router = useRouter()
   const { tenant } = useTenant()
   const { toast } = useToast()
