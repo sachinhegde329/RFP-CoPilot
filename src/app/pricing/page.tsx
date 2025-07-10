@@ -1,3 +1,4 @@
+
 "use client"
 
 import { useState } from "react"
@@ -170,7 +171,7 @@ export default function PricingPage() {
             <span className="text-xl font-bold">RFP CoPilot</span>
           </Link>
           <div className="flex items-center gap-4">
-             <Button asChild><a href="/api/auth/signup">Sign Up</a></Button>
+             <Button asChild><Link href="/megacorp">Get Started</Link></Button>
           </div>
         </div>
       </header>
@@ -241,7 +242,7 @@ export default function PricingPage() {
                             );
                         }
                         if (plan.id === 'free') {
-                           return <Button asChild className="w-full" variant="outline"><a href="/api/auth/signup">{plan.buttonText}</a></Button>
+                           return <Button asChild className="w-full" variant="outline"><Link href="/megacorp">{plan.buttonText}</Link></Button>
                         }
                         
                         return (

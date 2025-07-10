@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -29,8 +30,8 @@ export default function LandingPage() {
           <div className="flex items-center gap-4">
             {!isLoading && !user && (
                <>
-                <Button variant="ghost" asChild><a href="/api/auth/login">Log In</a></Button>
-                <Button asChild><a href="/api/auth/signup">Start Free</a></Button>
+                <Button variant="ghost" asChild><Link href="/megacorp">Log In</Link></Button>
+                <Button asChild><Link href="/megacorp">Start Free</Link></Button>
                </>
             )}
             {!isLoading && user && (
@@ -58,7 +59,7 @@ export default function LandingPage() {
                   AI-powered assistant to manage, answer, and export RFPs with your company’s voice — in minutes.
                 </p>
                 <div className="mt-8 flex flex-col sm:flex-row justify-center md:justify-start gap-4">
-                  <Button size="lg" asChild><a href="/api/auth/signup">Start Free</a></Button>
+                  <Button size="lg" asChild><Link href="/megacorp">Start Free</Link></Button>
                   <Button size="lg" variant="outline" asChild><Link href="#">Book a Demo</Link></Button>
                 </div>
               </div>
@@ -241,7 +242,7 @@ export default function LandingPage() {
               Start Winning RFPs with Less Effort, More Confidence
             </h2>
             <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
-              <Button size="lg" asChild><a href="/api/auth/signup">Try Free for 14 Days</a></Button>
+              <Button size="lg" asChild><Link href="/megacorp">Try Free for 14 Days</Link></Button>
               <Button size="lg" variant="outline" asChild>
                 <Link href="#">Talk to Sales</Link>
               </Button>

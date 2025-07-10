@@ -1,3 +1,4 @@
+
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -77,8 +78,8 @@ export default function FeaturesPage() {
           <div className="flex items-center gap-4">
              {!isLoading && !user && (
                  <>
-                  <Button variant="ghost" className="hidden sm:flex" asChild><a href="/api/auth/login">Log In</a></Button>
-                  <Button asChild><a href="/api/auth/signup">Start Free</a></Button>
+                  <Button variant="ghost" className="hidden sm:flex" asChild><Link href="/megacorp">Log In</Link></Button>
+                  <Button asChild><Link href="/megacorp">Start Free</Link></Button>
                  </>
              )}
              {!isLoading && user && (
@@ -181,7 +182,7 @@ export default function FeaturesPage() {
               Sign up for a free trial today and experience the future of proposal management. No credit card required.
             </p>
             <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
-              <Button size="lg" asChild><a href="/api/auth/signup">Start Your Free Trial</a></Button>
+              <Button size="lg" asChild><Link href="/megacorp">Start Your Free Trial</Link></Button>
               <Button size="lg" variant="outline" asChild>
                 <Link href="#">Talk to Sales</Link>
               </Button>

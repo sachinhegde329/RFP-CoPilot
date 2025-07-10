@@ -1,3 +1,4 @@
+
 'use client';
 
 import { FileBox } from 'lucide-react';
@@ -25,8 +26,8 @@ export default function DocsPage() {
           <div className="flex items-center gap-4">
              {!isLoading && !user && (
                  <>
-                    <Button variant="outline" className="hidden sm:flex" asChild><a href="/api/auth/login">Log In</a></Button>
-                    <Button asChild><a href="/api/auth/signup">Get Started</a></Button>
+                    <Button variant="outline" className="hidden sm:flex" asChild><Link href="/megacorp">Log In</Link></Button>
+                    <Button asChild><Link href="/megacorp">Get Started</Link></Button>
                  </>
              )}
              {!isLoading && user && (
