@@ -27,7 +27,13 @@ export default async function TenantLayout({
   children: React.ReactNode;
   params: { tenant: string };
 }) {
-  const session = await getSession();
+  let session;
+  // Check if Auth0 environment variables are set before trying to get a session.
+  // This prevents a server crash in environments where secrets are not configured.
+  if (process.env.AUTH0_SECRET && process.env.AUTH0_BASE_URL && process.env.AUTH0_ISSUER_BASE_URL && process.env.AUTH0_CLIENT_ID && process.env.AUTH0_CLIENT_SECRET) {
+    session = await getSession();
+  }
+
   const tenant = await getTenantBySubdomain(params.tenant);
   
   if (!tenant) {
