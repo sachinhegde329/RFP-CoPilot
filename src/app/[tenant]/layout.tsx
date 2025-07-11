@@ -8,6 +8,11 @@ import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from '@/components/dashboard/app-sidebar';
 import { getSession } from '@auth0/nextjs-auth0';
 
+type TenantLayoutProps = {
+  children: React.ReactNode;
+  params: { tenant: string };
+};
+
 export async function generateMetadata({ params }: { params: { tenant: string } }): Promise<Metadata> {
   const { tenant: tenantSubdomain } = params;
   const tenant = await getTenantBySubdomain(tenantSubdomain);
@@ -24,10 +29,7 @@ export async function generateMetadata({ params }: { params: { tenant: string } 
 export default async function TenantLayout({
   children,
   params,
-}: {
-  children: React.ReactNode;
-  params: { tenant: string };
-}) {
+}: TenantLayoutProps) {
   let session;
   // Check if Auth0 environment variables are set before trying to get a session.
   // This prevents a server crash in environments where secrets are not configured.

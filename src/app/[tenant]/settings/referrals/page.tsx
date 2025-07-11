@@ -8,7 +8,11 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { ReferralsClient } from "./referrals-client"
 
-export default async function ReferralsPage({ params }: { params: { tenant: string }}) {
+type ReferralsPageProps = {
+  params: { tenant: string };
+};
+
+export default async function ReferralsPage({ params }: ReferralsPageProps) {
     const { tenant: tenantSubdomain } = params;
     const tenant = await getTenantBySubdomain(tenantSubdomain);
     if (!tenant) {

@@ -54,8 +54,11 @@ function EmptyDashboard({ tenantId }: { tenantId: string }) {
     );
 }
 
+type HomepageProps = {
+  params: { tenant: string };
+};
 
-export default async function Homepage({ params }: { params: { tenant: string }}) {
+export default async function Homepage({ params }: HomepageProps) {
     const { tenant: tenantSubdomain } = params;
     const tenant = await getTenantBySubdomain(tenantSubdomain);
     if (!tenant) {

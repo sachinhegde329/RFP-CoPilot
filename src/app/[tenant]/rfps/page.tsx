@@ -7,7 +7,11 @@ import { getTenantBySubdomain } from "@/lib/tenants"
 import { notFound } from "next/navigation"
 import type { RFP } from "@/lib/rfp-types"
 
-export default async function RfpsPage({ params }: { params: { tenant: string }}) {
+type RfpsPageProps = {
+  params: { tenant: string };
+};
+
+export default async function RfpsPage({ params }: RfpsPageProps) {
   const { tenant: tenantSubdomain } = params;
   const tenant = await getTenantBySubdomain(tenantSubdomain);
   if (!tenant) {

@@ -3,7 +3,11 @@ import { redirect } from 'next/navigation';
 import { getTenantBySubdomain } from '@/lib/tenants';
 import { canPerformAction, type Action } from '@/lib/access-control';
 
-export default async function SettingsPage({ params }: { params: { tenant: string } }) {
+type SettingsPageProps = {
+  params: { tenant: string };
+};
+
+export default async function SettingsPage({ params }: SettingsPageProps) {
   const { tenant: tenantSubdomain } = params;
   const tenant = await getTenantBySubdomain(tenantSubdomain);
   if (!tenant) {

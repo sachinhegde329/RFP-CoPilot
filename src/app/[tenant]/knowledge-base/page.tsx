@@ -5,7 +5,11 @@ import { getKnowledgeSourcesAction } from "@/app/actions"
 import { getTenantBySubdomain } from "@/lib/tenants"
 import { notFound } from "next/navigation"
 
-export default async function KnowledgeBasePage({ params }: { params: { tenant: string }}) {
+type KnowledgeBasePageProps = {
+  params: { tenant: string };
+};
+
+export default async function KnowledgeBasePage({ params }: KnowledgeBasePageProps) {
   const { tenant: tenantSubdomain } = params;
   const tenant = await getTenantBySubdomain(tenantSubdomain);
   if (!tenant) {

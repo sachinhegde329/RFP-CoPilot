@@ -176,8 +176,11 @@ function TemplateStructureEditor({ structure, setStructure, disabled }: { struct
     );
 }
 
+type ConfigureTemplatePageProps = {
+  params: { tenant: string; templateId: string };
+};
 
-export default function ConfigureTemplatePage({ params }: { params: { tenant: string, templateId: string } }) {
+export default function ConfigureTemplatePage({ params }: ConfigureTemplatePageProps) {
   const { tenant: tenantSubdomain, templateId } = params;
   const router = useRouter()
   const { tenant } = useTenant()
