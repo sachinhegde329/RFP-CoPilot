@@ -2,6 +2,7 @@
 import { getTenantBySubdomain } from './tenants';
 import type { TeamMember } from './tenant-types';
 import type { Question, RFP, RfpStatus } from './rfp-types';
+import { supabaseService } from './supabase.service';
 
 // Re-export types for convenience
 export type { RFP, Question, RfpStatus } from './rfp-types';
@@ -78,6 +79,17 @@ const initializeDemoData = () => {
 class RfpService {
 
     public async getRfps(tenantId: string): Promise<RFP[]> {
+        // Try to get RFPs from Supabase first
+        try {
+            const supabaseRfps = await supabaseService.getRfps(tenantId);
+            if (supabaseRfps.length > 0) {
+                return supabaseRfps;
+            }
+        } catch (error) {
+            console.warn('Failed to get RFPs from Supabase, falling back to in-memory:', error);
+        }
+        
+        // Fallback to in-memory data
         initializeDemoData();
         return inMemoryRfps[tenantId] || [];
     }
