@@ -58,31 +58,34 @@ export default function LandingPage() {
 
       <main className="flex-1">
         {/* 1. Hero Section */}
-        <section className="relative flex flex-col md:flex-row items-center justify-between gap-8 py-16">
-          <div className="flex-1 flex flex-col items-start gap-6">
-            <h1 className="text-4xl md:text-6xl font-extrabold tracking-tighter">
-              <span className="text-primary">Win More Deals.</span>
-              <br />
-              Automatically.
-            </h1>
-            <p className="mt-4 max-w-xl mx-auto md:mx-0 text-lg text-muted-foreground">
-              AI-powered assistant to manage, answer, and export RFPs with your company’s voice — in minutes.
-            </p>
-            <div className="mt-8 flex flex-col sm:flex-row justify-center md:justify-start gap-4">
-              <Button size="lg" asChild><Link href="/megacorp" target="_blank" rel="noopener noreferrer">Start Free</Link></Button>
-              <Button size="lg" variant="outline" asChild><Link href="#">Book a Demo</Link></Button>
+        <section className="container mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-28">
+            <div className="grid md:grid-cols-2 gap-12 items-center">
+                <div className="flex flex-col items-start gap-6">
+                    <h1 className="text-4xl md:text-6xl font-extrabold tracking-tighter">
+                    <span className="text-primary">Win More Deals.</span>
+                    <br />
+                    Automatically.
+                    </h1>
+                    <p className="mt-4 max-w-xl text-lg text-muted-foreground">
+                    AI-powered assistant to manage, answer, and export RFPs with your company’s voice — in minutes.
+                    </p>
+                    <div className="mt-8 flex flex-col sm:flex-row justify-start gap-4">
+                    <Button size="lg" asChild><Link href="/megacorp" target="_blank" rel="noopener noreferrer">Start Free</Link></Button>
+                    <Button size="lg" variant="outline" asChild><Link href="#">Book a Demo</Link></Button>
+                    </div>
+                </div>
+                <div className="flex justify-center items-center">
+                    <Image
+                    src="https://placehold.co/600x600.png"
+                    alt="RFPcopilot dashboard illustration"
+                    width={600}
+                    height={600}
+                    className="rounded-xl shadow-lg"
+                    data-ai-hint="dashboard illustration"
+                    priority
+                    />
+                </div>
             </div>
-          </div>
-          <div className="flex-1 flex justify-center items-center">
-            <Image
-              src="/illustrations/rfp-dashboard.png"
-              alt="RFPcopilot dashboard illustration"
-              width={400}
-              height={400}
-              className="rounded-xl shadow-lg"
-              priority
-            />
-          </div>
         </section>
         
         {/* 2. Trusted By Section */}
@@ -260,3 +263,5 @@ export default function LandingPage() {
     </div>
   );
 }
+
+    
