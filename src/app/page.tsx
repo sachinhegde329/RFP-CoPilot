@@ -76,12 +76,11 @@ export default function LandingPage() {
                 </div>
                 <div className="flex justify-center items-center">
                     <Image
-                    src="https://placehold.co/600x600.png"
-                    alt="RFPcopilot dashboard illustration"
+                    src="https://i.ibb.co/3k5g2t9/rfp-dashboard-ui.png"
+                    alt="Screenshot of the RFP CoPilot dashboard showing extracted questions and AI features."
                     width={600}
                     height={600}
                     className="rounded-xl shadow-lg"
-                    data-ai-hint="dashboard illustration"
                     priority
                     />
                 </div>
