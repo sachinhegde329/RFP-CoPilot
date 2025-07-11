@@ -4,6 +4,8 @@ import { getConnectorService } from './connectors';
 import { tagContent } from '@/ai/flows/tag-content-flow';
 import { pineconeService } from './pinecone.service';
 import { secretsService } from './secrets.service';
+import { uploadToWasabi, getFromWasabi } from './wasabi.service';
+import InfisicalClient from 'infisical-node';
 
 export type DataSourceType = 'website' | 'document' | 'confluence' | 'sharepoint' | 'gdrive' | 'notion' | 'github' | 'dropbox' | 'highspot' | 'showpad' | 'seismic' | 'mindtickle' | 'enableus';
 export type SyncStatus = 'Synced' | 'Syncing' | 'Error' | 'Pending';
@@ -72,6 +74,11 @@ const initializeDemoData = (tenantId: string) => {
     if (!inMemorySources[tenantId]) {
         inMemorySources[tenantId] = [];
     }
+}
+
+// Utility to get an Infisical client (token should be set in env or securely fetched)
+function getInfisicalClient() {
+  return new InfisicalClient({ token: process.env.INFISICAL_TOKEN! });
 }
 
 class KnowledgeBaseService {
@@ -166,19 +173,38 @@ class KnowledgeBaseService {
         tagContent({ content })
     ]));
     const processedChunksData = await Promise.all(processingPromises);
-      
-    const newChunks: DocumentChunk[] = processedChunksData.map(([embedding, tagResult], index) => ({
-      id: `chunk-${sourceId}-${index}`,
-      tenantId,
-      sourceId,
-      title,
-      content: chunks[index],
-      embedding: embedding,
-      tags: tagResult.tags,
-      metadata: { sourceType, url, chunkIndex: index, ...additionalMetadata }
+
+    // Upload each chunk to Wasabi and store the key
+    const newChunks: DocumentChunk[] = await Promise.all(processedChunksData.map(async ([embedding, tagResult], index) => {
+      const wasabiKey = `kb/${tenantId}/${sourceId}/${Date.now()}-${index}.txt`;
+      await uploadToWasabi(wasabiKey, chunks[index], 'text/plain');
+      return {
+        id: `chunk-${sourceId}-${index}`,
+        tenantId,
+        sourceId,
+        title,
+        content: '', // Content is now in Wasabi, not stored here
+        embedding: embedding,
+        tags: tagResult.tags,
+        metadata: { sourceType, url, chunkIndex: index, wasabiKey, ...additionalMetadata }
+      };
     }));
 
     await pineconeService.upsert(tenantId, newChunks);
+  }
+
+  // Helper to fetch chunk content from Wasabi
+  public async getChunkContentFromWasabi(wasabiKey: string): Promise<string> {
+    const obj = await getFromWasabi(wasabiKey);
+    // Node.js: stream to string
+    if (obj.Body && typeof obj.Body.transformToString === 'function') {
+      return await obj.Body.transformToString();
+    }
+    // Fallback: try to read as Buffer
+    if (obj.Body && typeof obj.Body === 'object' && 'toString' in obj.Body) {
+      return obj.Body.toString();
+    }
+    return '';
   }
 
   public async deleteChunksBySourceId(tenantId: string, sourceId:string): Promise<boolean> {
@@ -235,6 +261,24 @@ class KnowledgeBaseService {
             lastSynced: 'Failed to sync',
         });
     }
+  }
+
+  // Store customer integration secret in Infisical and save only the secretPath in Supabase
+  public async saveIntegrationSecret(tenantId: string, sourceId: string, integrationType: string, secretObj: Record<string, any>): Promise<string> {
+    const secretPath = `/integrations/${tenantId}/${integrationType}/${sourceId}`;
+    const client = getInfisicalClient();
+    await client.createSecret({ secretName: secretPath, secretValue: JSON.stringify(secretObj) });
+    return secretPath;
+  }
+
+  // Fetch customer integration secret from Infisical
+  public async getIntegrationSecret(secretPath: string): Promise<Record<string, any> | null> {
+    const client = getInfisicalClient();
+    const secret = await client.getSecret(secretPath);
+    if (secret && secret.secretValue) {
+      return JSON.parse(secret.secretValue);
+    }
+    return null;
   }
 }
 
