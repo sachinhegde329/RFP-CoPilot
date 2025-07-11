@@ -8,6 +8,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUser } from '@auth0/nextjs-auth0/client';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 export default function LandingPage() {
   const { user, isLoading } = useUser();
@@ -24,13 +25,24 @@ export default function LandingPage() {
           <nav className="hidden md:flex items-center gap-2">
             <Button variant="ghost" asChild><Link href="/features">Features</Link></Button>
             <Button variant="ghost" asChild><Link href="#use-cases">Use Cases</Link></Button>
-            <Button variant="ghost" asChild><Link href="/pricing">Pricing</Link></Button>
             <Button variant="ghost" asChild><Link href="/docs">Docs</Link></Button>
           </nav>
           <div className="flex items-center gap-4">
             {!isLoading && !user && (
                <>
-                <Button variant="ghost" asChild><Link href="/megacorp">Log In</Link></Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost">Get Started</Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild>
+                      <Link href="/api/auth/login">Sign Up</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/api/auth/login">Log In</Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
                 <Button asChild><Link href="/megacorp">Start Free</Link></Button>
                </>
             )}

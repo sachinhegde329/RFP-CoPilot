@@ -267,7 +267,7 @@ class KnowledgeBaseService {
   public async saveIntegrationSecret(tenantId: string, sourceId: string, integrationType: string, secretObj: Record<string, any>): Promise<string> {
     const secretPath = `/integrations/${tenantId}/${integrationType}/${sourceId}`;
     const client = getInfisicalClient();
-    await client.createSecret({ secretName: secretPath, secretValue: JSON.stringify(secretObj) });
+    await client.createSecret(secretPath, JSON.stringify(secretObj));
     return secretPath;
   }
 
