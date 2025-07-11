@@ -3,7 +3,7 @@
  * This service handles OAuth, listing files/folders, and ingesting file content.
  */
 
-import { Dropbox, type files } from 'dropbox';
+import { Dropbox, type files, type DropboxResponse } from 'dropbox';
 import type { DataSource } from '@/lib/knowledge-base';
 import { knowledgeBaseService } from '@/lib/knowledge-base';
 import { parseDocument } from '@/ai/flows/parse-document';
@@ -31,8 +31,8 @@ class DropboxService {
         const syncPath = source.config?.path || ''; // Default to root
 
         while (hasMore) {
-            const response = await (cursor ? dbx.filesListFolderContinue({ cursor }) : dbx.filesListFolder({ path: syncPath, recursive: true, limit: 100 }));
-            const files = response.result.entries.filter(entry => entry['.tag'] === 'file') as files.FileMetadataReference[];
+            const response: DropboxResponse<files.ListFolderResult> = await (cursor ? dbx.filesListFolderContinue({ cursor }) : dbx.filesListFolder({ path: syncPath, recursive: true, limit: 100 }));
+            const files = response.result.entries.filter((entry: files.MetadataReference) => entry['.tag'] === 'file') as files.FileMetadataReference[];
             allFiles = allFiles.concat(files);
             hasMore = response.result.has_more;
             cursor = response.result.cursor;

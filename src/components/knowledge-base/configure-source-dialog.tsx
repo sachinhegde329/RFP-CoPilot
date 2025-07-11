@@ -35,7 +35,7 @@ export function ConfigureSourceDialog({ source, onOpenChange, onSourceUpdated }:
   const handleSave = async () => {
     if (!source) return;
     setIsLoading(true);
-    const result = await updateKnowledgeSourceConfigAction(tenant.id, source.id, config, currentUser);
+    const result = await updateKnowledgeSourceConfigAction(tenant.id, source.id, config);
     
     if (result.error || !result.source) {
       toast({ variant: 'destructive', title: 'Save Failed', description: result.error });

@@ -157,7 +157,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
   const handleResync = async (source: DataSource) => {
     setSources(prev => prev.map(s => s.id === source.id ? { ...s, status: 'Syncing' } : s));
     toast({ title: "Re-sync Started", description: `Re-syncing content from ${source.name}` });
-    const result = await resyncKnowledgeSourceAction(tenant.id, source.id, currentUser);
+    const result = await resyncKnowledgeSourceAction(tenant.id, source.id);
     if (result.error) {
         toast({ variant: "destructive", title: "Sync Failed", description: result.error });
         fetchSources();
@@ -172,7 +172,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
     reader.readAsDataURL(file);
     reader.onload = async () => {
         const dataUri = reader.result as string;
-        const result = await addDocumentSourceAction(dataUri, tenant.id, file.name, currentUser);
+        const result = await addDocumentSourceAction(dataUri, tenant.id, file.name);
         if (result.error || !result.source) {
             toast({ variant: "destructive", title: "Upload Failed", description: result.error });
         } else {
@@ -193,7 +193,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
   const handleDeleteSource = async (sourceId: string) => {
     const originalSources = sources;
     setSources(prev => prev.filter(s => s.id !== sourceId));
-    const result = await deleteKnowledgeSourceAction(tenant.id, sourceId, currentUser);
+    const result = await deleteKnowledgeSourceAction(tenant.id, sourceId);
     if (result.error) {
         setSources(originalSources);
         toast({ variant: "destructive", title: "Delete Failed", description: result.error });
@@ -213,7 +213,7 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
   const handleDeleteFromLibrary = async (answerId: string) => {
     const originalLibrary = answerLibrary;
     setAnswerLibrary(prev => prev.filter(a => a.id !== answerId));
-    const result = await deleteFromLibraryAction(tenant.id, answerId, currentUser);
+    const result = await deleteFromLibraryAction(tenant.id, answerId);
     if (result.error) {
         setAnswerLibrary(originalLibrary);
         toast({ variant: "destructive", title: "Delete Failed", description: result.error });

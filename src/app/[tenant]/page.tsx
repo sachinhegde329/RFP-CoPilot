@@ -11,6 +11,7 @@ import { getTenantBySubdomain } from '@/lib/tenants';
 import { notFound } from 'next/navigation';
 import type { RFP } from '@/lib/rfp-types';
 import { RfpSummaryCard } from '@/components/dashboard/rfp-summary-card';
+import { AuthStatus } from '@/components/auth/auth-status';
 
 
 /**
@@ -46,6 +47,7 @@ function EmptyDashboard({ tenantId }: { tenantId: string }) {
     return (
         <main className="p-4 sm:p-6 lg:p-8 flex-1 flex items-center justify-center">
             <div className="w-full max-w-2xl">
+                <AuthStatus />
                 <RfpSummaryCard onProcessRfp={processRfp} />
             </div>
         </main>

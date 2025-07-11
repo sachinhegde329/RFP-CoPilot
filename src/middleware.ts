@@ -31,6 +31,11 @@ export function middleware(req: NextRequest) {
   const hostWithoutPort = hostname.split(':')[0];
   const path = url.pathname;
 
+  // Check if Auth0 is properly configured
+  const isAuth0Configured = !!(process.env.AUTH0_SECRET && process.env.AUTH0_BASE_URL && 
+                               process.env.AUTH0_ISSUER_BASE_URL && process.env.AUTH0_CLIENT_ID && 
+                               process.env.AUTH0_CLIENT_SECRET);
+
   // For the demo tenant, all routes are public and just need rewriting
   if (hostWithoutPort === `megacorp.${rootDomain}`) {
     return NextResponse.rewrite(new URL(`/megacorp${path}`, req.url));
@@ -39,6 +44,12 @@ export function middleware(req: NextRequest) {
   // Rewrite for app subdomains
   if (hostWithoutPort.endsWith(`.${rootDomain}`) && hostWithoutPort !== `www.${rootDomain}`) {
     const subdomain = hostWithoutPort.replace(`.${rootDomain}`, '');
+    
+    // Security check: Only allow access if Auth0 is configured or it's the demo tenant
+    if (!isAuth0Configured && subdomain !== 'megacorp') {
+      return NextResponse.redirect(new URL('/auth/error?error=configuration', req.url));
+    }
+    
     return NextResponse.rewrite(new URL(`/${subdomain}${path}`, req.url));
   }
   

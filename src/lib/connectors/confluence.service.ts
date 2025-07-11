@@ -37,7 +37,7 @@ class ConfluenceService {
         let nextUrl: string | null = `${confluenceUrl}/wiki/rest/api/content?type=page&limit=50&expand=space`;
 
         while (nextUrl) {
-            const response = await fetch(nextUrl, { headers: this.getAuthHeaders(source) });
+            const response: Response = await fetch(nextUrl, { headers: this.getAuthHeaders(source) });
             if (!response.ok) {
                 const errorText = await response.text();
                 throw new Error(`Failed to list Confluence resources: ${response.status} ${errorText}`);

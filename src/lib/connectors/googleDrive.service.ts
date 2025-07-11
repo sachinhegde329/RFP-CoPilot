@@ -8,6 +8,7 @@ import { google, type drive_v3 } from 'googleapis';
 import type { DataSource } from '@/lib/knowledge-base';
 import { knowledgeBaseService } from '@/lib/knowledge-base';
 import { parseDocument } from '@/ai/flows/parse-document';
+import type { GaxiosResponse } from 'gaxios';
 
 
 class GoogleDriveService {
@@ -44,7 +45,7 @@ class GoogleDriveService {
             : "mimeType != 'application/vnd.google-apps.folder'";
 
         do {
-            const res = await drive.files.list({
+            const res: GaxiosResponse<drive_v3.Schema$FileList> = await drive.files.list({
                 q: query,
                 fields: 'nextPageToken, files(id, name, mimeType, webViewLink)',
                 spaces: 'drive',

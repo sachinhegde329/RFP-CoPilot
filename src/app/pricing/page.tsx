@@ -1,7 +1,7 @@
 
 "use client"
 
-import { useState } from "react"
+import { useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
@@ -105,7 +105,7 @@ const plans = [
   },
 ]
 
-export default function PricingPage() {
+function PricingContent() {
   const searchParams = useSearchParams()
   const { toast } = useToast()
   const { user, isLoading: isUserLoading } = useUser();
@@ -161,7 +161,6 @@ export default function PricingPage() {
     setLoadingPlan(null);
   };
 
-
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -198,95 +197,53 @@ export default function PricingPage() {
                 >
                   <CardHeader className="flex-shrink-0">
                     {plan.popular && (
-                      <div className="text-center">
-                        <div className="inline-block px-3 py-1 text-xs font-semibold tracking-wider text-primary-foreground bg-primary rounded-full mb-2">
+                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                        <span className="bg-primary text-primary-foreground px-3 py-1 rounded-full text-sm font-medium">
                           Most Popular
-                        </div>
+                        </span>
                       </div>
                     )}
-                    <CardTitle className="text-2xl">{plan.name}</CardTitle>
+                    <CardTitle className="text-2xl font-bold">{plan.name}</CardTitle>
+                    <CardDescription className="text-base">{plan.description}</CardDescription>
                     <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-bold">{plan.price}</span>
-                      {plan.pricePeriod && <span className="text-muted-foreground">{plan.pricePeriod}</span>}
+                      <span className="text-3xl font-bold">{plan.price}</span>
+                      {plan.pricePeriod && (
+                        <span className="text-muted-foreground">{plan.pricePeriod}</span>
+                      )}
                     </div>
-                    <CardDescription>{plan.description}</CardDescription>
                   </CardHeader>
                   <CardContent className="flex-1">
                     <ul className="space-y-3">
                       {plan.features.map((feature) => (
-                        <li key={feature} className="flex items-start gap-2">
-                          <Check className="size-5 text-primary flex-shrink-0 mt-1" />
+                        <li key={feature} className="flex items-center gap-2">
+                          <Check className="h-4 w-4 text-primary flex-shrink-0" />
                           <span className="text-sm">{feature}</span>
                         </li>
-
                       ))}
                     </ul>
                   </CardContent>
-                  <CardFooter className="flex-shrink-0">
-                    {(() => {
-                        const isLoading = loadingPlan === plan.name;
-                        const isPaidPlan = plan.id === 'starter' || plan.id === 'team' || plan.id === 'business';
-                        const planId = plan.id as 'starter' | 'team' | 'business';
-
-                        if (isPaidPlan) {
-                            return (
-                                <Button
-                                    className="w-full"
-                                    variant={plan.popular ? "default" : "outline"}
-                                    onClick={() => handleCheckout(planId, plan.name)}
-                                    disabled={isLoading || !user}
-                                >
-                                    {isLoading && <Loader2 className="animate-spin" />}
-                                    {!user ? 'Log in to subscribe' : plan.buttonText}
-                                </Button>
-                            );
-                        }
-                        if (plan.id === 'free') {
-                           return <Button asChild className="w-full" variant="outline"><Link href="/megacorp">{plan.buttonText}</Link></Button>
-                        }
-                        
-                        return (
-                           <Button asChild className="w-full" variant={plan.popular ? "default" : "outline"}>
-                             <Link href={plan.buttonLink || '#'}>{plan.buttonText}</Link>
-                           </Button>
-                        );
-                    })()}
-                  </CardFooter>
-                </Card>
-              ))}
-            </div>
-            <p className="text-center text-muted-foreground mt-8 text-sm">
-                Annual pricing available. <Link href="#" className="underline text-primary">Contact us</Link> for details.
-            </p>
-          </div>
-        </section>
-
-        <section className="pb-20 md:pb-28 border-t">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8 pt-20">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold">Enhance Your Plan with Add-ons</h2>
-              <p className="text-muted-foreground mt-3 max-w-2xl mx-auto">Customize your plan with powerful features to meet your specific needs. Available on Team plans and higher.</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-              {Object.values(addOnsConfig).map(addOn => (
-                <Card key={addOn.id} className="flex flex-col">
-                  <CardHeader>
-                    <CardTitle>{addOn.name}</CardTitle>
-                     {addOn.price ? (
-                      <div className="flex items-baseline gap-1 pt-2">
-                          <span className="text-3xl font-bold">${addOn.price}</span>
-                          <span className="text-muted-foreground">/ month</span>
-                      </div>
-                    ) : (
-                      <div className="pt-2">
-                        <span className="text-3xl font-bold">Custom</span>
-                      </div>
-                    )}
-                    <CardDescription className="pt-2">{addOn.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="flex-1" />
                   <CardFooter>
-                    <Button className="w-full" variant="outline" disabled>Contact Sales to Add</Button>
+                    {plan.buttonLink ? (
+                      <Button asChild className="w-full" variant={plan.popular ? "default" : "outline"}>
+                        <Link href={plan.buttonLink}>{plan.buttonText}</Link>
+                      </Button>
+                    ) : (
+                      <Button
+                        className="w-full"
+                        variant={plan.popular ? "default" : "outline"}
+                        onClick={() => handleCheckout(plan.id as 'starter' | 'team' | 'business', plan.name)}
+                        disabled={loadingPlan === plan.name || !tenantId}
+                      >
+                        {loadingPlan === plan.name ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Loading...
+                          </>
+                        ) : (
+                          plan.buttonText
+                        )}
+                      </Button>
+                    )}
                   </CardFooter>
                 </Card>
               ))}
@@ -294,18 +251,14 @@ export default function PricingPage() {
           </div>
         </section>
       </main>
-
-      <footer className="border-t">
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-                <FileBox className="size-6 text-muted-foreground" />
-                <span className="text-muted-foreground font-semibold">RFP CoPilot</span>
-            </div>
-            <p className="text-muted-foreground text-sm">
-                &copy; {new Date().getFullYear()} RFP CoPilot. All rights reserved.
-            </p>
-        </div>
-      </footer>
     </div>
-  )
+  );
+}
+
+export default function PricingPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <PricingContent />
+    </Suspense>
+  );
 }
