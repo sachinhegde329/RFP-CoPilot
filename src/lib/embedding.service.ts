@@ -26,10 +26,7 @@ class EmbeddingService {
             // Use the Genkit AI utility to generate the embedding.
             // We are using 'text-embedding-004', a powerful and efficient model from Google,
             // which is suitable for creating embeddings for Retrieval-Augmented Generation (RAG).
-            const { embedding } = await ai.embed({
-                model: 'googleai/text-embedding-004',
-                content: text,
-            });
+            const [{ embedding }] = await ai.embed({ embedder: 'googleai/text-embedding-004', content: text });
             return embedding;
         } catch (error) {
             console.error('Failed to generate embedding:', error);

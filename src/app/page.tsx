@@ -8,6 +8,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUser } from '@auth0/nextjs-auth0/client';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 export default function LandingPage() {
   const { user, isLoading } = useUser();
@@ -24,14 +25,25 @@ export default function LandingPage() {
           <nav className="hidden md:flex items-center gap-2">
             <Button variant="ghost" asChild><Link href="/features">Features</Link></Button>
             <Button variant="ghost" asChild><Link href="#use-cases">Use Cases</Link></Button>
-            <Button variant="ghost" asChild><Link href="/pricing">Pricing</Link></Button>
             <Button variant="ghost" asChild><Link href="/docs">Docs</Link></Button>
           </nav>
           <div className="flex items-center gap-4">
             {!isLoading && !user && (
                <>
-                <Button variant="ghost" asChild><Link href="/megacorp">Log In</Link></Button>
-                <Button asChild><Link href="/megacorp">Start Free</Link></Button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost">Get Started</Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem asChild>
+                      <Link href="/api/auth/login">Sign Up</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/api/auth/login">Log In</Link>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Button asChild><Link href="/megacorp" target="_blank" rel="noopener noreferrer">Start Free</Link></Button>
                </>
             )}
             {!isLoading && user && (
@@ -46,35 +58,30 @@ export default function LandingPage() {
 
       <main className="flex-1">
         {/* 1. Hero Section */}
-        <section className="py-20 md:py-28">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid md:grid-cols-2 gap-12 items-center">
-              <div className="text-center md:text-left">
-                <h1 className="text-4xl md:text-6xl font-extrabold tracking-tighter">
-                  <span className="text-primary">Win More Deals.</span>
-                  <br />
-                  Automatically.
-                </h1>
-                <p className="mt-4 max-w-xl mx-auto md:mx-0 text-lg text-muted-foreground">
-                  AI-powered assistant to manage, answer, and export RFPs with your company’s voice — in minutes.
-                </p>
-                <div className="mt-8 flex flex-col sm:flex-row justify-center md:justify-start gap-4">
-                  <Button size="lg" asChild><Link href="/megacorp">Start Free</Link></Button>
-                  <Button size="lg" variant="outline" asChild><Link href="#">Book a Demo</Link></Button>
-                </div>
-              </div>
-              <div className="bg-card p-2 rounded-xl border shadow-sm">
-                <Image
-                    src="https://placehold.co/1200x900.png"
-                    alt="RFP CoPilot platform screenshot showing AI answer generation"
-                    width={1200}
-                    height={900}
-                    className="rounded-lg"
-                    data-ai-hint="dashboard analytics"
-                    priority
-                />
-              </div>
+        <section className="relative flex flex-col md:flex-row items-center justify-between gap-8 py-16">
+          <div className="flex-1 flex flex-col items-start gap-6">
+            <h1 className="text-4xl md:text-6xl font-extrabold tracking-tighter">
+              <span className="text-primary">Win More Deals.</span>
+              <br />
+              Automatically.
+            </h1>
+            <p className="mt-4 max-w-xl mx-auto md:mx-0 text-lg text-muted-foreground">
+              AI-powered assistant to manage, answer, and export RFPs with your company’s voice — in minutes.
+            </p>
+            <div className="mt-8 flex flex-col sm:flex-row justify-center md:justify-start gap-4">
+              <Button size="lg" asChild><Link href="/megacorp" target="_blank" rel="noopener noreferrer">Start Free</Link></Button>
+              <Button size="lg" variant="outline" asChild><Link href="#">Book a Demo</Link></Button>
             </div>
+          </div>
+          <div className="flex-1 flex justify-center items-center">
+            <Image
+              src="/illustrations/rfp-dashboard.png"
+              alt="RFPcopilot dashboard illustration"
+              width={400}
+              height={400}
+              className="rounded-xl shadow-lg"
+              priority
+            />
           </div>
         </section>
         
@@ -200,25 +207,7 @@ export default function LandingPage() {
         </section>
 
         {/* 8. Pricing Preview */}
-        <section className="py-20">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold">Simple, Transparent Pricing</h2>
-              <p className="mt-3 max-w-2xl mx-auto text-muted-foreground">Choose the plan that's right for your team. Start free, upgrade anytime.</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
-                <Card className="p-6"><CardHeader className="p-0"><CardTitle>Free</CardTitle><p className="text-sm text-muted-foreground">For Individuals</p></CardHeader><CardContent className="p-0 my-4"><p className="text-4xl font-bold">$0</p></CardContent></Card>
-                <Card className="p-6"><CardHeader className="p-0"><CardTitle>Pro</CardTitle><p className="text-sm text-muted-foreground">For Freelancers/SMBs</p></CardHeader><CardContent className="p-0 my-4"><p className="text-4xl font-bold">$49</p><p className="text-sm text-muted-foreground">/user/mo</p></CardContent></Card>
-                <Card className="p-6 border-primary"><CardHeader className="p-0"><CardTitle>Team</CardTitle><p className="text-sm text-muted-foreground">For Sales Teams</p></CardHeader><CardContent className="p-0 my-4"><p className="text-4xl font-bold">$199</p><p className="text-sm text-muted-foreground">/mo, 5 users</p></CardContent></Card>
-                <Card className="p-6"><CardHeader className="p-0"><CardTitle>Enterprise</CardTitle><p className="text-sm text-muted-foreground">For Large Orgs</p></CardHeader><CardContent className="p-0 my-4"><p className="text-4xl font-bold">Custom</p></CardContent></Card>
-            </div>
-            <div className="text-center mt-8">
-                <Button asChild size="lg">
-                    <Link href="/pricing">Compare Plans</Link>
-                </Button>
-            </div>
-          </div>
-        </section>
+        {/* (Removed pricing section) */}
         
         {/* 9. Security & Compliance */}
         <section className="py-20 bg-muted/30">
@@ -259,7 +248,7 @@ export default function LandingPage() {
             </div>
              <div className="flex gap-4 text-muted-foreground text-sm">
                 <Link href="/features" className="hover:text-foreground">Features</Link>
-                <Link href="/pricing" className="hover:text-foreground">Pricing</Link>
+                {/* <Link href="/pricing" className="hover:text-foreground">Pricing</Link> */}
                 <Link href="/docs" className="hover:text-foreground">Documentation</Link>
                 <Link href="#" className="hover:text-foreground">Contact</Link>
             </div>

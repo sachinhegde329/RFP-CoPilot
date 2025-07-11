@@ -4,7 +4,7 @@
  * This acts as the connector for 'website' type data sources.
  */
 
-import * as cheerio from 'cheerio';
+import { load } from 'cheerio';
 import type { DataSource } from '@/lib/knowledge-base';
 import { knowledgeBaseService } from '@/lib/knowledge-base';
 import robotsParser from 'robots-parser';
@@ -33,7 +33,7 @@ class WebsiteCrawlerService {
    * @param pageTitle The title of the page, used as a fallback heading.
    * @returns An array of context-rich text chunks.
    */
-  private _htmlToSemanticChunks(contentRoot: cheerio.Cheerio<cheerio.Element>, pageTitle: string): string[] {
+  private _htmlToSemanticChunks(contentRoot: any, pageTitle: string): string[] {
     const finalChunks: string[] = [];
     let currentHeading = pageTitle;
     let currentContent = '';
@@ -50,8 +50,8 @@ class WebsiteCrawlerService {
       currentContent = '';
     };
 
-    contentRoot.children().each((i, el) => {
-        const element = cheerio(el);
+    contentRoot.children().each((i: number, el: Element) => {
+        const element = contentRoot.constructor(el);
         const tagName = el.tagName.toLowerCase();
 
         if (['h1', 'h2', 'h3', 'h4'].includes(tagName)) {
@@ -61,10 +61,10 @@ class WebsiteCrawlerService {
              currentContent += element.text().trim() + '\n';
         } else if (tagName === 'table') {
             let tableText = '';
-            element.find('tr').each((j, rowEl) => {
+            element.find('tr').each((j: number, rowEl: Element) => {
                 const rowTexts: string[] = [];
-                cheerio(rowEl).find('th, td').each((k, cellEl) => {
-                    rowTexts.push(cheerio(cellEl).text().trim());
+                contentRoot.constructor(rowEl).find('th, td').each((k: number, cellEl: Element) => {
+                    rowTexts.push(contentRoot.constructor(cellEl).text().trim());
                 });
                 tableText += rowTexts.join(' | ') + '\n';
             });
@@ -94,7 +94,7 @@ class WebsiteCrawlerService {
       }
       const html = await response.text();
       
-      const $ = cheerio.load(html);
+      const $ = load(html);
       const contentRoot = $('main, article, #content, #main, .main-content').first().length > 0
         ? $('main, article, #content, #main, .main-content').first()
         : $('body');
@@ -127,7 +127,7 @@ class WebsiteCrawlerService {
         throw new Error(`Skipping non-HTML page: ${url}`);
       }
       const html = await response.text();
-      const $ = cheerio.load(html);
+      const $ = load(html);
 
       const pageTitle = $('title').text().trim() || $('h1').first().text().trim() || url;
       
@@ -213,7 +213,7 @@ class WebsiteCrawlerService {
         const sitemapResponse = await fetch(sitemapUrl, { headers: { 'User-Agent': USER_AGENT }});
         if (sitemapResponse.ok) {
             const sitemapText = await sitemapResponse.text();
-            const $ = cheerio.load(sitemapText, { xmlMode: true });
+            const $ = load(sitemapText, { xmlMode: true });
             
             $('loc').each((i, el) => {
                 const sitemapLoc = $(el).text();

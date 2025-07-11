@@ -1,5 +1,5 @@
 
-export type AddOn = 'analytics' | 'customTemplates' | 'complianceValidation' | 'aiAnswerPack';
+export type AddOn = 'analytics' | 'customTemplates' | 'complianceValidation' | 'aiAnswerPack' | 'aiExpertReview' | 'sso';
 // Role 'Approver' maps to 'Reviewer'. 'Editor' maps to 'Contributor'.
 export type Role = 'Owner' | 'Admin' | 'Approver' | 'Editor' | 'Viewer';
 export type MemberStatus = 'Active' | 'Pending';
@@ -47,7 +47,9 @@ export const addOnsConfig: Record<AddOn, { id: AddOn; name: string; description:
   analytics: { id: 'analytics', name: 'Advanced Analytics', description: 'Unlock detailed insights into your RFP process and win rates.', price: 49 },
   customTemplates: { id: 'customTemplates', name: 'Custom Export Templates', description: 'Create and manage branded templates for polished, professional responses.', price: 29 },
   complianceValidation: { id: 'complianceValidation', name: 'Compliance Validation', description: 'Automatically check answers against compliance standards like SOC 2 and ISO 27001.', price: 99 },
-  aiAnswerPack: { id: 'aiAnswerPack', name: 'AI Answer Pack', description: 'Get an additional 100 AI-generated answers for your RFPs.', price: 9 }
+  aiAnswerPack: { id: 'aiAnswerPack', name: 'AI Answer Pack', description: 'Get an additional 100 AI-generated answers for your RFPs.', price: 9 },
+  aiExpertReview: { id: 'aiExpertReview', name: 'AI Expert Review', description: 'Get AI-powered expert review of your RFP responses.', price: 79 },
+  sso: { id: 'sso', name: 'Single Sign-On', description: 'Enable SSO authentication for your organization.', price: 149 }
 };
 
 export const plansConfig = {

@@ -35,12 +35,35 @@ export function RfpSummaryCard({ onProcessRfp }: RfpSummaryCardProps) {
 
   const handleProcessRfp = (text: string, file?: File) => {
     if (!text) return;
-    startTransition(async () => {
-        const result = await onProcessRfp(text, file);
-        if (result?.error) {
-            toast({ variant: 'destructive', title: "Error Processing RFP", description: result.error });
+    type ProcessResult = { error?: string } | void;
+    function isPromise<T>(val: any): val is Promise<T> {
+      return val && typeof val.then === 'function';
+    }
+    const maybeResult: ProcessResult | Promise<ProcessResult> = onProcessRfp(text, file);
+    if (isPromise(maybeResult)) {
+      startTransition(async () => {
+        const result = await maybeResult;
+        if (
+          result &&
+          typeof result === 'object' &&
+          result !== null &&
+          'error' in result &&
+          typeof (result as any).error === 'string' &&
+          (result as any).error
+        ) {
+          toast({ variant: 'destructive', title: "Error Processing RFP", description: (result as any).error });
         }
-    });
+      });
+    } else if (
+      maybeResult &&
+      typeof maybeResult === 'object' &&
+      maybeResult !== null &&
+      'error' in maybeResult &&
+      typeof (maybeResult as any).error === 'string' &&
+      (maybeResult as any).error
+    ) {
+      toast({ variant: 'destructive', title: "Error Processing RFP", description: (maybeResult as any).error });
+    }
   }
 
   const handleUploadClick = () => {

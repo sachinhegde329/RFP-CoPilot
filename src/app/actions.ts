@@ -20,6 +20,8 @@ import { askAi } from "@/ai/flows/ask-ai-flow"
 import { answerLibraryService, type QnAPair } from "@/lib/answer-library.service"
 import { generateRfpInsights, type RfpInsightsOutput } from "@/ai/flows/rfp-insights-flow"
 import { getSession } from '@auth0/nextjs-auth0';
+import { sanitizeRequestData, logSecurityEvent } from '@/lib/security';
+import { validateInput, rfpSchema, questionSchema, answerSchema } from '@/lib/validation';
 
 import { Document, Packer, Paragraph, HeadingLevel, TextRun, AlignmentType, PageBreak } from 'docx';
 import PDFDocument from 'pdfkit';
@@ -27,12 +29,31 @@ import * as xlsx from 'xlsx';
 
 // Helper function to check permissions before executing an action
 async function checkPermission(tenantId: string, action: Action): Promise<{ tenant: Tenant, user: TeamMember, error?: undefined } | { error: string }> {
-    const session = await getSession();
+    let session;
+    // Check if Auth0 environment variables are set before trying to get a session.
+    // This prevents a server crash in environments where secrets are not configured.
+    if (process.env.AUTH0_SECRET && process.env.AUTH0_BASE_URL && process.env.AUTH0_ISSUER_BASE_URL && process.env.AUTH0_CLIENT_ID && process.env.AUTH0_CLIENT_SECRET) {
+        session = await getSession();
+    }
+    
     const userFromSession = session?.user;
+
+    // For the demo tenant, allow access without authentication
+    // SECURITY WARNING: This should only be used in development/demo environments
+    if (tenantId === 'megacorp' && process.env.NODE_ENV !== 'production') {
+        const tenant = await getTenantBySubdomain(tenantId);
+        if (!tenant) return { error: "Tenant not found." };
+        
+        // Use the first member as the current user for demo purposes
+        const user = tenant.members[0];
+        if (!user) return { error: "No users found in demo tenant." };
+        
+        return { tenant, user };
+    }
 
     if (!userFromSession) return { error: "Authentication required." };
     
-    if (tenantId !== 'megacorp' && tenantId !== userFromSession.sub) {
+    if (tenantId !== userFromSession.sub) {
         return { error: "Permission denied. You do not have access to this workspace." };
     }
     
@@ -173,9 +194,23 @@ export async function reviewAnswerAction(question: string, answer: string, tenan
 }
 
 export async function extractQuestionsAction(rfpText: string, rfpName: string, tenantId: string): Promise<{ rfp?: RFP, error?: string }> {
+  // Log security event
+  logSecurityEvent('extract_questions_attempt', { tenantId, rfpName });
+  
   const permCheck = await checkPermission(tenantId, 'editWorkspace');
   if (permCheck.error) return { error: permCheck.error };
   const { tenant, user } = permCheck as { tenant: Tenant, user: TeamMember };
+
+  // Validate and sanitize input
+  const validation = validateInput(rfpSchema, { name: rfpName, text: rfpText, tenantId });
+  if (!validation.success) {
+    logSecurityEvent('extract_questions_validation_failed', { tenantId, error: validation.error });
+    return { error: validation.error };
+  }
+
+  const sanitizedData = sanitizeRequestData({ rfpText, rfpName });
+  rfpText = sanitizedData.rfpText;
+  rfpName = sanitizedData.rfpName;
 
   if (!rfpText) {
     return { error: "RFP text cannot be empty." }

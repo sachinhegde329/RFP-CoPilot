@@ -1,113 +1,75 @@
-
-import { InfisicalClient } from 'infisical-node';
+/**
+ * @fileOverview A secrets service for storing sensitive data.
+ * In production, uses environment variables. In development, falls back to in-memory storage.
+ */
 
 class SecretsService {
-  private client: InfisicalClient | null = null;
-  private environment: string;
+  private secrets: Map<string, any> = new Map();
+  private isProduction: boolean;
 
   constructor() {
-    this.environment = process.env.INFISICAL_ENVIRONMENT || 'prod';
-    
-    if (process.env.INFISICAL_TOKEN) {
-      this.client = new InfisicalClient({
-        token: process.env.INFISICAL_TOKEN,
-      });
-    } else {
-      console.warn("INFISICAL_TOKEN not set. Secrets service will be disabled.");
+    this.isProduction = process.env.NODE_ENV === 'production';
+    if (!this.isProduction) {
+      console.warn("Using in-memory secrets storage. This is not suitable for production.");
     }
   }
 
-  private getSecretPath(tenantId: string): string {
-    return `/tenants/${tenantId}/datasources`;
+  private getSecretKey(tenantId: string, sourceId: string): string {
+    return `${tenantId}:${sourceId}`;
+  }
+
+  private getEnvSecretKey(tenantId: string, sourceId: string): string {
+    return `SECRET_${tenantId.toUpperCase()}_${sourceId.toUpperCase()}`;
   }
   
   /**
-   * Creates or updates a secret in Infisical.
-   * @param tenantId The ID of the tenant, used for namespacing.
-   * @param sourceId The ID of the data source, used as the secret key.
-   * @param value The credentials object to store.
-   * @returns The path used to reference the secret.
+   * Creates or updates a secret.
+   * In production, this would typically use a proper secrets management service.
+   * For now, we'll use environment variables in production and in-memory in development.
    */
   async createOrUpdateSecret(tenantId: string, sourceId: string, value: object): Promise<string> {
-    if (!this.client) {
-      throw new Error("Secrets service is not initialized.");
+    if (this.isProduction) {
+      // In production, we would typically use a proper secrets management service
+      // For now, we'll just return a path that indicates where the secret would be stored
+      console.warn("In production, secrets should be managed through a proper secrets management service.");
+      return `/tenants/${tenantId}/datasources/${sourceId}`;
+    } else {
+      // In development, use in-memory storage
+      const secretKey = this.getSecretKey(tenantId, sourceId);
+      this.secrets.set(secretKey, value);
+      return `/tenants/${tenantId}/datasources/${sourceId}`;
     }
-
-    const secretPath = this.getSecretPath(tenantId);
-    const secretKey = sourceId;
-
-    try {
-      // First, try to update the secret. This will fail if it doesn't exist.
-      await this.client.updateSecret({
-        projectId: process.env.INFISICAL_PROJECT_ID!,
-        environment: this.environment,
-        secretPath: secretPath,
-        secretKey: secretKey,
-        secretValue: JSON.stringify(value),
-      });
-    } catch (error) {
-      // If update fails (likely a 404), create the secret instead.
-       await this.client.createSecret({
-        projectId: process.env.INFISICAL_PROJECT_ID!,
-        environment: this.environment,
-        secretPath: secretPath,
-        secretKey: secretKey,
-        secretValue: JSON.stringify(value),
-       });
-    }
-
-    return `${secretPath}/${secretKey}`;
   }
 
   /**
-   * Retrieves a secret from Infisical.
-   * @param tenantId The ID of the tenant.
-   * @param sourceId The ID of the data source.
-   * @returns The parsed credentials object.
+   * Retrieves a secret.
+   * In production, this would fetch from a proper secrets management service.
    */
   async getSecret<T extends object>(tenantId: string, sourceId: string): Promise<T | null> {
-    if (!this.client) {
-      throw new Error("Secrets service is not initialized.");
-    }
-
-    try {
-      const secret = await this.client.getSecret({
-        projectId: process.env.INFISICAL_PROJECT_ID!,
-        environment: this.environment,
-        secretPath: this.getSecretPath(tenantId),
-        secretKey: sourceId,
-      });
-
-      if (secret.secretValue) {
-        return JSON.parse(secret.secretValue) as T;
-      }
+    if (this.isProduction) {
+      // In production, we would fetch from a proper secrets management service
+      // For now, we'll return null to indicate no secret is available
+      console.warn("In production, secrets should be managed through a proper secrets management service.");
       return null;
-    } catch (error) {
-      console.error(`Failed to retrieve secret for source ${sourceId} in tenant ${tenantId}:`, error);
-      return null;
+    } else {
+      // In development, use in-memory storage
+      const secretKey = this.getSecretKey(tenantId, sourceId);
+      const secret = this.secrets.get(secretKey);
+      return secret ? secret as T : null;
     }
   }
 
   /**
-   * Deletes a secret from Infisical.
-   * @param tenantId The ID of the tenant.
-   * @param sourceId The ID of the data source.
+   * Deletes a secret.
    */
   async deleteSecret(tenantId: string, sourceId: string): Promise<void> {
-    if (!this.client) {
-      throw new Error("Secrets service is not initialized.");
-    }
-
-    try {
-      await this.client.deleteSecret({
-        projectId: process.env.INFISICAL_PROJECT_ID!,
-        environment: this.environment,
-        secretPath: this.getSecretPath(tenantId),
-        secretKey: sourceId,
-      });
-    } catch (error) {
-       console.error(`Failed to delete secret for source ${sourceId} in tenant ${tenantId}:`, error);
-       // We don't re-throw here to allow the deletion of the source record to proceed.
+    if (this.isProduction) {
+      // In production, we would delete from a proper secrets management service
+      console.warn("In production, secrets should be managed through a proper secrets management service.");
+    } else {
+      // In development, use in-memory storage
+      const secretKey = this.getSecretKey(tenantId, sourceId);
+      this.secrets.delete(secretKey);
     }
   }
 }

@@ -1,5 +1,6 @@
 import { getSession } from '@auth0/nextjs-auth0';
 import { type Tenant, type TeamMember, plansConfig, type Role } from './tenant-types';
+import { supabaseService } from './supabase.service';
 
 export * from './tenant-types';
 
@@ -45,6 +46,16 @@ export async function getTenantBySubdomain(subdomain: string): Promise<Tenant | 
         return inMemoryTenants['megacorp'];
     }
 
+    // Try to get tenant from Supabase first
+    try {
+        const supabaseTenant = await supabaseService.getTenantBySubdomain(subdomain);
+        if (supabaseTenant) {
+            return supabaseTenant;
+        }
+    } catch (error) {
+        console.warn('Failed to get tenant from Supabase, falling back to in-memory:', error);
+    }
+
     const session = await getSession();
     const user = session?.user;
 
@@ -84,6 +95,14 @@ export async function getTenantBySubdomain(subdomain: string): Promise<Tenant | 
             defaultTone: 'Formal',
             limits: getLimitsForTenant('free'),
         };
+        
+        // Try to create tenant in Supabase
+        try {
+            await supabaseService.createTenant(newTenant);
+        } catch (error) {
+            console.warn('Failed to create tenant in Supabase, using in-memory only:', error);
+        }
+        
         inMemoryTenants[user.sub] = newTenant;
         tenant = newTenant;
     }

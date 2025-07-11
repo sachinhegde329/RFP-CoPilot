@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Globe, FolderSync, Network, Box, BookOpen, BookText, Github, TrendingUp, Presentation, Activity, BrainCircuit, Zap } from 'lucide-react';
+import { Loader2, Globe, FolderSync, Network, Box, BookOpen, BookText, Github, TrendingUp, Presentation, Activity, BrainCircuit, Zap, FileText } from 'lucide-react';
 import type { DataSource, DataSourceType } from '@/lib/knowledge-base';
 import { useTenant } from '@/components/providers/tenant-provider';
 import { useToast } from '@/hooks/use-toast';
@@ -16,6 +16,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 
 const sourceDetails = {
   website: { name: "Website", description: "Crawl and index content from a public website.", icon: Globe },
+  document: { name: "Document", description: "Upload and process individual documents.", icon: FileText },
   sharepoint: { name: "SharePoint", description: "Connect to your organization's SharePoint sites.", icon: Network },
   gdrive: { name: "Google Drive", description: "Ingest documents from selected Drive folders.", icon: FolderSync },
   dropbox: { name: "Dropbox", description: "Sync files and folders from your Dropbox account.", icon: Box },
@@ -104,7 +105,7 @@ export function ConnectSourceDialog({ sourceType, onOpenChange, onSourceAdded }:
         return;
     }
     setIsLoading(true);
-    const result = await addWebsiteSourceAction(tenant.id, currentUser, { 
+    const result = await addWebsiteSourceAction(tenant.id, { 
         url: websiteUrl,
         maxDepth, 
         maxPages,
@@ -138,38 +139,39 @@ export function ConnectSourceDialog({ sourceType, onOpenChange, onSourceAdded }:
         switch (sourceType) {
             case 'confluence':
                 if (!apiUser) throw new Error("Username is required for Confluence.");
-                result = await addConfluenceSourceAction(tenant.id, currentUser, { url: apiUrl, username: apiUser, apiKey });
+                result = await addConfluenceSourceAction(tenant.id, { url: apiUrl, username: apiUser, apiKey });
                 break;
             case 'github':
-                result = await addGitHubSourceAction(tenant.id, currentUser, { repo: githubRepo, token: apiKey });
+                result = await addGitHubSourceAction(tenant.id, { repo: githubRepo, token: apiKey });
                 break;
             case 'notion':
-                result = await addNotionSourceAction(tenant.id, currentUser, { apiKey });
+                result = await addNotionSourceAction(tenant.id, { apiKey });
                 break;
             case 'highspot':
-                 result = await addHighspotSourceAction(tenant.id, currentUser, { url: apiUrl, apiKey });
+                 result = await addHighspotSourceAction(tenant.id, { url: apiUrl, apiKey });
                  break;
             case 'showpad':
-                 result = await addShowpadSourceAction(tenant.id, currentUser, { url: apiUrl, apiKey });
+                 result = await addShowpadSourceAction(tenant.id, { url: apiUrl, apiKey });
                  break;
             case 'seismic':
-                 result = await addSeismicSourceAction(tenant.id, currentUser, { url: apiUrl, apiKey });
+                 result = await addSeismicSourceAction(tenant.id, { url: apiUrl, apiKey });
                  break;
             case 'mindtickle':
-                 result = await addMindtickleSourceAction(tenant.id, currentUser, { url: apiUrl, apiKey });
+                 result = await addMindtickleSourceAction(tenant.id, { url: apiUrl, apiKey });
                  break;
             case 'enableus':
-                 result = await addEnableusSourceAction(tenant.id, currentUser, { url: apiUrl, apiKey });
+                 result = await addEnableusSourceAction(tenant.id, { url: apiUrl, apiKey });
                  break;
             default:
                 throw new Error("Unsupported source type for API connection.");
         }
 
-        if(result.error || !result.source) {
+        if(result.error) {
             toast({ variant: 'destructive', title: 'Connection Failed', description: result.error });
         } else {
-            onSourceAdded(result.source);
-            toast({ title: 'Connection Successful', description: `Started syncing from ${result.source.name}`});
+            const source = (result as { source: DataSource }).source;
+            onSourceAdded(source);
+            toast({ title: 'Connection Successful', description: `Started syncing from ${source.name}`});
             handleClose();
         }
     } catch (e: any) {

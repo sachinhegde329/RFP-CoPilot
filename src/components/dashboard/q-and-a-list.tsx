@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { Badge } from "@/components/ui/badge"
+import { FixedSizeList as List } from 'react-window';
 
 type QAndAListProps = {
   questions: Question[]
@@ -188,16 +189,28 @@ export function QAndAList({ questions, tenantId, rfpId, members, onUpdateQuestio
                 </AccordionTrigger>
                 <AccordionContent className="p-0">
                   <div className="flex flex-col">
-                    {groupedQuestions[category].map((q) => (
-                      <QAndAItem
-                        key={q.id}
-                        questionData={q}
-                        tenantId={tenantId}
-                        rfpId={rfpId}
-                        members={members}
-                        onUpdateQuestion={onUpdateQuestion}
-                      />
-                    ))}
+                    {/* Virtualized question list for this category */}
+                    <List
+                      height={Math.min(400, groupedQuestions[category].length * 72)}
+                      itemCount={groupedQuestions[category].length}
+                      itemSize={72}
+                      width="100%"
+                    >
+                      {({ index, style }: { index: number; style: React.CSSProperties }) => {
+                        const q = groupedQuestions[category][index];
+                        return (
+                          <div style={style} key={q.id}>
+                            <QAndAItem
+                              questionData={q}
+                              tenantId={tenantId}
+                              rfpId={rfpId}
+                              members={members}
+                              onUpdateQuestion={onUpdateQuestion}
+                            />
+                          </div>
+                        );
+                      }}
+                    </List>
                   </div>
                 </AccordionContent>
               </AccordionItem>

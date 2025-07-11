@@ -9,16 +9,23 @@ import type { DataSource } from '@/lib/knowledge-base';
 import { knowledgeBaseService } from '@/lib/knowledge-base';
 import { parseDocument } from '@/ai/flows/parse-document';
 
+class SimpleAuthProvider implements AuthenticationProvider {
+    private accessToken: string;
+    constructor(accessToken: string) {
+        this.accessToken = accessToken;
+    }
+    async getAccessToken(): Promise<string> {
+        return this.accessToken;
+    }
+}
+
 class SharePointService {
 
     private getClient(source: DataSource): Client {
         if (!source.auth?.accessToken) {
             throw new Error("SharePoint source is not authenticated.");
         }
-        const authProvider: AuthenticationProvider = (callback) => {
-            // In a real app, you would handle token refresh here if needed.
-            callback(null, source.auth!.accessToken);
-        };
+        const authProvider = new SimpleAuthProvider(source.auth.accessToken);
         return Client.initWithMiddleware({ authProvider });
     }
 
@@ -27,29 +34,35 @@ class SharePointService {
      */
     async listResources(source: DataSource): Promise<any[]> {
         const graphClient = this.getClient(source);
+        if (!graphClient) {
+            throw new Error('Graph client could not be initialized.');
+        }
         let allItems: any[] = [];
         
         // 1. Get drives (document libraries) for the root site
         const driveResponse = await graphClient.api('/sites/root/drives').get();
-        let drives = driveResponse.value;
+        let drives: any[] = driveResponse.value || [];
         
         // Filter drives if a specific driveName is provided in config
         if (source.config?.driveName) {
-            drives = drives.filter((drive: any) => drive.name.toLowerCase() === source.config!.driveName.toLowerCase());
+            const driveName = source.config.driveName;
+            if (driveName) {
+                drives = drives.filter((drive: any) => drive?.name?.toLowerCase() === driveName.toLowerCase());
+            }
         }
         
         // 2. For each drive, list all files recursively
         for (const drive of drives) {
             try {
-                let nextLink: string | undefined = `/drives/${drive.id}/root/search(q='')?$top=100`;
+                let nextLink: string | undefined = `/drives/${drive?.id}/root/search(q='')?$top=100`;
                 while (nextLink) {
                     const driveItems = await graphClient.api(nextLink).get();
-                    const files = driveItems.value.filter((item: any) => item.file);
+                    const files = (driveItems.value ?? []).filter((item: any) => item.file);
                     allItems = allItems.concat(files);
-                    nextLink = driveItems['@odata.nextLink'];
+                    nextLink = driveItems['@odata.nextLink'] ?? undefined;
                 }
             } catch (error) {
-                console.error(`Could not list items for drive ${drive.name} (${drive.id}). It might be empty or have access restrictions. Error:`, error);
+                console.error(`Could not list items for drive ${drive?.name} (${drive?.id}). It might be empty or have access restrictions. Error:`, error);
             }
         }
         return allItems;
