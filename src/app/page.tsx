@@ -43,7 +43,7 @@ export default function LandingPage() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-                <Button asChild><Link href="/megacorp">Start Free</Link></Button>
+                <Button asChild><Link href="/megacorp" target="_blank" rel="noopener noreferrer">Start Free</Link></Button>
                </>
             )}
             {!isLoading && user && (
@@ -71,7 +71,7 @@ export default function LandingPage() {
                   AI-powered assistant to manage, answer, and export RFPs with your company’s voice — in minutes.
                 </p>
                 <div className="mt-8 flex flex-col sm:flex-row justify-center md:justify-start gap-4">
-                  <Button size="lg" asChild><Link href="/megacorp">Start Free</Link></Button>
+                  <Button size="lg" asChild><Link href="/megacorp" target="_blank" rel="noopener noreferrer">Start Free</Link></Button>
                   <Button size="lg" variant="outline" asChild><Link href="#">Book a Demo</Link></Button>
                 </div>
               </div>
@@ -212,25 +212,7 @@ export default function LandingPage() {
         </section>
 
         {/* 8. Pricing Preview */}
-        <section className="py-20">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl md:text-4xl font-bold">Simple, Transparent Pricing</h2>
-              <p className="mt-3 max-w-2xl mx-auto text-muted-foreground">Choose the plan that's right for your team. Start free, upgrade anytime.</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-6xl mx-auto">
-                <Card className="p-6"><CardHeader className="p-0"><CardTitle>Free</CardTitle><p className="text-sm text-muted-foreground">For Individuals</p></CardHeader><CardContent className="p-0 my-4"><p className="text-4xl font-bold">$0</p></CardContent></Card>
-                <Card className="p-6"><CardHeader className="p-0"><CardTitle>Pro</CardTitle><p className="text-sm text-muted-foreground">For Freelancers/SMBs</p></CardHeader><CardContent className="p-0 my-4"><p className="text-4xl font-bold">$49</p><p className="text-sm text-muted-foreground">/user/mo</p></CardContent></Card>
-                <Card className="p-6 border-primary"><CardHeader className="p-0"><CardTitle>Team</CardTitle><p className="text-sm text-muted-foreground">For Sales Teams</p></CardHeader><CardContent className="p-0 my-4"><p className="text-4xl font-bold">$199</p><p className="text-sm text-muted-foreground">/mo, 5 users</p></CardContent></Card>
-                <Card className="p-6"><CardHeader className="p-0"><CardTitle>Enterprise</CardTitle><p className="text-sm text-muted-foreground">For Large Orgs</p></CardHeader><CardContent className="p-0 my-4"><p className="text-4xl font-bold">Custom</p></CardContent></Card>
-            </div>
-            <div className="text-center mt-8">
-                <Button asChild size="lg">
-                    <Link href="/pricing">Compare Plans</Link>
-                </Button>
-            </div>
-          </div>
-        </section>
+        {/* (Removed pricing section) */}
         
         {/* 9. Security & Compliance */}
         <section className="py-20 bg-muted/30">
@@ -271,7 +253,7 @@ export default function LandingPage() {
             </div>
              <div className="flex gap-4 text-muted-foreground text-sm">
                 <Link href="/features" className="hover:text-foreground">Features</Link>
-                <Link href="/pricing" className="hover:text-foreground">Pricing</Link>
+                {/* <Link href="/pricing" className="hover:text-foreground">Pricing</Link> */}
                 <Link href="/docs" className="hover:text-foreground">Documentation</Link>
                 <Link href="#" className="hover:text-foreground">Contact</Link>
             </div>
