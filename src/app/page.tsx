@@ -58,35 +58,30 @@ export default function LandingPage() {
 
       <main className="flex-1">
         {/* 1. Hero Section */}
-        <section className="py-20 md:py-28">
-          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid md:grid-cols-2 gap-12 items-center">
-              <div className="text-center md:text-left">
-                <h1 className="text-4xl md:text-6xl font-extrabold tracking-tighter">
-                  <span className="text-primary">Win More Deals.</span>
-                  <br />
-                  Automatically.
-                </h1>
-                <p className="mt-4 max-w-xl mx-auto md:mx-0 text-lg text-muted-foreground">
-                  AI-powered assistant to manage, answer, and export RFPs with your company’s voice — in minutes.
-                </p>
-                <div className="mt-8 flex flex-col sm:flex-row justify-center md:justify-start gap-4">
-                  <Button size="lg" asChild><Link href="/megacorp" target="_blank" rel="noopener noreferrer">Start Free</Link></Button>
-                  <Button size="lg" variant="outline" asChild><Link href="#">Book a Demo</Link></Button>
-                </div>
-              </div>
-              <div className="bg-card p-2 rounded-xl border shadow-sm">
-                <Image
-                    src="https://placehold.co/1200x900.png"
-                    alt="RFP CoPilot platform screenshot showing AI answer generation"
-                    width={1200}
-                    height={900}
-                    className="rounded-lg"
-                    data-ai-hint="dashboard analytics"
-                    priority
-                />
-              </div>
+        <section className="relative flex flex-col md:flex-row items-center justify-between gap-8 py-16">
+          <div className="flex-1 flex flex-col items-start gap-6">
+            <h1 className="text-4xl md:text-6xl font-extrabold tracking-tighter">
+              <span className="text-primary">Win More Deals.</span>
+              <br />
+              Automatically.
+            </h1>
+            <p className="mt-4 max-w-xl mx-auto md:mx-0 text-lg text-muted-foreground">
+              AI-powered assistant to manage, answer, and export RFPs with your company’s voice — in minutes.
+            </p>
+            <div className="mt-8 flex flex-col sm:flex-row justify-center md:justify-start gap-4">
+              <Button size="lg" asChild><Link href="/megacorp" target="_blank" rel="noopener noreferrer">Start Free</Link></Button>
+              <Button size="lg" variant="outline" asChild><Link href="#">Book a Demo</Link></Button>
             </div>
+          </div>
+          <div className="flex-1 flex justify-center items-center">
+            <Image
+              src="/illustrations/rfp-dashboard.png"
+              alt="RFPcopilot dashboard illustration"
+              width={400}
+              height={400}
+              className="rounded-xl shadow-lg"
+              priority
+            />
           </div>
         </section>
         
