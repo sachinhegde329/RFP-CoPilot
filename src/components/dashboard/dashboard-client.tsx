@@ -5,14 +5,14 @@ import { useState, useEffect, useCallback, useMemo } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useTenant } from "@/components/providers/tenant-provider"
 import { QAndAList } from "@/components/dashboard/q-and-a-list"
-import { getRfpsAction, updateQuestionAction, addQuestionAction, generateAnswerAction, updateRfpStatusAction } from "@/app/actions"
+import { getRfpsAction, updateQuestionAction, addQuestionAction, generateAnswerAction, updateRfpStatusAction, extractQuestionsAction } from "@/app/actions"
 import { useToast } from "@/hooks/use-toast"
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
 import type { Question, RFP, RfpStatus } from "@/lib/rfp-types"
 import { DashboardSkeleton } from "./dashboard-skeleton"
 import { PlusCircle, Sparkles, Upload, Loader2, ChevronDown } from "lucide-react"
-import { ExportRfpDialog } from "./export-rfp-dialog"
+import dynamic from 'next/dynamic';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -22,6 +22,9 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu"
 import { canPerformAction } from "@/lib/access-control"
 
+const ExportRfpDialog = dynamic(() => import('./export-rfp-dialog').then(mod => ({ default: mod.ExportRfpDialog })));
+const RfpSummaryCard = dynamic(() => import('./rfp-summary-card').then(mod => ({ default: mod.RfpSummaryCard })));
+
 function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
   const { tenant } = useTenant();
   const searchParams = useSearchParams();
@@ -30,6 +33,7 @@ function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
   const [selectedRfp, setSelectedRfp] = useState<RFP | undefined>();
   const [isAutoGenerating, setIsAutoGenerating] = useState(false);
   const [isAutogenDialogOpen, setIsAutogenDialogOpen] = useState(false);
+  const [isNewRfpDialogOpen, setIsNewRfpDialogOpen] = useState(false);
 
   // Autogen settings state
   const [autogenLanguage, setAutogenLanguage] = useState('English');
@@ -62,7 +66,7 @@ function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
     // No else block needed; if activeRfps is empty, this component won't be rendered.
   }, [searchParams, activeRfps, selectedRfp?.id]);
   
-  const handleRfpStatusChange = async (newStatus: RfpStatus) => {
+  const handleRfpStatusChange = useCallback(async (newStatus: RfpStatus) => {
     if (!selectedRfp) return;
 
     const originalRfp = { ...selectedRfp };
@@ -80,7 +84,7 @@ function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
     } else {
         toast({ title: "RFP Status Updated" });
     }
-  };
+  }, [selectedRfp, rfps, tenant.id, toast]);
 
   const handleUpdateQuestion = useCallback(async (questionId: number, updates: Partial<Question>) => {
     if (!selectedRfp) return;
@@ -211,6 +215,7 @@ function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
                         {isAutoGenerating ? 'Generating...' : 'Autogenerate All'}
                     </Button>
                     <Button variant="outline" onClick={() => setIsExportDialogOpen(true)} disabled={!selectedRfp}>Export</Button>
+                    <Button variant="outline" onClick={() => setIsNewRfpDialogOpen(true)}><PlusCircle className="mr-2" /> New RFP</Button>
                 </div>
             </div>
 
@@ -228,7 +233,35 @@ function RfpWorkspaceView({ initialRfps }: { initialRfps: RFP[] }) {
             </div>
         </main>
         <ExportRfpDialog open={isExportDialogOpen} onOpenChange={setIsExportDialogOpen} rfp={selectedRfp} />
-        
+        <Dialog open={isNewRfpDialogOpen} onOpenChange={setIsNewRfpDialogOpen}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Start a New RFP</DialogTitle>
+              <DialogDescription>Upload a new RFP document or paste its content below. We'll use AI to extract all the questions.</DialogDescription>
+            </DialogHeader>
+            <RfpSummaryCard onProcessRfp={async (rfpText, file) => {
+              if (tenant.id === 'megacorp') {
+                toast({
+                  variant: 'destructive',
+                  title: 'Demo Mode',
+                  description: 'This is a demo setup only. Database operations are disabled.'
+                });
+                return { error: 'Demo mode: database operations are disabled.' };
+              }
+              // Prompt for a name (could be improved with a dialog, for now use default)
+              const rfpName = `RFP ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}`;
+              const result = await extractQuestionsAction(rfpText, rfpName, tenant.id);
+              if (result?.rfp) {
+                setRfps(prev => result.rfp ? [result.rfp, ...prev] : prev);
+                setSelectedRfp(result.rfp);
+                setQuestions(result.rfp.questions || []);
+                setIsNewRfpDialogOpen(false);
+                toast({ title: 'New RFP Created', description: `RFP "${result.rfp.name}" has been added.` });
+              }
+              return result;
+            }} />
+          </DialogContent>
+        </Dialog>
         <Dialog open={isAutogenDialogOpen} onOpenChange={setIsAutogenDialogOpen}>
           <DialogContent>
             <DialogHeader>
