@@ -6,29 +6,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Loader2, Globe, FolderSync, Network, Box, BookOpen, BookText, Github, TrendingUp, Presentation, Activity, BrainCircuit, Zap, FileText } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import type { DataSource, DataSourceType } from '@/lib/knowledge-base';
 import { useTenant } from '@/components/providers/tenant-provider';
 import { useToast } from '@/hooks/use-toast';
 import { addWebsiteSourceAction, addGitHubSourceAction, addConfluenceSourceAction, addNotionSourceAction, addHighspotSourceAction, addShowpadSourceAction, addSeismicSourceAction, addMindtickleSourceAction, addEnableusSourceAction } from '@/app/actions';
 import { Checkbox } from '@/components/ui/checkbox';
-
-
-const sourceDetails = {
-  website: { name: "Website", description: "Crawl and index content from a public website.", icon: Globe },
-  document: { name: "Document", description: "Upload and process individual documents.", icon: FileText },
-  sharepoint: { name: "SharePoint", description: "Connect to your organization's SharePoint sites.", icon: Network },
-  gdrive: { name: "Google Drive", description: "Ingest documents from selected Drive folders.", icon: FolderSync },
-  dropbox: { name: "Dropbox", description: "Sync files and folders from your Dropbox account.", icon: Box },
-  confluence: { name: "Confluence", description: "Sync pages from your Confluence workspace.", icon: BookOpen },
-  notion: { name: "Notion", description: "Import pages and databases from your Notion workspace.", icon: BookText },
-  github: { name: "GitHub", description: "Index content from repository wikis or markdown files.", icon: Github },
-  highspot: { name: "Highspot", description: "Sync content from your Highspot spaces.", icon: TrendingUp },
-  showpad: { name: "Showpad", description: "Connect to your Showpad experiences and assets.", icon: Presentation },
-  seismic: { name: "Seismic", description: "Pull documents and pages from Seismic libraries.", icon: Activity },
-  mindtickle: { name: "Mindtickle", description: "Ingest training materials and sales content.", icon: BrainCircuit },
-  enableus: { name: "Enable.us", description: "Sync playbooks and other sales collateral.", icon: Zap },
-};
+import { potentialSources, salesEnablementSources, type SourceDetail } from '@/lib/connectors/source-config';
 
 
 type ConnectSourceDialogProps = {
@@ -127,7 +111,7 @@ export function ConnectSourceDialog({ sourceType, onOpenChange, onSourceAdded }:
   const handleConnectApiBasedSource = async () => {
     if (!sourceType) return;
 
-    if (!apiUrl || !apiKey) {
+    if (!apiKey) {
       toast({ variant: 'destructive', title: 'Missing Fields', description: 'Please fill out all required fields.' });
       return;
     }
@@ -138,10 +122,11 @@ export function ConnectSourceDialog({ sourceType, onOpenChange, onSourceAdded }:
     try {
         switch (sourceType) {
             case 'confluence':
-                if (!apiUser) throw new Error("Username is required for Confluence.");
+                if (!apiUser || !apiUrl) throw new Error("Username and URL are required for Confluence.");
                 result = await addConfluenceSourceAction(tenant.id, { url: apiUrl, username: apiUser, apiKey });
                 break;
             case 'github':
+                if (!githubRepo) throw new Error("Repository is required for GitHub.");
                 result = await addGitHubSourceAction(tenant.id, { repo: githubRepo, token: apiKey });
                 break;
             case 'notion':
@@ -182,11 +167,12 @@ export function ConnectSourceDialog({ sourceType, onOpenChange, onSourceAdded }:
   };
 
 
-  const details = sourceType ? sourceDetails[sourceType] : null;
-  const Icon = details?.icon || Globe;
+  const allSources = [...potentialSources, ...salesEnablementSources];
+  const details = sourceType ? allSources.find(s => s.type === sourceType) : null;
+  const Icon = details?.icon;
 
   const renderContent = () => {
-    if (!sourceType) return null;
+    if (!sourceType || !details || !Icon) return null;
 
     if (sourceType === 'website') {
       return (
