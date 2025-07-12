@@ -1,3 +1,4 @@
+
 import { SidebarInset } from "@/components/ui/sidebar"
 import { HomepageHeader } from "@/components/dashboard/dashboard-header"
 import { getRfpInsightsAction } from "@/app/actions"
@@ -7,11 +8,7 @@ import { RfpInsightsDashboard } from "@/components/analytics/rfp-insights-dashbo
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { BarChartHorizontalBig } from "lucide-react"
 
-type AnalyticsPageProps = {
-  params: { tenant: string };
-};
-
-export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
+export default async function AnalyticsPage({ params }: { params: { tenant: string } }) {
   const { tenant: tenantSubdomain } = params;
   const tenant = await getTenantBySubdomain(tenantSubdomain);
   if (!tenant) {
