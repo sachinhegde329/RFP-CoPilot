@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 
 type HistoryPageProps = {
   params: { tenant: string };
+  searchParams: { [key: string]: string | string[] | undefined };
 };
 
 export default async function HistoryPage({ params }: HistoryPageProps) {

@@ -5,6 +5,7 @@ import { canPerformAction, type Action } from '@/lib/access-control';
 
 type SettingsPageProps = {
   params: { tenant: string };
+  searchParams: { [key: string]: string | string[] | undefined };
 };
 
 export default async function SettingsPage({ params }: SettingsPageProps) {

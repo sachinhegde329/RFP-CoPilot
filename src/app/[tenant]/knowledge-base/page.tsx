@@ -7,6 +7,7 @@ import { notFound } from "next/navigation"
 
 type KnowledgeBasePageProps = {
   params: { tenant: string };
+  searchParams: { [key: string]: string | string[] | undefined };
 };
 
 export default async function KnowledgeBasePage({ params }: KnowledgeBasePageProps) {

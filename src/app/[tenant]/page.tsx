@@ -56,6 +56,7 @@ function EmptyDashboard({ tenantId }: { tenantId: string }) {
 
 type HomepageProps = {
   params: { tenant: string };
+  searchParams: { [key: string]: string | string[] | undefined };
 };
 
 export default async function Homepage({ params }: HomepageProps) {

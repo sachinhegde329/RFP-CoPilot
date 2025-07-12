@@ -9,6 +9,7 @@ import type { RFP } from "@/lib/rfp-types"
 
 type RfpsPageProps = {
   params: { tenant: string };
+  searchParams: { [key: string]: string | string[] | undefined };
 };
 
 export default async function RfpsPage({ params }: RfpsPageProps) {

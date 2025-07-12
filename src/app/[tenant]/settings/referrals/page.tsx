@@ -10,6 +10,7 @@ import { ReferralsClient } from "./referrals-client"
 
 type ReferralsPageProps = {
   params: { tenant: string };
+  searchParams: { [key: string]: string | string[] | undefined };
 };
 
 export default async function ReferralsPage({ params }: ReferralsPageProps) {

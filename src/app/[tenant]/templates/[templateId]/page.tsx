@@ -178,6 +178,7 @@ function TemplateStructureEditor({ structure, setStructure, disabled }: { struct
 
 type ConfigureTemplatePageProps = {
   params: { tenant: string; templateId: string };
+  searchParams: { [key: string]: string | string[] | undefined };
 };
 
 export default function ConfigureTemplatePage({ params }: ConfigureTemplatePageProps) {

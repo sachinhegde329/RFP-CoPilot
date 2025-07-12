@@ -8,6 +8,7 @@ import { BillingClient } from './billing-client';
 
 type BillingSettingsPageProps = {
   params: { tenant: string };
+  searchParams: { [key: string]: string | string[] | undefined };
 };
 
 export default async function BillingSettingsPage({ params }: BillingSettingsPageProps) {
