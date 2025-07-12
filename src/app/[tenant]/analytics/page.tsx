@@ -10,6 +10,7 @@ import { BarChartHorizontalBig } from "lucide-react"
 
 type AnalyticsPageProps = {
   params: { tenant: string };
+  searchParams: { [key: string]: string | string[] | undefined };
 };
 
 export default async function AnalyticsPage({ params }: AnalyticsPageProps) {
