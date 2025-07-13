@@ -76,7 +76,7 @@ export default function LandingPage() {
                 </div>
                 <div className="flex justify-center items-center">
                     <Image
-                    src="https://i.ibb.co/3k5g2t9/rfp-dashboard-ui.png"
+                    src="https://i.ibb.co/TMbzkqmG/Google-AI-Studio-2025-07-13-T11-25-43-726-Z.png"
                     alt="Screenshot of the RFP CoPilot dashboard showing extracted questions and AI features."
                     width={600}
                     height={600}
