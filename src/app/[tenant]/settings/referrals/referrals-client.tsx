@@ -44,7 +44,7 @@ export function ReferralsClient({ referralLink }: { referralLink: string }) {
             <Tooltip>
                 <TooltipTrigger asChild>
                     <Button variant="outline" size="icon">
-                        <Image src="https://placehold.co/20x20.png" alt="Twitter logo" width={16} height={16} data-ai-hint="twitter logo" />
+                        <Image src="https://i.ibb.co/TMbzkqmG/Google-AI-Studio-2025-07-13-T11-25-43-726-Z.png" alt="Twitter logo" width={16} height={16} data-ai-hint="twitter logo" className="object-cover" />
                     </Button>
                 </TooltipTrigger>
                 <TooltipContent><p>Share on Twitter</p></TooltipContent>
@@ -52,7 +52,7 @@ export function ReferralsClient({ referralLink }: { referralLink: string }) {
             <Tooltip>
                 <TooltipTrigger asChild>
                     <Button variant="outline" size="icon">
-                        <Image src="https://placehold.co/20x20.png" alt="LinkedIn logo" width={16} height={16} data-ai-hint="linkedin logo" />
+                        <Image src="https://i.ibb.co/TMbzkqmG/Google-AI-Studio-2025-07-13-T11-25-43-726-Z.png" alt="LinkedIn logo" width={16} height={16} data-ai-hint="linkedin logo" className="object-cover" />
                     </Button>
                 </TooltipTrigger>
                 <TooltipContent><p>Share on LinkedIn</p></TooltipContent>
@@ -60,7 +60,7 @@ export function ReferralsClient({ referralLink }: { referralLink: string }) {
             <Tooltip>
                 <TooltipTrigger asChild>
                     <Button variant="outline" size="icon">
-                        <Image src="https://placehold.co/20x20.png" alt="Facebook logo" width={16} height={16} data-ai-hint="facebook logo" />
+                        <Image src="https://i.ibb.co/TMbzkqmG/Google-AI-Studio-2025-07-13-T11-25-43-726-Z.png" alt="Facebook logo" width={16} height={16} data-ai-hint="facebook logo" className="object-cover" />
                     </Button>
                 </TooltipTrigger>
                 <TooltipContent><p>Share on Facebook</p></TooltipContent>

@@ -188,7 +188,7 @@ export default function SecuritySettingsPage() {
                       ) : (
                           <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" asChild>
                               <Link href={`/api/auth/sso/okta/initiate?tenantId=${tenant.id}`}>
-                                  <Image src="https://placehold.co/20x20.png" alt="Okta logo" width={20} height={20} data-ai-hint="okta logo" />
+                                  <Image src="https://i.ibb.co/TMbzkqmG/Google-AI-Studio-2025-07-13-T11-25-43-726-Z.png" alt="Okta logo" width={20} height={20} data-ai-hint="okta logo" className="object-cover" />
                                   Configure with Okta
                               </Link>
                           </Button>
@@ -201,7 +201,7 @@ export default function SecuritySettingsPage() {
                       ) : (
                           <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" asChild>
                               <Link href={`/api/auth/sso/microsoft/initiate?tenantId=${tenant.id}`}>
-                              <Image src="https://placehold.co/20x20.png" alt="Azure AD logo" width={20} height={20} data-ai-hint="azure logo"/>
+                              <Image src="https://i.ibb.co/TMbzkqmG/Google-AI-Studio-2025-07-13-T11-25-43-726-Z.png" alt="Azure AD logo" width={20} height={20} data-ai-hint="azure logo" className="object-cover"/>
                               Configure with Azure AD
                               </Link>
                           </Button>
@@ -214,7 +214,7 @@ export default function SecuritySettingsPage() {
                       ) : (
                           <Button variant="outline" className="w-full sm:w-auto justify-start gap-2" asChild>
                              <Link href={`/api/auth/sso/google/initiate?tenantId=${tenant.id}`}>
-                                <Image src="https://placehold.co/20x20.png" alt="Google logo" width={20} height={20} data-ai-hint="google logo"/>
+                                <Image src="https://i.ibb.co/TMbzkqmG/Google-AI-Studio-2025-07-13-T11-25-43-726-Z.png" alt="Google logo" width={20} height={20} data-ai-hint="google logo" className="object-cover"/>
                                 Configure with Google
                               </Link>
                           </Button>

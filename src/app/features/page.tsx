@@ -118,7 +118,7 @@ export default function FeaturesPage() {
                         "Includes a confidence score to indicate answer quality.",
                         "Supports multiple languages, tones, and formats."
                     ]}
-                    imageSrc="https://placehold.co/1200x900.png"
+                    imageSrc="https://i.ibb.co/TMbzkqmG/Google-AI-Studio-2025-07-13-T11-25-43-726-Z.png"
                     imageAlt="Screenshot of AI generating an answer for an RFP question."
                     imageAiHint="ai response"
                 />
@@ -133,7 +133,7 @@ export default function FeaturesPage() {
                         "Integrate with SharePoint, Google Drive, Confluence, and more.",
                         "Content is automatically chunked, embedded, and indexed for search."
                     ]}
-                    imageSrc="https://placehold.co/1200x900.png"
+                    imageSrc="https://i.ibb.co/TMbzkqmG/Google-AI-Studio-2025-07-13-T11-25-43-726-Z.png"
                     imageAlt="Screenshot of the Knowledge Base management interface."
                     imageAiHint="knowledge management"
                     reverse={true}
@@ -149,7 +149,7 @@ export default function FeaturesPage() {
                         "Role-Based Access Control (RBAC) ensures users only see what they need to.",
                         "Leave comments and have discussions directly on each question."
                     ]}
-                    imageSrc="https://placehold.co/1200x900.png"
+                    imageSrc="https://i.ibb.co/TMbzkqmG/Google-AI-Studio-2025-07-13-T11-25-43-726-Z.png"
                     imageAlt="Screenshot of team members collaborating on an RFP."
                     imageAiHint="team collaboration"
                 />
@@ -164,7 +164,7 @@ export default function FeaturesPage() {
                         "Automatically insert titles, headers, and Q&A sections.",
                         "Include dynamic placeholders like version numbers and dates."
                     ]}
-                    imageSrc="https://placehold.co/1200x900.png"
+                    imageSrc="https://i.ibb.co/TMbzkqmG/Google-AI-Studio-2025-07-13-T11-25-43-726-Z.png"
                     imageAlt="Screenshot of the template editor interface."
                     imageAiHint="document templates"
                     reverse={true}

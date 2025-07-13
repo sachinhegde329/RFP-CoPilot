@@ -73,7 +73,7 @@ export function AppSidebar() {
             <SidebarMenuButton asChild tooltip="My Account">
               <Link href={`/${tenant.subdomain}/settings/profile`}>
                 <Avatar className="size-4">
-                  <AvatarImage src="https://placehold.co/100x100" />
+                  <AvatarImage src="https://i.ibb.co/TMbzkqmG/Google-AI-Studio-2025-07-13-T11-25-43-726-Z.png" />
                   <AvatarFallback>
                     <CircleUserRound />
                   </AvatarFallback>
