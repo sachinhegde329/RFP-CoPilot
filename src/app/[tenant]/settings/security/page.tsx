@@ -170,10 +170,12 @@ export default function SecuritySettingsPage() {
                   <Alert>
                       <ShieldAlert className="h-4 w-4" />
                       <AlertTitle>Enterprise Feature</AlertTitle>
-                      <AlertDescription>
-                          Single Sign-On (SSO) is available on the Enterprise plan. 
-                          <Button asChild variant="link" className="p-0 h-auto ml-1">
-                              <Link href={`/pricing?tenant=${tenant.subdomain}`}>Upgrade Your Plan</Link>
+                      <AlertDescription className="flex flex-col gap-2">
+                          <p>Single Sign-On (SSO) is available on the Enterprise plan.</p>
+                          <Button asChild variant="link" className="p-0 h-auto w-fit">
+                              <a href="mailto:sales@rfpcopilot.com?subject=Enterprise%20SSO%20Inquiry&body=Hello%20RFP%20CoPilot%20team%2C%0D%0A%0D%0AI'm%20interested%20in%20enabling%20SSO%20for%20my%20organization.%20Please%20contact%20me%20with%20more%20information%20about%20the%20Enterprise%20plan.%0D%0A%0D%0AThank%20you%2C%0D%0A%5BYour%20Name%5D">
+                                  Contact Sales
+                              </a>
                           </Button>
                       </AlertDescription>
                   </Alert>

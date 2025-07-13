@@ -374,28 +374,100 @@ export function KnowledgeBaseClient({ initialSources }: KnowledgeBaseClientProps
             </TabsContent>
 
             <TabsContent value="library">
-                <Card>
+                <Card className="w-full">
                     <CardHeader>
                         <CardTitle>Answer Library</CardTitle>
                         <CardDescription>Search and manage your curated list of reusable answers.</CardDescription>
                         <div className="relative mt-2">
                             <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                            <Input placeholder="Search answers..." className="pl-8" />
+                            <Input placeholder="Search answers..." className="pl-8 max-w-md" />
                         </div>
                     </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader><TableRow><TableHead className="w-[60%] md:w-[40%]">Question</TableHead><TableHead className="hidden md:table-cell">Category</TableHead><TableHead className="hidden md:table-cell">Usage</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
-                            <TableBody>
-                                {isLoadingLibrary ? (
-                                    Array.from({length: 5}).map((_, i) => (<TableRow key={`skel-lib-${i}`}><TableCell><Skeleton className="h-5 w-3/4" /></TableCell><TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-20" /></TableCell><TableCell className="hidden md:table-cell"><Skeleton className="h-5 w-12" /></TableCell><TableCell><Skeleton className="h-6 w-24" /></TableCell><TableCell className="text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell></TableRow>))
-                                ) : answerLibrary.length === 0 ? (
-                                    <TableRow><TableCell colSpan={5} className="h-24 text-center">Your Answer Library is empty. Save approved answers from your RFPs to build it up.</TableCell></TableRow>
-                                ) : (
-                                    answerLibrary.map(item => (<TableRow key={item.id}><TableCell><div className="font-medium">{item.question}</div><div className="text-sm text-muted-foreground truncate">{item.answer}</div></TableCell><TableCell className="hidden md:table-cell"><Badge variant="outline">{item.category}</Badge></TableCell><TableCell className="hidden md:table-cell">{item.usageCount}</TableCell><TableCell>{getStatusBadge(item.status)}</TableCell><TableCell className="text-right"><DropdownMenu><Tooltip><TooltipTrigger asChild><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" disabled={!canEditContent}><MoreHorizontal /></Button></DropdownMenuTrigger></TooltipTrigger><TooltipContent><p>Options</p></TooltipContent></Tooltip><DropdownMenuContent><DropdownMenuItem><Edit className="mr-2" />Edit</DropdownMenuItem><DropdownMenuItem>View History</DropdownMenuItem><DropdownMenuItem className="text-destructive" onSelect={() => handleDeleteFromLibrary(item.id)}><Trash2 className="mr-2 h-4 w-4" />Delete</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>))
-                                )}
-                            </TableBody>
-                        </Table>
+                    <CardContent className="w-full overflow-x-auto">
+                        <div className="min-w-[800px] md:min-w-0">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-[40%] min-w-[200px]">Question</TableHead>
+                                        <TableHead className="w-[20%] min-w-[120px] hidden md:table-cell">Category</TableHead>
+                                        <TableHead className="w-[10%] min-w-[80px] hidden md:table-cell">Usage</TableHead>
+                                        <TableHead className="w-[15%] min-w-[100px]">Status</TableHead>
+                                        <TableHead className="w-[15%] min-w-[80px] text-right">Actions</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {isLoadingLibrary ? (
+                                        Array.from({length: 5}).map((_, i) => (
+                                            <TableRow key={`skel-lib-${i}`}>
+                                                <TableCell className="w-[40%] min-w-[200px]"><Skeleton className="h-5 w-3/4" /></TableCell>
+                                                <TableCell className="w-[20%] min-w-[120px] hidden md:table-cell"><Skeleton className="h-5 w-20" /></TableCell>
+                                                <TableCell className="w-[10%] min-w-[80px] hidden md:table-cell"><Skeleton className="h-5 w-12" /></TableCell>
+                                                <TableCell className="w-[15%] min-w-[100px]"><Skeleton className="h-6 w-24" /></TableCell>
+                                                <TableCell className="w-[15%] min-w-[80px] text-right"><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : answerLibrary.length === 0 ? (
+                                        <TableRow>
+                                            <TableCell colSpan={5} className="h-24 text-center">
+                                                Your Answer Library is empty. Save approved answers from your RFPs to build it up.
+                                            </TableCell>
+                                        </TableRow>
+                                    ) : (
+                                        answerLibrary.map(item => (
+                                            <TableRow key={item.id}>
+                                                <TableCell className="w-[40%] min-w-[200px]">
+                                                    <div className="font-medium">{item.question}</div>
+                                                    <div className="text-sm text-muted-foreground line-clamp-2">
+                                                        {item.answer}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell className="w-[20%] min-w-[120px] hidden md:table-cell">
+                                                    <Badge variant="outline" className="truncate max-w-full">
+                                                        {item.category}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="w-[10%] min-w-[80px] hidden md:table-cell">
+                                                    {item.usageCount}
+                                                </TableCell>
+                                                <TableCell className="w-[15%] min-w-[100px]">
+                                                    {getStatusBadge(item.status)}
+                                                </TableCell>
+                                                <TableCell className="w-[15%] min-w-[80px] text-right">
+                                                    <DropdownMenu>
+                                                        <Tooltip>
+                                                            <TooltipTrigger asChild>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" disabled={!canEditContent} className="h-8 w-8">
+                                                                        <MoreHorizontal className="h-4 w-4" />
+                                                                    </Button>
+                                                                </DropdownMenuTrigger>
+                                                            </TooltipTrigger>
+                                                            <TooltipContent><p>Options</p></TooltipContent>
+                                                        </Tooltip>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem>
+                                                                <Edit className="mr-2 h-4 w-4" />
+                                                                <span>Edit</span>
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem>
+                                                                <span>View History</span>
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem 
+                                                                className="text-destructive" 
+                                                                onSelect={() => handleDeleteFromLibrary(item.id)}
+                                                            >
+                                                                <Trash2 className="mr-2 h-4 w-4" />
+                                                                <span>Delete</span>
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    )}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </CardContent>
                 </Card>
             </TabsContent>

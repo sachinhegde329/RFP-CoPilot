@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server';
+import { getSession } from '@auth0/nextjs-auth0/edge';
 
 // Define public routes that do not require authentication
 const publicRoutes = [
@@ -14,6 +15,11 @@ const publicRoutes = [
   '/api/auth/me', // Auth0 endpoints
 ];
 
+// Define API routes that should be protected
+const protectedApiRoutes = [
+  '/api/'
+];
+
 // Helper to check if a route is public
 function isPublicRoute(path: string): boolean {
     return publicRoutes.some(publicPath => {
@@ -24,7 +30,12 @@ function isPublicRoute(path: string): boolean {
     });
 }
 
-export function middleware(req: NextRequest) {
+// Check if a path matches any of the protected API routes
+function isProtectedApiRoute(path: string): boolean {
+  return protectedApiRoutes.some(route => path.startsWith(route));
+}
+
+export async function middleware(req: NextRequest) {
   const url = req.nextUrl;
   const hostname = req.headers.get('x-forwarded-host') || req.headers.get('host')!;
   const rootDomain = (process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'localhost');
@@ -35,6 +46,32 @@ export function middleware(req: NextRequest) {
   const isAuth0Configured = !!(process.env.AUTH0_SECRET && process.env.AUTH0_BASE_URL && 
                                process.env.AUTH0_ISSUER_BASE_URL && process.env.AUTH0_CLIENT_ID && 
                                process.env.AUTH0_CLIENT_SECRET);
+  
+  // Check if the route is a protected API route that requires authentication
+  if (isProtectedApiRoute(path) && !isPublicRoute(path)) {
+    if (!isAuth0Configured) {
+      return NextResponse.json(
+        { error: 'Authentication required but not configured' },
+        { status: 500 }
+      );
+    }
+    
+    try {
+      const session = await getSession();
+      if (!session?.user) {
+        return NextResponse.json(
+          { error: 'Unauthorized - Authentication required' },
+          { status: 401 }
+        );
+      }
+    } catch (error) {
+      console.error('Error checking authentication:', error);
+      return NextResponse.json(
+        { error: 'Error checking authentication' },
+        { status: 500 }
+      );
+    }
+  }
 
   // For the demo tenant, all routes are public and just need rewriting
   if (hostWithoutPort === `megacorp.${rootDomain}`) {

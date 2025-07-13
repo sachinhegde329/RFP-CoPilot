@@ -32,7 +32,9 @@ export function BillingClient({ tenantId, tenantPlan }: { tenantId: string; tena
     if (tenantPlan === 'free') {
         return (
             <Button asChild>
-                <Link href={`/pricing?tenant=${tenantId}`}>Upgrade Your Plan</Link>
+                <a href="mailto:sales@rfpcopilot.com?subject=Upgrade%20Inquiry&body=Hello%20RFP%20CoPilot%20team%2C%0D%0A%0D%0AI'm%20interested%20in%20upgrading%20my%20plan.%20Please%20contact%20me%20with%20more%20information.%0D%0A%0D%0AThank%20you%2C%0D%0A%5BYour%20Name%5D">
+                    Contact Sales
+                </a>
             </Button>
         );
     }

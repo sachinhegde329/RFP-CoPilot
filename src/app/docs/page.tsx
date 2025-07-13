@@ -19,7 +19,6 @@ export default function DocsPage() {
           </Link>
           <nav className="hidden md:flex items-center gap-2">
             <Button variant="ghost" asChild><Link href="/#features">Features</Link></Button>
-            <Button variant="ghost" asChild><Link href="/pricing">Pricing</Link></Button>
             <Button variant="ghost" asChild><Link href="/docs">Docs</Link></Button>
             <Button variant="ghost" asChild><Link href="#">Contact</Link></Button>
           </nav>
