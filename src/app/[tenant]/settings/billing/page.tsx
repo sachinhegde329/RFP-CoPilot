@@ -6,13 +6,19 @@ import { Badge } from '@/components/ui/badge';
 import { addOnsConfig } from '@/lib/tenants';
 import { BillingClient } from './billing-client';
 
-type BillingSettingsPageProps = {
-  params: { tenant: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-};
-
-export default async function BillingSettingsPage({ params }: BillingSettingsPageProps) {
-    const { tenant: tenantSubdomain } = params;
+export default async function BillingSettingsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ tenant: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  // Await both params and searchParams
+  const [resolvedParams] = await Promise.all([
+    params,
+    searchParams || Promise.resolve({}),
+  ]);
+  const { tenant: tenantSubdomain } = resolvedParams;
     const tenant = await getTenantBySubdomain(tenantSubdomain);
     if (!tenant) {
         notFound();

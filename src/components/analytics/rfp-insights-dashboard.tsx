@@ -9,16 +9,60 @@ import { Target, Lightbulb, Swords, ThumbsDown } from 'lucide-react';
 import dynamic from 'next/dynamic';
 import { Skeleton } from '@/components/ui/skeleton';
 
-const BarChart = dynamic(
-  () => import('recharts').then(mod => mod.BarChart),
+// Import types for recharts components
+import type { 
+  BarChart as BarChartType,
+  Bar as BarType,
+  XAxis as XAxisType,
+  YAxis as YAxisType,
+  Tooltip as TooltipType,
+  ResponsiveContainer as ResponsiveContainerType,
+  CartesianGrid as CartesianGridType
+} from 'recharts';
+
+type BarChartProps = React.ComponentProps<typeof BarChartType>;
+type BarProps = React.ComponentProps<typeof BarType>;
+type XAxisProps = React.ComponentProps<typeof XAxisType>;
+type YAxisProps = React.ComponentProps<typeof YAxisType>;
+type TooltipProps = React.ComponentProps<typeof TooltipType>;
+type ResponsiveContainerProps = React.ComponentProps<typeof ResponsiveContainerType>;
+type CartesianGridProps = React.ComponentProps<typeof CartesianGridType>;
+
+// Dynamic imports with proper typing
+const BarChart = dynamic<BarChartProps>(
+  () => import('recharts').then(mod => mod.BarChart as React.ComponentType<BarChartProps>),
   { ssr: false, loading: () => <Skeleton className="h-[300px] w-full" /> }
 );
-const Bar = dynamic(() => import('recharts').then(mod => mod.Bar), { ssr: false });
-const XAxis = dynamic(() => import('recharts').then(mod => mod.XAxis), { ssr: false });
-const YAxis = dynamic(() => import('recharts').then(mod => mod.YAxis), { ssr: false });
-const Tooltip = dynamic(() => import('recharts').then(mod => mod.Tooltip), { ssr: false });
-const ResponsiveContainer = dynamic(() => import('recharts').then(mod => mod.ResponsiveContainer), { ssr: false });
-const CartesianGrid = dynamic(() => import('recharts').then(mod => mod.CartesianGrid), { ssr: false });
+
+const Bar = dynamic<BarProps>(
+  () => import('recharts').then(mod => mod.Bar as React.ComponentType<BarProps>),
+  { ssr: false }
+);
+
+const XAxis = dynamic<XAxisProps>(
+  () => import('recharts').then(mod => mod.XAxis as React.ComponentType<XAxisProps>),
+  { ssr: false }
+);
+
+const YAxis = dynamic<YAxisProps>(
+  () => import('recharts').then(mod => mod.YAxis as React.ComponentType<YAxisProps>),
+  { ssr: false }
+);
+
+const Tooltip = dynamic<React.ComponentProps<typeof TooltipType>>(
+  () => import('recharts').then(mod => mod.Tooltip as React.ComponentType<React.ComponentProps<typeof TooltipType>>),
+  { ssr: false }
+);
+
+const ResponsiveContainer = dynamic<ResponsiveContainerProps>(
+  () => import('recharts').then(mod => mod.ResponsiveContainer as React.ComponentType<ResponsiveContainerProps>),
+  { ssr: false }
+);
+
+const CartesianGrid = dynamic<CartesianGridProps>(
+  () => import('recharts').then(mod => mod.CartesianGrid as React.ComponentType<CartesianGridProps>),
+  { ssr: false }
+);
 
 
 type RfpInsightsDashboardProps = {

@@ -5,13 +5,19 @@ import { getKnowledgeSourcesAction } from "@/app/actions"
 import { getTenantBySubdomain } from "@/lib/tenants"
 import { notFound } from "next/navigation"
 
-type KnowledgeBasePageProps = {
-  params: { tenant: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-};
-
-export default async function KnowledgeBasePage({ params }: KnowledgeBasePageProps) {
-  const { tenant: tenantSubdomain } = params;
+export default async function KnowledgeBasePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ tenant: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  // Await both params and searchParams
+  const [resolvedParams] = await Promise.all([
+    params,
+    searchParams || Promise.resolve({}),
+  ]);
+  const { tenant: tenantSubdomain } = resolvedParams;
   const tenant = await getTenantBySubdomain(tenantSubdomain);
   if (!tenant) {
       notFound();

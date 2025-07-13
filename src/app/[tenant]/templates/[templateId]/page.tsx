@@ -176,20 +176,71 @@ function TemplateStructureEditor({ structure, setStructure, disabled }: { struct
     );
 }
 
-type ConfigureTemplatePageProps = {
-  params: { tenant: string; templateId: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-};
-
-export default function ConfigureTemplatePage({ params }: ConfigureTemplatePageProps) {
-  const { tenant: tenantSubdomain, templateId } = params;
-  const router = useRouter()
-  const { tenant } = useTenant()
-  const { toast } = useToast()
-  const [template, setTemplate] = useState<Template | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
+export default function ConfigureTemplatePage({
+  params: paramsPromise,
+  searchParams: searchParamsPromise,
+}: {
+  params: Promise<{ tenant: string; templateId: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  // State for template data and UI
+  const [params, setParams] = useState<{ tenant: string; templateId: string } | null>(null);
+  const [template, setTemplate] = useState<Template | null>(null);
   const [structure, setStructure] = useState<TemplateSection[]>([]);
   const [isDirty, setIsDirty] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  const router = useRouter();
+  const { tenant } = useTenant();
+  const { toast } = useToast();
+
+  // Load params and template data
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // First load the route params
+        const [resolvedParams] = await Promise.all([
+          paramsPromise,
+          searchParamsPromise || Promise.resolve({}),
+        ]);
+        setParams(resolvedParams);
+        
+        // Then load the template data
+        const { tenant: tenantSubdomain, templateId } = resolvedParams;
+        const result = await getTemplateAction(tenantSubdomain, templateId);
+        
+        if (result.error || !result.template) {
+          toast({ variant: 'destructive', title: "Error", description: result.error || "Template not found." });
+          router.push(`/${tenantSubdomain}/templates`);
+          return;
+        }
+        
+        setTemplate(result.template);
+        form.reset({
+          name: result.template.name,
+          description: result.template.description,
+        });
+        setStructure(result.template.structure);
+      } catch (error) {
+        console.error('Error loading data:', error);
+        toast({ variant: 'destructive', title: "Error", description: "Failed to load template data." });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadData();
+  }, [paramsPromise, searchParamsPromise, router, toast]);
+
+  if (isLoading || !params) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  const { tenant: tenantSubdomain, templateId } = params;
 
   const currentUser = tenant.members[0]
   const canEdit = template ? canPerformAction(currentUser.role, 'editWorkspace') && template.type !== 'System' : false;

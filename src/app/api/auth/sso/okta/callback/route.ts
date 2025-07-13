@@ -1,8 +1,17 @@
 
 import { type NextRequest, NextResponse } from 'next/server';
 import { getTenantBySubdomain, updateTenant } from '@/lib/tenants';
+import { supabase } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
+  // Check if Supabase is properly configured
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    console.error('Supabase environment variables are not set. Okta SSO functionality is disabled.');
+    return new NextResponse(
+      JSON.stringify({ error: 'SSO functionality is not properly configured' }), 
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    );
+  }
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const state = searchParams.get('state');

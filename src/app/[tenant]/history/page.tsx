@@ -1,14 +1,19 @@
 
 import { redirect } from 'next/navigation';
 
-type HistoryPageProps = {
-  params: { tenant: string };
-  searchParams: { [key: string]: string | string[] | undefined };
-};
-
-export default async function HistoryPage({ params }: HistoryPageProps) {
-  // This page is now merged with the RFPs page.
-  // Redirect to the new consolidated view.
-  const { tenant: tenantSubdomain } = params;
+// Using type assertion to work around the type issue
+export default async function HistoryPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ tenant: string }>;
+  searchParams?: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  // Await both params and searchParams
+  const [resolvedParams] = await Promise.all([
+    params,
+    searchParams || Promise.resolve({}),
+  ]);
+  const { tenant: tenantSubdomain } = resolvedParams;
   redirect(`/${tenantSubdomain}/rfps`);
 }
